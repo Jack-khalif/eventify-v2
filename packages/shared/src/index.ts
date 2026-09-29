@@ -8,3 +8,4 @@ export * from './discover';
 export * from './tiers';
 export * from './text';
 export * from './calendar';
+export * from './checkout';

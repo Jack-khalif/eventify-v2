@@ -29,3 +29,9 @@ export function normalizePhone(input: string, defaultCountry: PhoneCountry = 'KE
 export function toDarajaMsisdn(e164: string): string | null {
   return /^\+254(7|1)\d{8}$/.test(e164) ? e164.slice(1) : null;
 }
+
+/** "+254712345678" → "+254 712 345 678", for showing a number back to the buyer. */
+export function formatPhone(e164: string): string {
+  const m = /^\+(254|211)(\d{3})(\d{3})(\d{3})$/.exec(e164);
+  return m ? `+${m[1]} ${m[2]} ${m[3]} ${m[4]}` : e164;
+}

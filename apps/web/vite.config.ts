@@ -9,5 +9,7 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     restoreMocks: true,
+    // Full user flows (typing a checkout form, waiting on payment) take a few seconds in jsdom.
+    testTimeout: 15_000,
   },
 });

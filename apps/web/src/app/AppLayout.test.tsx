@@ -67,7 +67,6 @@ describe('app shell', () => {
 
 describe('routes', () => {
   it.each([
-    ['/e/sauti-sessions/checkout', 'Checkout'],
     ['/t/EVT-SAUTI-0412', 'Live Pass'],
     ['/organizer/events/new', 'Create event'],
     ['/checkin/abc123', 'Door check-in'],

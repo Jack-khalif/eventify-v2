@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizePhone, toDarajaMsisdn } from './phone';
+import { formatPhone, normalizePhone, toDarajaMsisdn } from './phone';
 
 describe('normalizePhone', () => {
   it.each([
@@ -27,5 +27,13 @@ describe('toDarajaMsisdn', () => {
   it('strips the plus for Kenyan numbers only', () => {
     expect(toDarajaMsisdn('+254712345678')).toBe('254712345678');
     expect(toDarajaMsisdn('+211922456781')).toBeNull();
+  });
+});
+
+describe('formatPhone', () => {
+  it('groups Kenyan and South Sudanese numbers for display', () => {
+    expect(formatPhone('+254712345678')).toBe('+254 712 345 678');
+    expect(formatPhone('+211922456781')).toBe('+211 922 456 781');
+    expect(formatPhone('+15551234567')).toBe('+15551234567');
   });
 });

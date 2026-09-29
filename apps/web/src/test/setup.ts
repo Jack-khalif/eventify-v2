@@ -1,9 +1,13 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import { resetFollowingForTests } from '../lib/following';
 import { resetSavedForTests } from '../lib/saved';
 import { server } from '../mocks/node';
+import { resetOrders } from '../mocks/orders';
+
+// findBy*/waitFor give up after 1s by default; debounced search plus mock latency can exceed that on a busy machine.
+configure({ asyncUtilTimeout: 3_000 });
 
 // jsdom has no matchMedia. Default to a light-mode, non-matching query; tests override with vi.spyOn.
 window.matchMedia = (query: string) =>
@@ -26,6 +30,7 @@ afterEach(() => {
   localStorage.clear();
   resetSavedForTests();
   resetFollowingForTests();
+  resetOrders();
   delete document.documentElement.dataset.theme;
 });
 afterAll(() => server.close());

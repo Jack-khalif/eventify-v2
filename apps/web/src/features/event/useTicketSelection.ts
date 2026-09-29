@@ -7,10 +7,22 @@ import {
 } from '@eventify/shared';
 import { useState } from 'react';
 
-/** Selected tier and quantity for an event page. The aside and the mobile buy bar share this. */
-export function useTicketSelection(event: PublicEvent) {
-  const [tierId, setTierId] = useState(() => defaultTier(event.tiers)?.id ?? null);
-  const [quantity, setQuantity] = useState(1);
+type Initial = { tierId?: string | null; quantity?: number };
+
+/**
+ * Selected tier and quantity. Shared by the event page (aside + mobile buy bar) and checkout,
+ * which starts from what was picked on the event page. Unavailable tiers fall back to the default.
+ */
+export function useTicketSelection(event: PublicEvent, initial: Initial = {}) {
+  const [tierId, setTierId] = useState(() => {
+    const wanted = event.tiers.find((t) => t.id === initial.tierId);
+    return wanted && tierAvailability(wanted).status === 'on_sale'
+      ? wanted.id
+      : (defaultTier(event.tiers)?.id ?? null);
+  });
+  const [quantity, setQuantity] = useState(() =>
+    Number.isInteger(initial.quantity) && initial.quantity! > 0 ? initial.quantity! : 1,
+  );
 
   const tier = event.tiers.find((t) => t.id === tierId) ?? null;
   const availability = tier ? tierAvailability(tier) : null;
