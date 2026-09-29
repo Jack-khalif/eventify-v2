@@ -64,3 +64,7 @@ export function upcomingWeekend(now: Date = new Date()): {
 
   return { from: from.toISOString(), to: to.toISOString(), label };
 }
+
+/** An instant as ISO 8601 in EAT: 2026-10-02T19:00:00+03:00, the format events are stored in. */
+export const toEatIso = (ms: number) =>
+  new Date(ms + EAT_OFFSET_MS).toISOString().slice(0, 19) + '+03:00';

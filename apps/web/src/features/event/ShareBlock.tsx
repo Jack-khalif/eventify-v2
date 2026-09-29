@@ -2,13 +2,45 @@ import { formatDate, type PublicEvent } from '@eventify/shared';
 import { Copy } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Cover } from '../../components/ui';
+import { cn } from '../../lib/cn';
 import { displayUrl, siteUrl } from '../../lib/site';
 
 const shareButton =
   'inline-flex cursor-pointer items-center rounded-md border-2 border-rule px-3.5 py-[9px] text-sm font-extrabold text-fg no-underline hover:bg-accent hover:text-accent-ink';
 
-/** Short link with Copy, share targets and a preview of the link card, as in the design. */
+/** Share section on the event page: link, share targets and a preview of the link card. */
 export function ShareBlock({ event }: { event: PublicEvent }) {
+  return (
+    <section
+      aria-labelledby="share-heading"
+      className="flex flex-col gap-3 border-t-2 border-rule pt-5"
+    >
+      <h2 id="share-heading" className="m-0 text-[22px]">
+        Share
+      </h2>
+      <ShareLinks event={event} />
+      <figure className="m-0 mt-1 flex max-w-[340px] items-center gap-3 rounded-xl border-2 border-hair p-3.5">
+        <Cover tone={event.coverTone} imageUrl={event.coverImageUrl} className="size-16 rounded-md">
+          <img
+            src="/eventify-mark.png"
+            alt=""
+            className="absolute right-[5px] bottom-[5px] h-[11px] w-5"
+          />
+        </Cover>
+        <figcaption className="flex min-w-0 flex-col gap-0.5">
+          <span className="truncate text-[13px] font-extrabold">{event.title}</span>
+          <span className="text-xs text-muted">
+            {formatDate(event.startsAt)} · {event.venue}
+          </span>
+          <span className="font-mono text-[11px] text-muted">Link preview</span>
+        </figcaption>
+      </figure>
+    </section>
+  );
+}
+
+/** The event's link with Copy, plus WhatsApp, Instagram and X. Also used after publishing. */
+export function ShareLinks({ event, className }: { event: PublicEvent; className?: string }) {
   const url = siteUrl(`/e/${event.slug}`);
   const message = `${event.title} · ${formatDate(event.startsAt)} at ${event.venue}`;
   const [copied, setCopied] = useState<null | 'link' | 'instagram'>(null);
@@ -44,13 +76,7 @@ export function ShareBlock({ event }: { event: PublicEvent }) {
   const [host, path] = [displayUrl(url).replace(/\/e\/.*$/, ''), event.slug];
 
   return (
-    <section
-      aria-labelledby="share-heading"
-      className="flex flex-col gap-3 border-t-2 border-rule pt-5"
-    >
-      <h2 id="share-heading" className="m-0 text-[22px]">
-        Share
-      </h2>
+    <div className={cn('flex flex-col gap-3', className)}>
       <div className="flex max-w-[460px] items-center gap-2 rounded-lg border-2 border-hair py-1.5 pr-1.5 pl-3.5">
         <span className="min-w-0 flex-1 truncate text-[15px] font-semibold" data-testid="share-url">
           {host}/e/<span className="text-accent-text">{path}</span>
@@ -86,23 +112,6 @@ export function ShareBlock({ event }: { event: PublicEvent }) {
           X
         </a>
       </div>
-
-      <figure className="m-0 mt-1 flex max-w-[340px] items-center gap-3 rounded-xl border-2 border-hair p-3.5">
-        <Cover tone={event.coverTone} imageUrl={event.coverImageUrl} className="size-16 rounded-md">
-          <img
-            src="/eventify-mark.png"
-            alt=""
-            className="absolute right-[5px] bottom-[5px] h-[11px] w-5"
-          />
-        </Cover>
-        <figcaption className="flex min-w-0 flex-col gap-0.5">
-          <span className="truncate text-[13px] font-extrabold">{event.title}</span>
-          <span className="text-xs text-muted">
-            {formatDate(event.startsAt)} · {event.venue}
-          </span>
-          <span className="font-mono text-[11px] text-muted">Link preview</span>
-        </figcaption>
-      </figure>
-    </section>
+    </div>
   );
 }

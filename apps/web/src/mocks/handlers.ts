@@ -1,12 +1,13 @@
 import {
   checkoutRequestSchema,
+  createEventRequestSchema,
   eventQuerySchema,
   filterEvents,
   ticketLookupStartSchema,
   ticketLookupVerifySchema,
   type OrderView,
 } from '@eventify/shared';
-import { organizerProfiles, publicEvents } from '@eventify/shared/fixtures';
+import { organizerProfiles } from '@eventify/shared/fixtures';
 import { delay, http, HttpResponse } from 'msw';
 import {
   cancelOrder,
@@ -16,6 +17,7 @@ import {
   retryPayment,
   ticketsForPhone,
 } from './orders';
+import { allEvents, createEvent, DEMO_ORGANIZER_ID, eventDashboard, organizerHome } from './events';
 import { TEST_LOOKUP_CODE } from './testPhones';
 
 const notFound = () =>
@@ -39,12 +41,12 @@ export const handlers = [
     if (!query.success) {
       return HttpResponse.json({ error: 'Invalid query' }, { status: 400 });
     }
-    return HttpResponse.json(filterEvents(publicEvents(), query.data));
+    return HttpResponse.json(filterEvents(allEvents(), query.data));
   }),
 
   http.get('*/api/events/:slug', async ({ params }) => {
     await delay();
-    const event = publicEvents().find((e) => e.slug === params.slug && e.status !== 'draft');
+    const event = allEvents().find((e) => e.slug === params.slug && e.status !== 'draft');
     return event ? HttpResponse.json(event) : notFound();
   }),
 
@@ -63,7 +65,7 @@ export const handlers = [
         { status: 400 },
       );
     }
-    const event = publicEvents().find((e) => e.id === body.data.eventId);
+    const event = allEvents().find((e) => e.id === body.data.eventId);
     if (!event) return notFound();
     const result = createOrder(event, body.data);
     if ('error' in result) {
@@ -77,27 +79,27 @@ export const handlers = [
 
   http.get('*/api/orders/:id', async ({ params }) => {
     await delay();
-    const order = getOrder(String(params.id), publicEvents());
+    const order = getOrder(String(params.id), allEvents());
     return order ? HttpResponse.json(order) : notFound();
   }),
 
   http.post('*/api/orders/:id/retry', async ({ params }) => {
     await delay();
-    const order = retryPayment(String(params.id), publicEvents());
+    const order = retryPayment(String(params.id), allEvents());
     if (!order) return notFound();
     return order.status === 'awaiting_payment' ? HttpResponse.json(order) : orderConflict(order);
   }),
 
   http.post('*/api/orders/:id/cancel', async ({ params }) => {
     await delay();
-    const order = cancelOrder(String(params.id), publicEvents());
+    const order = cancelOrder(String(params.id), allEvents());
     if (!order) return notFound();
     return order.status === 'cancelled' ? HttpResponse.json(order) : orderConflict(order);
   }),
 
   http.get('*/api/tickets/:id', async ({ params }) => {
     await delay();
-    const ticket = await getTicket(String(params.id), publicEvents());
+    const ticket = await getTicket(String(params.id), allEvents());
     return ticket ? HttpResponse.json(ticket) : notFound();
   }),
 
@@ -123,6 +125,30 @@ export const handlers = [
         { status: 422 },
       );
     }
-    return HttpResponse.json({ tickets: await ticketsForPhone(body.data.phone, publicEvents()) });
+    return HttpResponse.json({ tickets: await ticketsForPhone(body.data.phone, allEvents()) });
+  }),
+
+  // Organizer tools act as the demo organizer until sign-in exists (Phase A9).
+  http.get('*/api/organizer/me', async () => {
+    await delay();
+    return HttpResponse.json(organizerHome(DEMO_ORGANIZER_ID));
+  }),
+
+  http.get('*/api/organizer/events/:id/dashboard', async ({ params }) => {
+    await delay();
+    const dashboard = eventDashboard(DEMO_ORGANIZER_ID, String(params.id));
+    return dashboard ? HttpResponse.json(dashboard) : notFound();
+  }),
+
+  http.post('*/api/organizer/events', async ({ request }) => {
+    await delay();
+    const body = createEventRequestSchema.safeParse(await request.json());
+    if (!body.success) {
+      return HttpResponse.json(
+        { error: 'validation', message: 'Some event details are missing or invalid.' },
+        { status: 400 },
+      );
+    }
+    return HttpResponse.json(createEvent(body.data, DEMO_ORGANIZER_ID), { status: 201 });
   }),
 ];

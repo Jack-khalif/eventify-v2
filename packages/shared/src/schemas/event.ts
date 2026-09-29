@@ -72,3 +72,32 @@ export function priceLabel(e: Pick<Event, 'tiers' | 'currency'>): string {
   if (onSale.length === 0) return 'Sold out';
   return (e.tiers.length > 1 ? 'From ' : '') + formatMoney(e.currency, Math.min(...onSale));
 }
+
+/** POST /api/organizer/events: what the Create event wizard sends. The server fills in the rest. */
+export const createEventRequestSchema = eventSchema
+  .pick({
+    title: true,
+    category: true,
+    city: true,
+    venue: true,
+    startsAt: true,
+    endsAt: true,
+    description: true,
+    coverImageUrl: true,
+  })
+  .extend({
+    tiers: z
+      .array(
+        ticketTierSchema.pick({
+          name: true,
+          note: true,
+          priceMinor: true,
+          quantity: true,
+          saleStartsAt: true,
+          saleEndsAt: true,
+        }),
+      )
+      .min(1)
+      .max(10),
+  });
+export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;

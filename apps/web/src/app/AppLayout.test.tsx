@@ -54,7 +54,7 @@ describe('app shell', () => {
       }),
     );
     expect(router.state.location.pathname).toBe('/organizer');
-    expect(screen.getByRole('heading', { name: 'Organizer dashboard' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
   });
 
   it('toggles the theme from the header', async () => {

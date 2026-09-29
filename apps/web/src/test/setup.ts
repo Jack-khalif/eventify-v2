@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 import { resetFollowingForTests } from '../lib/following';
 import { resetSavedForTests } from '../lib/saved';
 import { server } from '../mocks/node';
+import { resetEvents } from '../mocks/events';
 import { resetOrders } from '../mocks/orders';
 
 // findBy*/waitFor give up after 1s by default; debounced search plus mock latency can exceed that on a busy machine.
@@ -31,6 +32,7 @@ afterEach(() => {
   resetSavedForTests();
   resetFollowingForTests();
   resetOrders();
+  resetEvents();
   delete document.documentElement.dataset.theme;
 });
 afterAll(() => server.close());
