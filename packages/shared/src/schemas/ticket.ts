@@ -76,3 +76,51 @@ export const ticketLookupVerifySchema = z.object({
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 });
 export const ticketLookupResultSchema = z.object({ tickets: z.array(ticketViewSchema) });
+
+/** A guest row on a door device: includes the pass secret so live codes can be checked offline. */
+export const doorGuestSchema = guestSchema.extend({ passSecret: z.string().min(16) });
+export type DoorGuest = z.infer<typeof doorGuestSchema>;
+
+/** Public half of the key that signs backup QRs (a JWK). */
+export const qrVerifyKeySchema = z.object({
+  kty: z.literal('OKP'),
+  crv: z.literal('Ed25519'),
+  x: z.string().min(1),
+});
+
+/**
+ * GET /api/checkin/:code, and the reply to every sync: everything a door device needs to check
+ * people in with no connection. The link itself is the credential, so codes must be unguessable.
+ */
+export const doorListSchema = z.object({
+  checkinCode: z.string().min(4),
+  event: z.object({
+    id: idSchema,
+    slug: z.string().min(1),
+    title: z.string().min(1),
+    venue: z.string(),
+    startsAt: dateTimeSchema,
+    endsAt: dateTimeSchema,
+  }),
+  /** Door names already in use, offered when a new device picks its door. */
+  doors: z.array(z.string()),
+  guests: z.array(doorGuestSchema),
+  verifyKey: qrVerifyKeySchema,
+  downloadedAt: dateTimeSchema,
+});
+export type DoorList = z.infer<typeof doorListSchema>;
+
+export const doorCheckInSchema = z.object({
+  ticketId: idSchema,
+  at: dateTimeSchema,
+  /** Recorded while the device had no connection. */
+  offline: z.boolean(),
+});
+export type DoorCheckIn = z.infer<typeof doorCheckInSchema>;
+
+/** POST /api/checkin/:code/sync: upload this device's check-ins, get the merged list back. */
+export const doorSyncRequestSchema = z.object({
+  door: z.string().trim().min(1).max(60),
+  checkIns: z.array(doorCheckInSchema).max(1000),
+});
+export type DoorSyncRequest = z.infer<typeof doorSyncRequestSchema>;

@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router';
 import { UiKit } from '../features/dev/UiKit';
+import { CheckinPage } from '../features/checkin/CheckinPage';
 import { CheckoutPage } from '../features/checkout/CheckoutPage';
 import { CreateEventPage } from '../features/create-event/CreateEventPage';
 import { DashboardPage } from '../features/dashboard/DashboardPage';
@@ -43,7 +44,11 @@ export const routes: RouteObject[] = [
       { path: 't/:ticketId/delivery', element: <DeliveryPage /> },
       { path: 'organizer', element: <DashboardPage /> },
       { path: 'organizer/events/new', element: <CreateEventPage /> },
-      { path: 'checkin/:code', element: <ComingSoon title="Door check-in" phase="Phase A7" /> },
+      {
+        path: 'checkin/:code',
+        element: <CheckinPage />,
+        handle: { hideTabs: true } satisfies RouteHandle,
+      },
       { path: 'admin/*', element: <ComingSoon title="Admin portal" phase="Phase A8" /> },
       { path: 'login', element: <ComingSoon title="Sign in" phase="Phase A9" /> },
       { path: 'tickets', element: <FindTicketsPage /> },

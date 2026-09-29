@@ -1,6 +1,7 @@
 import {
   checkoutRequestSchema,
   createEventRequestSchema,
+  doorSyncRequestSchema,
   eventQuerySchema,
   filterEvents,
   ticketLookupStartSchema,
@@ -17,7 +18,15 @@ import {
   retryPayment,
   ticketsForPhone,
 } from './orders';
-import { allEvents, createEvent, DEMO_ORGANIZER_ID, eventDashboard, organizerHome } from './events';
+import { doorList, scannerCheckIns, syncDoor } from './checkin';
+import {
+  allEvents,
+  createEvent,
+  DEMO_ORGANIZER_ID,
+  eventDashboard,
+  eventForCheckinCode,
+  organizerHome,
+} from './events';
 import { TEST_LOOKUP_CODE } from './testPhones';
 
 const notFound = () =>
@@ -136,7 +145,8 @@ export const handlers = [
 
   http.get('*/api/organizer/events/:id/dashboard', async ({ params }) => {
     await delay();
-    const dashboard = eventDashboard(DEMO_ORGANIZER_ID, String(params.id));
+    const id = String(params.id);
+    const dashboard = eventDashboard(DEMO_ORGANIZER_ID, id, scannerCheckIns(id));
     return dashboard ? HttpResponse.json(dashboard) : notFound();
   }),
 
@@ -150,5 +160,28 @@ export const handlers = [
       );
     }
     return HttpResponse.json(createEvent(body.data, DEMO_ORGANIZER_ID), { status: 201 });
+  }),
+
+  // Door check-in: the link's code is the only credential door staff have.
+  http.get('*/api/checkin/:code', async ({ params }) => {
+    await delay();
+    const code = String(params.code);
+    const event = eventForCheckinCode(code);
+    return event ? HttpResponse.json(doorList(event, code)) : notFound();
+  }),
+
+  http.post('*/api/checkin/:code/sync', async ({ params, request }) => {
+    await delay();
+    const code = String(params.code);
+    const event = eventForCheckinCode(code);
+    if (!event) return notFound();
+    const body = doorSyncRequestSchema.safeParse(await request.json());
+    if (!body.success) {
+      return HttpResponse.json(
+        { error: 'validation', message: 'Check-in data was not in the expected format.' },
+        { status: 400 },
+      );
+    }
+    return HttpResponse.json(syncDoor(event, code, body.data));
   }),
 ];

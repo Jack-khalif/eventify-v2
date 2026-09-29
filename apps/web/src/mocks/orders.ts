@@ -32,6 +32,7 @@ type StoredTicket = {
   holderName: string;
   secret: string;
   checkedInAt: string | null;
+  checkedInDoor?: string | null;
 };
 type Db = {
   orders: Record<string, OrderView>;
@@ -239,4 +240,21 @@ export function seedDemoTicket(events: PublicEvent[]) {
     issueTickets(order, event);
     save();
   }
+}
+
+/** Paid tickets for an event, for the door guest list. */
+export function ticketsForEvent(eventId: string) {
+  return Object.values(db.tickets).flatMap((ticket) => {
+    const order = db.orders[ticket.orderId];
+    return order && order.eventId === eventId && order.status === 'paid' ? [{ ticket, order }] : [];
+  });
+}
+
+/** Record a door check-in on a ticket. The earliest one stands. */
+export function recordTicketCheckIn(ticketId: string, at: string, door: string) {
+  const t = db.tickets[ticketId];
+  if (!t || (t.checkedInAt && Date.parse(t.checkedInAt) <= Date.parse(at))) return;
+  t.checkedInAt = at;
+  t.checkedInDoor = door;
+  save();
 }

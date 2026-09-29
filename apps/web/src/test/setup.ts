@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll } from 'vitest';
 import { resetFollowingForTests } from '../lib/following';
 import { resetSavedForTests } from '../lib/saved';
 import { server } from '../mocks/node';
+import { resetCheckIns } from '../mocks/checkin';
 import { resetEvents } from '../mocks/events';
 import { resetOrders } from '../mocks/orders';
 
@@ -33,6 +34,7 @@ afterEach(() => {
   resetFollowingForTests();
   resetOrders();
   resetEvents();
+  resetCheckIns();
   delete document.documentElement.dataset.theme;
 });
 afterAll(() => server.close());

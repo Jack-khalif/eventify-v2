@@ -21,20 +21,24 @@ import { organizers, publicEvents, sautiDashboard } from '@eventify/shared/fixtu
 export const DEMO_ORGANIZER_ID = 'org_amani';
 
 const STORAGE_KEY = 'eventify-mock-events';
-let created: Event[] = load();
+const CODES_KEY = 'eventify-mock-checkin-codes';
+let created: Event[] = load(STORAGE_KEY, []);
+/** Door check-in codes for created events, by event id. */
+let codes: Record<string, string> = load(CODES_KEY, {});
 
-function load(): Event[] {
+function load<T>(key: string, fallback: T): T {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as Event[];
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as T;
   } catch {
     // Storage blocked or corrupt: start fresh for this visit.
   }
-  return [];
+  return fallback;
 }
 
 function save() {
   try {
+    localStorage.setItem(CODES_KEY, JSON.stringify(codes));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(created));
   } catch {
     // Not persisted (a large poster can exceed the quota); fine for a mock.
@@ -43,6 +47,7 @@ function save() {
 
 export function resetEvents() {
   created = [];
+  codes = {};
 }
 
 const withOrganizer = (e: Event): PublicEvent => {
@@ -80,6 +85,9 @@ export function createEvent(req: CreateEventRequest, organizerId: string): Publi
     tiers: req.tiers.map((t, i) => ({ ...t, id: `tier_${id}_${i + 1}`, sold: 0 })),
   };
   created.push(event);
+  // The link is the door staff's only credential, so the code must be unguessable (48 random bits).
+  codes[id] =
+    `${event.slug.split('-')[0]!.slice(0, 12)}-${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
   save();
   return withOrganizer(event);
 }
@@ -114,8 +122,10 @@ export function organizerHome(organizerId: string, now = new Date()): OrganizerH
   };
 }
 
-/** Short, readable door code: "sauti-a92f". */
-function checkinCode(e: Event) {
+/** Door code for an event: random for created events; fixed for the samples ("sauti-a92f", from the design). */
+function checkinCode(e: Event): string {
+  const stored = codes[e.id];
+  if (stored) return stored;
   if (e.id === sautiDashboard.eventId) return 'sauti-a92f';
   let h = 0;
   for (const c of e.id) h = (h * 31 + c.charCodeAt(0)) >>> 0;
@@ -123,8 +133,18 @@ function checkinCode(e: Event) {
   return `${word}-${h.toString(16).padStart(4, '0').slice(-4)}`;
 }
 
-/** Null when the event doesn't exist or belongs to another organizer. */
-export function eventDashboard(organizerId: string, eventId: string): EventDashboard | null {
+export const eventForCheckinCode = (code: string) =>
+  allEvents().find((e) => checkinCode(e) === code);
+
+/**
+ * Null when the event doesn't exist or belongs to another organizer. `doorCheckIns` are the
+ * check-ins recorded through the scanner, added on top of the sample numbers.
+ */
+export function eventDashboard(
+  organizerId: string,
+  eventId: string,
+  doorCheckIns: readonly { door: string }[] = [],
+): EventDashboard | null {
   const e = ownEvents(organizerId).find((x) => x.id === eventId);
   if (!e) return null;
   const o = organizers.find((org) => org.id === organizerId)!;
@@ -137,8 +157,14 @@ export function eventDashboard(organizerId: string, eventId: string): EventDashb
           pageViews: 0,
           pageViewsThisWeek: 0,
           dailySales: Array<number>(14).fill(0),
-          doors: [],
+          doors: [] as EventDashboard['doors'],
         };
+  const doors = traffic.doors.map((d) => ({ ...d }));
+  for (const { door } of doorCheckIns) {
+    const row = doors.find((d) => d.name === door);
+    if (row) row.count += 1;
+    else doors.push({ doorId: `door_${slugify(door)}`, name: door, count: 1 });
+  }
   return {
     ...salesSummary(e),
     eventId: e.id,
@@ -146,11 +172,11 @@ export function eventDashboard(organizerId: string, eventId: string): EventDashb
     slug: e.slug,
     currency: e.currency,
     rateBps: o.rateBps,
-    checkIns: traffic.checkIns,
+    checkIns: traffic.checkIns + doorCheckIns.length,
     pageViews: traffic.pageViews,
     pageViewsThisWeek: traffic.pageViewsThisWeek,
     dailySales: traffic.dailySales,
-    doors: traffic.doors,
+    doors,
     checkinCode: checkinCode(e),
   };
 }

@@ -68,7 +68,6 @@ describe('app shell', () => {
 describe('routes', () => {
   it.each([
     ['/organizer/events/new', 'Create event'],
-    ['/checkin/abc123', 'Door check-in'],
     ['/admin/payouts', 'Admin portal'],
   ])('%s shows the %s screen', (url, heading) => {
     renderApp(url);

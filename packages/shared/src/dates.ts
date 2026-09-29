@@ -68,3 +68,13 @@ export function upcomingWeekend(now: Date = new Date()): {
 /** An instant as ISO 8601 in EAT: 2026-10-02T19:00:00+03:00, the format events are stored in. */
 export const toEatIso = (ms: number) =>
   new Date(ms + EAT_OFFSET_MS).toISOString().slice(0, 19) + '+03:00';
+
+/** "just now", "6 minutes ago", "2 hours ago", or the time for anything older than a day. */
+export function formatAgo(iso: string, now: Date = new Date()): string {
+  const minutes = Math.floor((now.getTime() - Date.parse(iso)) / 60_000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  return `${formatDate(iso)} at ${formatTime(iso)}`;
+}
