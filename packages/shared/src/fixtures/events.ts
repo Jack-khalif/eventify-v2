@@ -1,6 +1,7 @@
 import { CITY_CURRENCY } from '../enums';
 import { toMinor } from '../money';
-import type { Event, TicketTier } from '../schemas';
+import type { Event, PublicEvent, TicketTier } from '../schemas';
+import { organizers } from './organizers';
 
 type TierInput = { name: string; note: string; price: number; quantity?: number; sold?: number };
 
@@ -217,3 +218,14 @@ export const events: Event[] = [
     ],
   }),
 ];
+
+/** Events as the public API returns them, with the organizer summary attached. */
+export function publicEvents(): PublicEvent[] {
+  return events.map((e) => {
+    const o = organizers.find((org) => org.id === e.organizerId)!;
+    return {
+      ...e,
+      organizer: { id: o.id, handle: o.handle, name: o.name, type: o.type, verified: o.verified },
+    };
+  });
+}

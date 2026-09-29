@@ -22,6 +22,8 @@ npm install
 npm run dev        # web app on http://localhost:5173
 ```
 
+Until the backend exists, a mock API (MSW, in `apps/web/src/mocks`) answers `/api/*` in the browser using the sample data in `packages/shared`. See `apps/web/.env.example` to turn it off.
+
 In development, http://localhost:5173/dev/ui shows every UI component. Use the header toggle to check dark mode.
 
 ## Checks (the same ones CI runs)
