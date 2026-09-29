@@ -1,0 +1,47 @@
+import { z } from 'zod';
+import { dateTimeSchema, idSchema } from './common';
+
+/** EVT-SAUTI-0412: human-readable reference printed on the ticket and SMS. Not a secret. */
+export const ticketCodeSchema = z.string().regex(/^EVT-[A-Z0-9]+-\d{4,}$/);
+
+export const ticketSchema = z.object({
+  id: idSchema,
+  code: ticketCodeSchema,
+  orderId: idSchema,
+  eventId: idSchema,
+  tierId: idSchema,
+  holderName: z.string().min(1),
+  checkedInAt: dateTimeSchema.nullable(),
+  checkedInDoorId: idSchema.nullable(),
+});
+export type Ticket = z.infer<typeof ticketSchema>;
+
+export const doorSchema = z.object({
+  id: idSchema,
+  eventId: idSchema,
+  /** "Main Gate", or a volunteer's name. */
+  name: z.string().min(1),
+});
+export type Door = z.infer<typeof doorSchema>;
+
+export const checkInSchema = z.object({
+  id: idSchema,
+  ticketId: idSchema,
+  doorId: idSchema,
+  at: dateTimeSchema,
+  /** Recorded on a device without connectivity and synced later. */
+  offline: z.boolean(),
+});
+export type CheckIn = z.infer<typeof checkInSchema>;
+
+/** One row of the guest list a door device downloads. */
+export const guestSchema = z.object({
+  ticketId: idSchema,
+  code: ticketCodeSchema,
+  name: z.string().min(1),
+  phone: z.string(),
+  tierName: z.string(),
+  checkedInAt: dateTimeSchema.nullable(),
+  checkedInDoor: z.string().nullable(),
+});
+export type Guest = z.infer<typeof guestSchema>;
