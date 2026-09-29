@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <!-- Sample poster for demo data (landscape banner, 16:9). Not a real event poster. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0e1a1c"/>
+      <stop offset="1" stop-color="#13333a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="1320" cy="300" r="260" fill="#5ce1e6" fill-opacity=".14"/>
+  <circle cx="1320" cy="300" r="150" fill="#5ce1e6" fill-opacity=".3"/>
+  <rect x="1180" y="230" width="280" height="140" rx="20" fill="#5ce1e6"/>
+  <text x="1320" y="318" text-anchor="middle" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="56" font-weight="900" fill="#06292b">PAY</text>
+  <text x="110" y="210" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="40" font-weight="700" letter-spacing="10" fill="#5ce1e6">PAYLINK KENYA</text>
+  <text x="110" y="400" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="130" font-weight="900" letter-spacing="-4" fill="#ffffff">Product Launch</text>
+  <text x="110" y="540" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="130" font-weight="900" letter-spacing="-4" fill="#ffffff">&amp; Demo Day</text>
+  <text x="110" y="720" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="44" font-weight="700" letter-spacing="4" fill="#9fb1b3">WED 14 OCT · 9:00 AM · KICC, NAIROBI</text>
+</svg>

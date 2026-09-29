@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { Button, Chip, Dialog, Segmented, Stepper, TextField } from './index';
+import { Button, Chip, Cover, Dialog, Segmented, Stepper, TextField } from './index';
 
 describe('Stepper', () => {
   function Controlled({ min = 1, max = 3 }: { min?: number; max?: number }) {
@@ -123,5 +123,20 @@ describe('Dialog', () => {
     );
     await userEvent.click(screen.getByText('body'));
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('Cover', () => {
+  it('shows the whole poster (contain) over a blurred copy when there is one', () => {
+    render(<Cover tone="music" imageUrl="/sample-posters/sauti-sessions.svg" alt="Sauti poster" />);
+    const poster = screen.getByRole('img', { name: 'Sauti poster' });
+    expect(poster).toHaveClass('object-contain');
+    expect(document.querySelectorAll('img[aria-hidden]')).toHaveLength(1);
+  });
+
+  it('falls back to the category stripes without a poster', () => {
+    const { container } = render(<Cover tone="campus" />);
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.firstChild).toHaveAttribute('data-tone', 'campus');
   });
 });

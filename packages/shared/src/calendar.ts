@@ -23,6 +23,9 @@ function fold(line: string): string {
   return parts.join('\r\n');
 }
 
+const eventDetails = (e: PublicEvent, url: string) => `${e.organizer.name}\n${url}`;
+const eventLocation = (e: PublicEvent) => [e.venue, e.address].filter(Boolean).join(', ');
+
 /** An .ics file for "Add to calendar", also attached to ticket emails later. */
 export function buildCalendarFile(e: PublicEvent, url: string, now: Date = new Date()): string {
   const lines = [
@@ -37,11 +40,38 @@ export function buildCalendarFile(e: PublicEvent, url: string, now: Date = new D
     `DTSTART:${icsDate(e.startsAt)}`,
     `DTEND:${icsDate(e.endsAt)}`,
     `SUMMARY:${icsText(e.title)}`,
-    `LOCATION:${icsText([e.venue, e.address].filter(Boolean).join(', '))}`,
-    `DESCRIPTION:${icsText(`${e.organizer.name}\n${url}`)}`,
+    `LOCATION:${icsText(eventLocation(e))}`,
+    `DESCRIPTION:${icsText(eventDetails(e, url))}`,
     `URL:${url}`,
     'END:VEVENT',
     'END:VCALENDAR',
   ];
   return lines.map(fold).join('\r\n') + '\r\n';
+}
+
+/** Opens Google Calendar's "new event" screen, pre-filled. Works on Android and desktop. */
+export function googleCalendarUrl(e: PublicEvent, url: string): string {
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: e.title,
+    dates: `${icsDate(e.startsAt)}/${icsDate(e.endsAt)}`,
+    details: eventDetails(e, url),
+    location: eventLocation(e),
+    ctz: 'Africa/Nairobi',
+  });
+  return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+/** Outlook.com / Microsoft 365 web calendar, pre-filled. */
+export function outlookCalendarUrl(e: PublicEvent, url: string): string {
+  const params = new URLSearchParams({
+    path: '/calendar/action/compose',
+    rru: 'addevent',
+    subject: e.title,
+    startdt: new Date(e.startsAt).toISOString(),
+    enddt: new Date(e.endsAt).toISOString(),
+    body: eventDetails(e, url),
+    location: eventLocation(e),
+  });
+  return `https://outlook.live.com/calendar/0/action/compose?${params}`;
 }

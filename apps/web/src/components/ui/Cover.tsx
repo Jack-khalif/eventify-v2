@@ -18,7 +18,11 @@ type CoverProps = {
   children?: ReactNode;
 };
 
-/** Event cover: the uploaded poster, or the design's striped placeholder for that category. */
+/**
+ * Event cover. With a poster, the whole poster is shown (never cropped) over a blurred copy of
+ * itself, so portrait flyers, square and landscape artwork all fit any card shape.
+ * Without one, the design's striped placeholder for the category is used.
+ */
 export function Cover({ tone, imageUrl, alt = '', className, children }: CoverProps) {
   return (
     <div
@@ -27,7 +31,21 @@ export function Cover({ tone, imageUrl, alt = '', className, children }: CoverPr
       data-tone={tone}
     >
       {imageUrl && (
-        <img src={imageUrl} alt={alt} className="absolute inset-0 size-full object-cover" />
+        <>
+          <img
+            src={imageUrl}
+            alt=""
+            aria-hidden
+            loading="lazy"
+            className="absolute inset-0 size-full scale-125 object-cover opacity-70 blur-2xl"
+          />
+          <img
+            src={imageUrl}
+            alt={alt}
+            loading="lazy"
+            className="absolute inset-0 size-full object-contain"
+          />
+        </>
       )}
       {children}
     </div>

@@ -17,16 +17,22 @@ const tiers = (eventKey: string, list: TierInput[]): TicketTier[] =>
     saleEndsAt: null,
   }));
 
-type EventInput = Omit<Event, 'id' | 'currency' | 'coverImageUrl' | 'status' | 'tiers'> & {
+type EventInput = Omit<
+  Event,
+  'id' | 'currency' | 'coverImageUrl' | 'mapUrl' | 'status' | 'tiers'
+> & {
   key: string;
   tiers: TierInput[];
+  /** Sample posters live in apps/web/public/sample-posters. */
+  poster?: string;
 };
 
-const event = ({ key, tiers: tierList, ...e }: EventInput): Event => ({
+const event = ({ key, tiers: tierList, poster, ...e }: EventInput): Event => ({
   ...e,
   id: `evt_${key}`,
   currency: CITY_CURRENCY[e.city],
-  coverImageUrl: null,
+  coverImageUrl: poster ? `/sample-posters/${poster}` : null,
+  mapUrl: null,
   status: 'live',
   tiers: tiers(key, tierList),
 });
@@ -35,6 +41,7 @@ const event = ({ key, tiers: tierList, ...e }: EventInput): Event => ({
 export const events: Event[] = [
   event({
     key: 'sauti',
+    poster: 'sauti-sessions.svg',
     slug: 'sauti-sessions',
     title: 'Sauti Sessions: Afro-house Listening Night',
     category: 'Music & Arts',
@@ -64,6 +71,7 @@ export const events: Event[] = [
   }),
   event({
     key: 'hack',
+    poster: 'ieee-hackathon.svg',
     slug: 'ieee-hackathon',
     title: 'IEEE Strathmore Hackathon 2026',
     category: 'Campus',
@@ -148,6 +156,7 @@ export const events: Event[] = [
   }),
   event({
     key: 'launch',
+    poster: 'paylink-launch.svg',
     slug: 'paylink-launch',
     title: 'PayLink Kenya: Product Launch & Demo Day',
     category: 'Corporate',

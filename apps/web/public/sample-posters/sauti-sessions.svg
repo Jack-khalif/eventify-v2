@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350">
+  <!-- Sample poster for demo data (portrait flyer, 4:5). Not a real event poster. -->
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="42%" r="60%">
+      <stop offset="0" stop-color="#1b8f95"/>
+      <stop offset="1" stop-color="#062326"/>
+    </radialGradient>
+  </defs>
+  <rect width="1080" height="1350" fill="url(#glow)"/>
+  <g fill="none" stroke="#5ce1e6" stroke-opacity=".5">
+    <circle cx="540" cy="560" r="330" stroke-width="3"/>
+    <circle cx="540" cy="560" r="280" stroke-width="2"/>
+    <circle cx="540" cy="560" r="230" stroke-width="2"/>
+    <circle cx="540" cy="560" r="180" stroke-width="2"/>
+  </g>
+  <circle cx="540" cy="560" r="120" fill="#5ce1e6"/>
+  <circle cx="540" cy="560" r="14" fill="#062326"/>
+  <text x="540" y="140" text-anchor="middle" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" letter-spacing="12" fill="#dcf8f9">AMANI WANJIRU PRESENTS</text>
+  <text x="540" y="1040" text-anchor="middle" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="128" font-weight="900" letter-spacing="-3" fill="#ffffff">SAUTI</text>
+  <text x="540" y="1150" text-anchor="middle" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="128" font-weight="900" letter-spacing="-3" fill="#5ce1e6">SESSIONS</text>
+  <text x="540" y="1220" text-anchor="middle" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="34" font-weight="600" fill="#dcf8f9">Afro-house Listening Night</text>
+  <text x="540" y="1290" text-anchor="middle" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" letter-spacing="4" fill="#9fb1b3">FRI 02 OCT · THE ALCHEMIST, WESTLANDS</text>
+</svg>

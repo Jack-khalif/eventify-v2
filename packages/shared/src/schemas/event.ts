@@ -6,7 +6,7 @@ import {
   currencySchema,
   eventStatusSchema,
 } from '../enums';
-import { dateTimeSchema, idSchema, moneySchema, slugSchema } from './common';
+import { dateTimeSchema, idSchema, imageUrlSchema, moneySchema, slugSchema } from './common';
 import { formatMoney } from '../money';
 import { organizerSummarySchema } from './organizer';
 
@@ -32,12 +32,18 @@ export const eventSchema = z.object({
   currency: currencySchema,
   venue: z.string().min(1),
   address: z.string(),
+  /**
+   * Exact location picked by the organizer (a Google Maps link). The venue name above is still what
+   * people see; this only makes "Get directions" land on the right pin.
+   */
+  mapUrl: z.url().nullable(),
   startsAt: dateTimeSchema,
   endsAt: dateTimeSchema,
   /** Paragraphs. */
   description: z.array(z.string()),
   coverTone: coverToneSchema,
-  coverImageUrl: z.url().nullable(),
+  /** The organizer's poster. Cards and link previews show it; the striped tone is only a fallback. */
+  coverImageUrl: imageUrlSchema.nullable(),
   organizerId: idSchema,
   status: eventStatusSchema,
   tiers: z.array(ticketTierSchema).min(1),

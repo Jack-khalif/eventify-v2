@@ -10,7 +10,12 @@ import { isNotFound } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { FollowButton } from '../organizer/FollowButton';
 import { SaveButton } from '../saved/SaveButton';
-import { directionsUrl, downloadCalendarFile } from './calendar';
+import {
+  directionsUrl,
+  downloadCalendarFile,
+  googleCalendarLink,
+  outlookCalendarLink,
+} from './calendar';
 import { ShareBlock } from './ShareBlock';
 import { BuyBar, TicketPanel } from './TicketPanel';
 import { useEvent } from './useEvent';
@@ -92,13 +97,28 @@ function EventDetails({ event: e }: { event: PublicEvent }) {
                 <span className="text-sm text-muted">
                   {formatTimeRange(e.startsAt, e.endsAt)} EAT
                 </span>
-                <button
-                  type="button"
-                  onClick={() => downloadCalendarFile(e)}
-                  className="mt-1 cursor-pointer self-start text-[13px] font-semibold text-accent-text hover:text-fg"
+                <a
+                  href={googleCalendarLink(e)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1 text-[13px] font-semibold"
                 >
                   Add to calendar
-                </button>
+                </a>
+                <span className="text-xs text-muted">
+                  or{' '}
+                  <a href={outlookCalendarLink(e)} target="_blank" rel="noopener noreferrer">
+                    Outlook
+                  </a>{' '}
+                  ·{' '}
+                  <button
+                    type="button"
+                    onClick={() => downloadCalendarFile(e)}
+                    className="cursor-pointer text-accent-text underline underline-offset-3 hover:text-fg"
+                  >
+                    Apple / other
+                  </button>
+                </span>
               </div>
             </div>
             <div className="flex gap-3 py-4 pr-4">

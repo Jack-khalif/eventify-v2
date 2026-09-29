@@ -154,14 +154,43 @@ describe('Event page', () => {
     expect(JSON.parse(localStorage.getItem(FOLLOWING_STORAGE_KEY)!)).toEqual(['amaniwanjiru']);
   });
 
-  it('downloads a calendar file', async () => {
+  it('opens Google Calendar pre-filled, like Get directions opens Maps', async () => {
+    await openEvent('sauti-sessions');
+    const link = screen.getByRole('link', { name: 'Add to calendar' });
+    expect(link).toHaveAttribute('target', '_blank');
+    const url = new URL(link.getAttribute('href')!);
+    expect(url.hostname).toBe('calendar.google.com');
+    expect(url.searchParams.get('dates')).toBe('20261002T160000Z/20261002T220000Z');
+    expect(screen.getByRole('link', { name: 'Outlook' }).getAttribute('href')).toContain(
+      'outlook.live.com',
+    );
+  });
+
+  it('uses the organizer’s exact map pin for directions when set', async () => {
+    server.use(
+      http.get('*/api/events/:slug', async () => {
+        const { publicEvents } = await import('@eventify/shared/fixtures');
+        const e = publicEvents().find((x) => x.slug === 'sauti-sessions')!;
+        return HttpResponse.json({ ...e, mapUrl: 'https://maps.app.goo.gl/abc123' });
+      }),
+    );
+    await openEvent('sauti-sessions');
+    expect(screen.getByRole('link', { name: 'Get directions' })).toHaveAttribute(
+      'href',
+      'https://maps.app.goo.gl/abc123',
+    );
+    // The venue name people see stays the same.
+    expect(screen.getByText('The Alchemist, Westlands', { selector: 'span' })).toBeInTheDocument();
+  });
+
+  it('downloads an .ics file for Apple and other calendars', async () => {
     const createObjectURL = vi.fn(() => 'blob:ics');
     URL.createObjectURL = createObjectURL;
     URL.revokeObjectURL = vi.fn();
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     await openEvent('sauti-sessions');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Add to calendar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Apple / other' }));
 
     expect(click).toHaveBeenCalled();
     const blob = (createObjectURL.mock.calls[0] as unknown as [Blob])[0];

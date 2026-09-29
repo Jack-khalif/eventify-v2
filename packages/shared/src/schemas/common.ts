@@ -7,3 +7,5 @@ export const moneySchema = z.int().nonnegative();
 export const rateBpsSchema = z.int().min(0).max(10_000);
 export const handleSchema = z.string().regex(/^[a-z0-9-]{2,40}$/);
 export const slugSchema = z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+/** An absolute URL (e.g. Cloudinary) or a root-relative path served by the web app (sample posters). */
+export const imageUrlSchema = z.union([z.url(), z.string().regex(/^\/[^/]/)]);

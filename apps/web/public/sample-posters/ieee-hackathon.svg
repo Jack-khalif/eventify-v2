@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1080" viewBox="0 0 1080 1080">
+  <!-- Sample poster for demo data (square, 1:1). Not a real event poster. -->
+  <rect width="1080" height="1080" fill="#5ce1e6"/>
+  <g stroke="#06292b" stroke-opacity=".12" stroke-width="2">
+    <path d="M0 180H1080M0 360H1080M0 540H1080M0 720H1080M0 900H1080M180 0V1080M360 0V1080M540 0V1080M720 0V1080M900 0V1080"/>
+  </g>
+  <text x="90" y="330" font-family="ui-monospace, Menlo, monospace" font-size="220" font-weight="700" fill="#06292b">&lt;/&gt;</text>
+  <text x="90" y="560" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="150" font-weight="900" letter-spacing="-4" fill="#06292b">HACK</text>
+  <text x="90" y="700" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="150" font-weight="900" letter-spacing="-4" fill="#06292b">ATHON</text>
+  <text x="90" y="800" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="64" font-weight="800" fill="#007a81">IEEE Strathmore · 2026</text>
+  <rect x="90" y="880" width="900" height="110" rx="24" fill="#06292b"/>
+  <text x="140" y="952" font-family="Archivo, Helvetica, Arial, sans-serif" font-size="40" font-weight="700" letter-spacing="3" fill="#5ce1e6">SAT 03 OCT · 12 HOURS · FREE RSVP</text>
+</svg>
