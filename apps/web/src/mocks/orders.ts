@@ -1,40 +1,90 @@
 import {
+  generatePassSecret,
+  importSigningKey,
   isCheckoutError,
   ORDER_HOLD_MINUTES,
+  randomToken,
+  signTicketQr,
   validateCheckout,
   type CheckoutRequest,
   type OrderView,
   type PublicEvent,
+  type TicketView,
 } from '@eventify/shared';
-import { TEST_PHONE_OUTCOMES } from './testPhones';
+import { DEV_QR_PRIVATE_KEY } from './devKeys';
+import { DEMO_TICKET_PHONE, TEST_PHONE_OUTCOMES } from './testPhones';
 
 /**
- * In-browser stand-in for the order + M-Pesa flow until Phase C. Outcomes are chosen by the
- * last four digits of the buyer's phone, like test card numbers.
+ * In-browser stand-in for orders, M-Pesa and tickets until the backend exists. Outcomes are chosen
+ * by the last four digits of the buyer's phone, like test card numbers. Data is kept in
+ * localStorage so a page refresh behaves as it will with the real backend.
  */
+
 /** Matches the design's demo: the "customer" approves after about 4.5 seconds. */
 export const PROMPT_ANSWERED_AFTER_MS = 4_500;
 export const PROMPT_TIMES_OUT_AFTER_MS = 12_000;
 
-const orders = new Map<string, OrderView>();
-let sequence = 0;
+type StoredTicket = {
+  id: string;
+  code: string;
+  orderId: string;
+  index: number;
+  holderName: string;
+  secret: string;
+  checkedInAt: string | null;
+};
+type Db = {
+  orders: Record<string, OrderView>;
+  tickets: Record<string, StoredTicket>;
+  sequence: number;
+};
+
+const STORAGE_KEY = 'eventify-mock-db';
+let db: Db = load();
+
+function empty(): Db {
+  return { orders: {}, tickets: {}, sequence: 0 };
+}
+
+function load(): Db {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw) as Db;
+  } catch {
+    // Storage blocked or corrupt: start fresh for this visit.
+  }
+  return empty();
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+  } catch {
+    // Not persisted; fine for a mock.
+  }
+}
 
 export function resetOrders() {
-  orders.clear();
-  sequence = 0;
+  db = empty();
 }
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
 function issueTickets(order: OrderView, event: PublicEvent) {
   const key = event.id.replace(/^evt_/, '').toUpperCase();
-  order.tickets = Array.from({ length: order.quantity }, () => {
-    sequence += 1;
-    return {
-      id: `tkt_${order.id}_${sequence}`,
-      code: `EVT-${key}-${String(4820 + sequence).padStart(4, '0')}`,
+  order.tickets = Array.from({ length: order.quantity }, (_, i) => {
+    db.sequence += 1;
+    const ticket: StoredTicket = {
+      id: randomToken(),
+      code: `EVT-${key}-${String(4820 + db.sequence).padStart(4, '0')}`,
+      orderId: order.id,
+      index: i + 1,
       holderName: order.buyer.name,
+      secret: generatePassSecret(),
+      checkedInAt: null,
     };
+    db.tickets[ticket.id] = ticket;
+    return { id: ticket.id, code: ticket.code, holderName: ticket.holderName };
   });
 }
 
@@ -73,10 +123,10 @@ export function createOrder(event: PublicEvent, req: CheckoutRequest, now = Date
   const check = validateCheckout(event, req, new Date(now));
   if (isCheckoutError(check)) return check;
 
-  sequence += 1;
+  db.sequence += 1;
   const free = check.totalMinor === 0;
   const order: OrderView = {
-    id: `ord_${String(sequence).padStart(5, '0')}`,
+    id: `ord_${String(db.sequence).padStart(5, '0')}`,
     eventId: event.id,
     tierId: check.tier.id,
     quantity: req.quantity,
@@ -93,13 +143,17 @@ export function createOrder(event: PublicEvent, req: CheckoutRequest, now = Date
     tickets: [],
   };
   if (free) issueTickets(order, event);
-  orders.set(order.id, order);
+  db.orders[order.id] = order;
+  save();
   return order;
 }
 
 export function getOrder(id: string, events: PublicEvent[], now = Date.now()) {
-  const order = orders.get(id);
-  if (order) settle(order, events, now);
+  const order = db.orders[id];
+  if (order) {
+    settle(order, events, now);
+    save();
+  }
   return order;
 }
 
@@ -111,6 +165,7 @@ export function retryPayment(id: string, events: PublicEvent[], now = Date.now()
   order.status = 'awaiting_payment';
   order.failureReason = null;
   order.paymentRequestedAt = iso(now);
+  save();
   return order;
 }
 
@@ -118,6 +173,70 @@ export function cancelOrder(id: string, events: PublicEvent[], now = Date.now())
   const order = getOrder(id, events, now);
   if (order && (order.status === 'awaiting_payment' || order.status === 'failed')) {
     order.status = 'cancelled';
+    save();
   }
   return order;
+}
+
+let signingKey: Promise<CryptoKey> | null = null;
+
+async function toTicketView(
+  t: StoredTicket,
+  events: PublicEvent[],
+): Promise<TicketView | undefined> {
+  const order = db.orders[t.orderId];
+  const event = order && events.find((e) => e.id === order.eventId);
+  if (!order || !event) return undefined;
+  signingKey ??= importSigningKey(DEV_QR_PRIVATE_KEY);
+  return {
+    id: t.id,
+    code: t.code,
+    holderName: t.holderName,
+    tierName: event.tiers.find((tier) => tier.id === order.tierId)?.name ?? '',
+    index: t.index,
+    count: order.quantity,
+    event,
+    passSecret: t.secret,
+    qrPayload: await signTicketQr(await signingKey, t.id),
+    checkedInAt: t.checkedInAt,
+  };
+}
+
+export const getTicket = (id: string, events: PublicEvent[]) => {
+  const t = db.tickets[id];
+  return t ? toTicketView(t, events) : Promise.resolve(undefined);
+};
+
+/** All tickets bought with this phone number, soonest event first. */
+export async function ticketsForPhone(phone: string, events: PublicEvent[]) {
+  const views = await Promise.all(
+    Object.values(db.tickets)
+      .filter((t) => db.orders[t.orderId]?.buyer.phone === phone)
+      .map((t) => toTicketView(t, events)),
+  );
+  return views
+    .filter((v): v is TicketView => v !== undefined)
+    .sort(
+      (a, b) => Date.parse(a.event.startsAt) - Date.parse(b.event.startsAt) || a.index - b.index,
+    );
+}
+
+/** One paid ticket for the demo phone, so "Find my tickets" has something to show before any purchase. */
+export function seedDemoTicket(events: PublicEvent[]) {
+  if (Object.keys(db.orders).length > 0) return;
+  const event = events.find((e) => e.slug === 'sauti-sessions');
+  if (!event) return;
+  const order = createOrder(event, {
+    eventId: event.id,
+    tierId: 'tier_sauti_regular',
+    quantity: 1,
+    buyer: { name: 'Amina Otieno', phone: DEMO_TICKET_PHONE, email: 'amina@example.com' },
+    paymentMethod: 'mpesa',
+  });
+  if ('id' in order) {
+    order.status = 'paid';
+    order.paymentRequestedAt = null;
+    issueTickets(order, event);
+    save();
+  }
 }

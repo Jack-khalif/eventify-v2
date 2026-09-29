@@ -2,11 +2,21 @@ import {
   checkoutRequestSchema,
   eventQuerySchema,
   filterEvents,
+  ticketLookupStartSchema,
+  ticketLookupVerifySchema,
   type OrderView,
 } from '@eventify/shared';
 import { organizerProfiles, publicEvents } from '@eventify/shared/fixtures';
 import { delay, http, HttpResponse } from 'msw';
-import { cancelOrder, createOrder, getOrder, retryPayment } from './orders';
+import {
+  cancelOrder,
+  createOrder,
+  getOrder,
+  getTicket,
+  retryPayment,
+  ticketsForPhone,
+} from './orders';
+import { TEST_LOOKUP_CODE } from './testPhones';
 
 const notFound = () =>
   HttpResponse.json({ error: 'not_found', message: 'Not found' }, { status: 404 });
@@ -83,5 +93,36 @@ export const handlers = [
     const order = cancelOrder(String(params.id), publicEvents());
     if (!order) return notFound();
     return order.status === 'cancelled' ? HttpResponse.json(order) : orderConflict(order);
+  }),
+
+  http.get('*/api/tickets/:id', async ({ params }) => {
+    await delay();
+    const ticket = await getTicket(String(params.id), publicEvents());
+    return ticket ? HttpResponse.json(ticket) : notFound();
+  }),
+
+  // Always "sent", whether or not the number has tickets, so nobody can probe which numbers bought.
+  http.post('*/api/ticket-lookup/start', async ({ request }) => {
+    await delay();
+    const body = ticketLookupStartSchema.safeParse(await request.json());
+    if (!body.success) {
+      return HttpResponse.json(
+        { error: 'validation', message: 'Enter a valid phone number.' },
+        { status: 400 },
+      );
+    }
+    return HttpResponse.json({ sent: true });
+  }),
+
+  http.post('*/api/ticket-lookup/verify', async ({ request }) => {
+    await delay();
+    const body = ticketLookupVerifySchema.safeParse(await request.json());
+    if (!body.success || body.data.code !== TEST_LOOKUP_CODE) {
+      return HttpResponse.json(
+        { error: 'invalid_code', message: "That code isn't right. Check the SMS and try again." },
+        { status: 422 },
+      );
+    }
+    return HttpResponse.json({ tickets: await ticketsForPhone(body.data.phone, publicEvents()) });
   }),
 ];

@@ -82,7 +82,12 @@ describe('Checkout form', () => {
     await fillDetails();
     await userEvent.click(screen.getByRole('button', { name: 'Reserve spot' }));
     expect(await screen.findByRole('heading', { name: "You're going! 🎉" })).toBeInTheDocument();
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(
+      await screen.findByRole('article', { name: 'Live Pass for IEEE Strathmore Hackathon 2026' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('list', { name: 'Other tickets in this order' }),
+    ).not.toBeInTheDocument();
   });
 
   it('cannot take payment for South Sudan events yet', async () => {
@@ -126,10 +131,13 @@ describe('M-Pesa waiting and outcomes', () => {
 
     advance(5_000);
     expect(await screen.findByRole('heading', { name: "You're going! 🎉" })).toBeInTheDocument();
-    expect(
-      within(screen.getByRole('list', { name: 'Your tickets' })).getAllByRole('listitem'),
-    ).toHaveLength(2);
-    expect(screen.getAllByText(/^EVT-SAUTI-\d{4}$/)).toHaveLength(2);
+    const pass = await screen.findByRole('article', { name: /^Live Pass for / });
+    expect(within(pass).getByText(/^EVT-SAUTI-\d{4}$/)).toBeInTheDocument();
+    const others = screen.getByRole('list', { name: 'Other tickets in this order' });
+    expect(within(others).getByRole('link', { name: /Ticket 2 of 2/ })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/t\//),
+    );
   });
 
   it('counts up and offers help if the prompt is slow', async () => {

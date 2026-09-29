@@ -7,6 +7,9 @@ import { EventPage } from '../features/event/EventPage';
 import { OrganizerPage } from '../features/organizer/OrganizerPage';
 import { SavedPage } from '../features/saved/SavedPage';
 import { ComingSoon } from '../features/placeholder/ComingSoon';
+import { DeliveryPage } from '../features/tickets/DeliveryPage';
+import { FindTicketsPage } from '../features/tickets/FindTicketsPage';
+import { TicketPage } from '../features/tickets/TicketPage';
 import { NotFound } from '../features/placeholder/NotFound';
 import { AppLayout, type RouteHandle } from './AppLayout';
 
@@ -30,7 +33,12 @@ export const routes: RouteObject[] = [
         element: <OrderPage />,
         handle: { hideTabs: true } satisfies RouteHandle,
       },
-      { path: 't/:ticketId', element: <ComingSoon title="Live Pass" phase="Phase A5" /> },
+      {
+        path: 't/:ticketId',
+        element: <TicketPage />,
+        handle: { hideTabs: true } satisfies RouteHandle,
+      },
+      { path: 't/:ticketId/delivery', element: <DeliveryPage /> },
       { path: 'organizer', element: <ComingSoon title="Organizer dashboard" phase="Phase A6" /> },
       {
         path: 'organizer/events/new',
@@ -39,16 +47,7 @@ export const routes: RouteObject[] = [
       { path: 'checkin/:code', element: <ComingSoon title="Door check-in" phase="Phase A7" /> },
       { path: 'admin/*', element: <ComingSoon title="Admin portal" phase="Phase A8" /> },
       { path: 'login', element: <ComingSoon title="Sign in" phase="Phase A9" /> },
-      {
-        path: 'tickets',
-        element: (
-          <ComingSoon
-            title="Your tickets"
-            phase="Phase A5"
-            note="Find your tickets with your phone number and a one-time SMS code."
-          />
-        ),
-      },
+      { path: 'tickets', element: <FindTicketsPage /> },
       { path: 'saved', element: <SavedPage /> },
       {
         path: 'account',

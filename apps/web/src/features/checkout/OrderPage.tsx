@@ -1,5 +1,4 @@
 import {
-  formatDate,
   formatMoney,
   formatPhone,
   type OrderView,
@@ -14,6 +13,9 @@ import { Button, buttonClass } from '../../components/ui';
 import { isNotFound } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useEvent } from '../event/useEvent';
+import { LivePass } from '../tickets/LivePass';
+import { PassActions } from '../tickets/PassActions';
+import { useTicket } from '../tickets/useTickets';
 import type { CheckoutState } from './CheckoutPage';
 import { TestModeHint } from './TestModeHint';
 import { formatElapsed, useElapsedSeconds } from './useElapsed';
@@ -87,7 +89,7 @@ export function OrderPage() {
     case 'failed':
       return <Failed event={e} order={o} />;
     case 'paid':
-      return <Success event={e} order={o} />;
+      return <Success order={o} />;
     case 'expired':
       return (
         <Closed
@@ -259,43 +261,62 @@ function Closed({
   );
 }
 
-/** Minimal confirmation. Phase A5 replaces the ticket list with the Express Entry Live Pass. */
-function Success({ event, order }: { event: PublicEvent; order: OrderView }) {
+/** "You're going!" with the first ticket's Live Pass; other tickets in the order are one tap away. */
+function Success({ order }: { order: OrderView }) {
+  const [first, ...rest] = order.tickets;
+  const pass = useTicket(first?.id ?? '');
   return (
-    <Centered>
-      <div className="flex flex-col gap-2">
-        <h1 className="m-0 text-[32px] tracking-[-0.02em]">You're going! 🎉</h1>
-        <p className="m-0 text-[15px] text-muted">
+    <section className="mx-auto flex w-full max-w-[520px] flex-1 flex-col items-center gap-[18px] px-5 pt-8 pb-10">
+      <div className="flex flex-col gap-1 text-center">
+        <h1 className="m-0 text-[26px] tracking-[-0.02em]">You're going! 🎉</h1>
+        <p className="m-0 text-[13px] text-muted">
           Sent by SMS and email to{' '}
           <strong className="text-fg whitespace-nowrap">{formatPhone(order.buyer.phone)}</strong>{' '}
           and <strong className="text-fg">{order.buyer.email}</strong>
         </p>
       </div>
-      <div className="w-full rounded-2xl border-2 border-rule p-5 text-left">
-        <div className="text-lg font-extrabold">{event.title}</div>
-        <div className="text-sm text-muted">
-          {formatDate(event.startsAt)} · {event.venue}
-        </div>
-        <ul aria-label="Your tickets" className="m-0 mt-4 flex list-none flex-col gap-2 p-0">
-          {order.tickets.map((t) => (
-            <li
-              key={t.id}
-              className="flex items-center justify-between gap-3 rounded-lg bg-surface px-3.5 py-2.5"
-            >
-              <span className="font-mono text-sm font-bold">{t.code}</span>
-              <Link to={`/t/${t.id}`} className="text-sm font-semibold">
-                View pass
+      {pass.data ? (
+        <LivePass ticket={pass.data} />
+      ) : pass.isError ? (
+        <ErrorState onRetry={pass.refetch}>
+          Couldn't load your pass. Your tickets are confirmed.
+        </ErrorState>
+      ) : (
+        <div
+          aria-busy="true"
+          aria-label="Loading pass"
+          className="h-[480px] w-full max-w-[360px]"
+        />
+      )}
+      {rest.length > 0 && (
+        <ul
+          aria-label="Other tickets in this order"
+          className="m-0 flex w-full max-w-[360px] list-none flex-col gap-2 p-0"
+        >
+          {rest.map((t, i) => (
+            <li key={t.id}>
+              <Link
+                to={`/t/${t.id}`}
+                className="flex items-center justify-between gap-3 rounded-lg border-2 border-hair px-3.5 py-2.5 text-fg no-underline hover:bg-surface"
+              >
+                <span className="text-sm font-bold">
+                  Ticket {i + 2} of {order.tickets.length}
+                </span>
+                <span className="font-mono text-xs text-muted">{t.code}</span>
               </Link>
             </li>
           ))}
         </ul>
-      </div>
-      <Link
-        to="/"
-        className={buttonClass({ variant: 'outline', size: 'sm', className: 'text-fg' })}
-      >
+      )}
+      {pass.data && <PassActions event={pass.data.event} />}
+      {first && (
+        <Link to={`/t/${first.id}/delivery`} className="text-[13px] font-bold text-accent-text">
+          Preview the SMS &amp; email →
+        </Link>
+      )}
+      <Link to="/" className="text-[13px] text-muted">
         Back to Discover
       </Link>
-    </Centered>
+    </section>
   );
 }
