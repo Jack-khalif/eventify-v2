@@ -1,6 +1,8 @@
 import { eventQuerySchema, filterEvents } from '@eventify/shared';
-import { publicEvents } from '@eventify/shared/fixtures';
+import { organizerProfiles, publicEvents } from '@eventify/shared/fixtures';
 import { delay, http, HttpResponse } from 'msw';
+
+const notFound = () => HttpResponse.json({ error: 'Not found' }, { status: 404 });
 
 /**
  * Mock API used until the real backend lands (Phase B). Paths and response shapes are the
@@ -15,5 +17,17 @@ export const handlers = [
       return HttpResponse.json({ error: 'Invalid query' }, { status: 400 });
     }
     return HttpResponse.json(filterEvents(publicEvents(), query.data));
+  }),
+
+  http.get('*/api/events/:slug', async ({ params }) => {
+    await delay();
+    const event = publicEvents().find((e) => e.slug === params.slug && e.status !== 'draft');
+    return event ? HttpResponse.json(event) : notFound();
+  }),
+
+  http.get('*/api/organizers/:handle', async ({ params }) => {
+    await delay();
+    const profile = organizerProfiles.find((o) => o.handle === params.handle);
+    return profile ? HttpResponse.json(profile) : notFound();
   }),
 ];

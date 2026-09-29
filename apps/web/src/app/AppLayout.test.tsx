@@ -67,13 +67,11 @@ describe('app shell', () => {
 
 describe('routes', () => {
   it.each([
-    ['/e/sauti-sessions', 'Event'],
     ['/e/sauti-sessions/checkout', 'Checkout'],
     ['/t/EVT-SAUTI-0412', 'Live Pass'],
     ['/organizer/events/new', 'Create event'],
     ['/checkin/abc123', 'Door check-in'],
     ['/admin/payouts', 'Admin portal'],
-    ['/amaniwanjiru', 'Organizer profile'],
   ])('%s shows the %s screen', (url, heading) => {
     renderApp(url);
     expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument();

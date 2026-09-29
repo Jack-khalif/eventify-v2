@@ -15,11 +15,15 @@ import { SaveButton } from '../saved/SaveButton';
 
 type EventCardProps = {
   event: PublicEvent;
-  /** rail = "This weekend" row (weekday badge); grid = "Upcoming" (month badge, kicker). */
-  variant?: 'rail' | 'grid';
+  /**
+   * rail = "This weekend" row (weekday badge); grid = "Upcoming" (month badge, kicker);
+   * compact = organizer profile (small, title and date only).
+   */
+  variant?: 'rail' | 'grid' | 'compact';
 };
 
 export function EventCard({ event: e, variant = 'grid' }: EventCardProps) {
+  if (variant === 'compact') return <CompactEventCard event={e} />;
   const rail = variant === 'rail';
   return (
     <article
@@ -90,5 +94,24 @@ export function EventCardSkeleton({ variant = 'grid' }: { variant?: 'rail' | 'gr
       <div className="h-4 w-3/4 rounded bg-surface-2" />
       <div className="h-3 w-1/2 rounded bg-surface-2" />
     </div>
+  );
+}
+
+function CompactEventCard({ event: e }: { event: PublicEvent }) {
+  return (
+    <article className="relative flex flex-col gap-2 hover:opacity-90">
+      <Cover tone={e.coverTone} imageUrl={e.coverImageUrl} className="aspect-[4/3] rounded-xl" />
+      <h3 className="m-0 text-sm leading-[1.2] font-extrabold">
+        <Link
+          to={`/e/${e.slug}`}
+          className="text-fg no-underline after:absolute after:inset-0 hover:text-fg"
+        >
+          {e.title}
+        </Link>
+      </h3>
+      <span className="text-xs text-muted">
+        {formatDate(e.startsAt)} · {e.venue}
+      </span>
+    </article>
   );
 }

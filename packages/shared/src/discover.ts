@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { categorySchema, citySchema } from './enums';
-import { isFreeEvent, type PublicEvent } from './schemas';
+import { handleSchema, isFreeEvent, type PublicEvent } from './schemas';
 
 /** "Free" is a filter, not a stored category: it matches events where every tier is free. */
 export const discoverCategorySchema = z.union([categorySchema, z.literal('Free')]);
@@ -14,6 +14,8 @@ export const eventQuerySchema = z.object({
   /** Only events starting in [from, to). */
   from: z.iso.datetime({ offset: true }).optional(),
   to: z.iso.datetime({ offset: true }).optional(),
+  /** Only this organizer's events (profile page). */
+  organizer: handleSchema.optional(),
   /** Comma-separated event ids, e.g. for the Saved page. */
   ids: z.string().optional(),
 });
@@ -36,6 +38,7 @@ export function filterEvents(
   return events
     .filter((e) => e.status === 'live' && Date.parse(e.endsAt) > now.getTime())
     .filter((e) => !ids || ids.has(e.id))
+    .filter((e) => !query.organizer || e.organizer.handle === query.organizer)
     .filter((e) => !query.city || e.city === query.city)
     .filter(
       (e) =>

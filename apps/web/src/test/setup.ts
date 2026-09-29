@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll } from 'vitest';
+import { resetFollowingForTests } from '../lib/following';
 import { resetSavedForTests } from '../lib/saved';
 import { server } from '../mocks/node';
 
@@ -24,6 +25,7 @@ afterEach(() => {
   server.resetHandlers();
   localStorage.clear();
   resetSavedForTests();
+  resetFollowingForTests();
   delete document.documentElement.dataset.theme;
 });
 afterAll(() => server.close());

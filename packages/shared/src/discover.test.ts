@@ -74,3 +74,10 @@ describe('filterEvents', () => {
     expect(slugs(filterEvents(withDraft, {}, now))).not.toContain('pwani-taarab');
   });
 });
+
+describe('filterEvents by organizer', () => {
+  it('returns only that organizer’s events', () => {
+    expect(slugs(filterEvents(all, { organizer: 'paylink' }, now))).toEqual(['paylink-launch']);
+    expect(filterEvents(all, { organizer: 'nobody' }, now)).toEqual([]);
+  });
+});

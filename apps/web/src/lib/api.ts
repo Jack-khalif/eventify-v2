@@ -12,6 +12,8 @@ export class ApiError extends Error {
   }
 }
 
+export const isNotFound = (error: unknown) => error instanceof ApiError && error.status === 404;
+
 type Params = Record<string, string | undefined>;
 
 /**

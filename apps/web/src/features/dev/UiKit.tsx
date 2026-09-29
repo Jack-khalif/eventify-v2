@@ -93,8 +93,8 @@ export function UiKit() {
 
       <Section title="Tags">
         <div className="flex flex-wrap items-center gap-2">
-          <Tag tone="danger">SOLD OUT</Tag>
-          <Tag tone="accent">ONLY 8 LEFT</Tag>
+          <Tag tone="neutral">SOLD OUT</Tag>
+          <Tag tone="danger">ONLY 8 LEFT</Tag>
           <Tag tone="accent">Live</Tag>
           <Tag tone="neutral">Draft</Tag>
           <Tag tone="good">Paid</Tag>
