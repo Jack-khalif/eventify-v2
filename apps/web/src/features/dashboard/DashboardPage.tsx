@@ -12,12 +12,12 @@ import {
 import { Copy } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { BarChart } from '../../components/BarChart';
 import { ErrorState } from '../../components/PageStates';
 import { Button, buttonClass, Card, Cover, Tag } from '../../components/ui';
 import { cn } from '../../lib/cn';
 import { displayUrl, siteUrl } from '../../lib/site';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
-import { SalesChart } from './SalesChart';
 import { useEventDashboard, useOrganizerHome } from './useDashboard';
 
 const STATUS_LABEL: Record<EventStatus, string> = { live: 'Live', draft: 'Draft', ended: 'Ended' };
@@ -185,7 +185,13 @@ function EventNumbers({ d, myEvents }: { d: EventDashboard; myEvents: ReactNode 
             <h3 className="m-0 text-base">Ticket sales, last 14 days</h3>
             <span className="text-[13px] text-muted">{count(soldIn14)} tickets</span>
           </div>
-          <SalesChart daily={d.dailySales} />
+          <BarChart
+            daily={d.dailySales}
+            format={(n) => `${n} ${n === 1 ? 'ticket' : 'tickets'}`}
+            caption="Tickets sold per day"
+            valueLabel="Tickets"
+            empty="No sales in the last 14 days yet."
+          />
         </Card>
 
         <Card className="flex flex-[1_1_260px] flex-col gap-3 p-5">

@@ -11,6 +11,7 @@ import {
   type PublicEvent,
 } from '@eventify/shared';
 import { organizers, publicEvents, sautiDashboard } from '@eventify/shared/fixtures';
+import { eventRate, organizerRate } from './rates';
 
 /**
  * In-browser stand-in for events organizers create, until the backend exists. Created events are
@@ -106,7 +107,7 @@ export function organizerHome(organizerId: string, now = new Date()): OrganizerH
       name: o.name,
       type: o.type,
       verified: o.verified,
-      rateBps: o.rateBps,
+      rateBps: organizerRate(o.id),
     },
     events: ownEvents(organizerId).map((e) => ({
       id: e.id,
@@ -171,7 +172,7 @@ export function eventDashboard(
     title: e.title,
     slug: e.slug,
     currency: e.currency,
-    rateBps: o.rateBps,
+    rateBps: eventRate(o.id, e.id),
     checkIns: traffic.checkIns + doorCheckIns.length,
     pageViews: traffic.pageViews,
     pageViewsThisWeek: traffic.pageViewsThisWeek,

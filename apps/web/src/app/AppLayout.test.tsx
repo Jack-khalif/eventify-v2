@@ -66,10 +66,7 @@ describe('app shell', () => {
 });
 
 describe('routes', () => {
-  it.each([
-    ['/organizer/events/new', 'Create event'],
-    ['/admin/payouts', 'Admin portal'],
-  ])('%s shows the %s screen', (url, heading) => {
+  it.each([['/organizer/events/new', 'Create event']])('%s shows the %s screen', (url, heading) => {
     renderApp(url);
     expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
   });

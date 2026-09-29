@@ -1,4 +1,11 @@
 import type { RouteObject } from 'react-router';
+import { AdminLayout } from '../features/admin/AdminLayout';
+import { AgentsPage } from '../features/admin/AgentsPage';
+import { ApprovalsPage } from '../features/admin/ApprovalsPage';
+import { OrganizerDetailPage } from '../features/admin/OrganizerDetailPage';
+import { OrganizersPage } from '../features/admin/OrganizersPage';
+import { OverviewPage } from '../features/admin/OverviewPage';
+import { PayoutsPage } from '../features/admin/PayoutsPage';
 import { UiKit } from '../features/dev/UiKit';
 import { CheckinPage } from '../features/checkin/CheckinPage';
 import { CheckoutPage } from '../features/checkout/CheckoutPage';
@@ -21,6 +28,19 @@ import { AppLayout, type RouteHandle } from './AppLayout';
  * Placeholders name the phase that replaces them.
  */
 export const routes: RouteObject[] = [
+  {
+    path: 'admin',
+    element: <AdminLayout />,
+    children: [
+      { index: true, element: <OverviewPage /> },
+      { path: 'organizers', element: <OrganizersPage /> },
+      { path: 'organizers/:handle', element: <OrganizerDetailPage /> },
+      { path: 'approvals', element: <ApprovalsPage /> },
+      { path: 'agents', element: <AgentsPage /> },
+      { path: 'payouts', element: <PayoutsPage /> },
+      { path: '*', element: <NotFound /> },
+    ],
+  },
   {
     element: <AppLayout />,
     children: [
@@ -49,7 +69,6 @@ export const routes: RouteObject[] = [
         element: <CheckinPage />,
         handle: { hideTabs: true } satisfies RouteHandle,
       },
-      { path: 'admin/*', element: <ComingSoon title="Admin portal" phase="Phase A8" /> },
       { path: 'login', element: <ComingSoon title="Sign in" phase="Phase A9" /> },
       { path: 'tickets', element: <FindTicketsPage /> },
       { path: 'saved', element: <SavedPage /> },

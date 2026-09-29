@@ -12,6 +12,7 @@ import {
   type TicketView,
 } from '@eventify/shared';
 import { DEV_QR_PRIVATE_KEY } from './devKeys';
+import { eventRate } from './rates';
 import { DEMO_TICKET_PHONE, TEST_PHONE_OUTCOMES } from './testPhones';
 
 /**
@@ -139,7 +140,8 @@ export function createOrder(event: PublicEvent, req: CheckoutRequest, now = Date
     failureReason: null,
     paymentRequestedAt: free ? null : iso(now),
     holdExpiresAt: iso(now + ORDER_HOLD_MINUTES * 60_000),
-    rateBps: 500,
+    // The rate in force when the order is placed; later rate changes don't touch it.
+    rateBps: eventRate(event.organizer.id, event.id),
     createdAt: iso(now),
     tickets: [],
   };

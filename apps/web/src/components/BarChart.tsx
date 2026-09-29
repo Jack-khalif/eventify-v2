@@ -1,13 +1,33 @@
 import { formatDate } from '@eventify/shared';
-import { cn } from '../../lib/cn';
+import { cn } from '../lib/cn';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+type BarChartProps = {
+  /** One value per day, oldest first, ending today. */
+  daily: number[];
+  /** "24 tickets", "KSh 12,400". */
+  format: (value: number) => string;
+  /** Table caption for screen readers, e.g. "Tickets sold per day". */
+  caption: string;
+  /** Column header for the values. */
+  valueLabel: string;
+  empty: string;
+  now?: Date;
+};
+
 /**
- * Daily ticket sales, oldest first, ending today. One series, so no legend: the card title names it.
- * Hovering a bar shows its day and count; screen readers get the same numbers as a table.
+ * Daily bars ending today. One series, so no legend: the card title names it.
+ * Hovering a bar shows its day and value; screen readers get the same numbers as a table.
  */
-export function SalesChart({ daily, now = new Date() }: { daily: number[]; now?: Date }) {
+export function BarChart({
+  daily,
+  format,
+  caption,
+  valueLabel,
+  empty,
+  now = new Date(),
+}: BarChartProps) {
   const max = Math.max(...daily, 1);
   const days = daily.map((count, i) => ({
     count,
@@ -17,7 +37,7 @@ export function SalesChart({ daily, now = new Date() }: { daily: number[]; now?:
   if (daily.every((n) => n === 0)) {
     return (
       <p className="m-0 flex h-40 items-center justify-center rounded-lg bg-surface text-sm text-muted">
-        No sales in the last 14 days yet.
+        {empty}
       </p>
     );
   }
@@ -39,7 +59,7 @@ export function SalesChart({ daily, now = new Date() }: { daily: number[]; now?:
                 />
               )}
               <span className="pointer-events-none absolute bottom-full z-10 mb-1 hidden rounded-md bg-fg px-2 py-1 text-xs font-bold whitespace-nowrap text-bg group-hover:block">
-                {d.label} · {d.count} {d.count === 1 ? 'ticket' : 'tickets'}
+                {d.label} · {format(d.count)}
               </span>
             </div>
           );
@@ -50,18 +70,18 @@ export function SalesChart({ daily, now = new Date() }: { daily: number[]; now?:
         <span>Today</span>
       </div>
       <table className="sr-only">
-        <caption>Tickets sold per day</caption>
+        <caption>{caption}</caption>
         <thead>
           <tr>
             <th scope="col">Day</th>
-            <th scope="col">Tickets</th>
+            <th scope="col">{valueLabel}</th>
           </tr>
         </thead>
         <tbody>
           {days.map((d) => (
             <tr key={d.label}>
               <td>{d.label}</td>
-              <td>{d.count}</td>
+              <td>{format(d.count)}</td>
             </tr>
           ))}
         </tbody>
