@@ -1,0 +1,48 @@
+/*
+ * Eventify design tokens, copied from design/EventifyApp.dc.html (the [data-ev-root] block).
+ * Change colours here, never inline. Tailwind utilities (bg-surface, text-muted…) map to these in index.css.
+ */
+:root {
+  --ev-bg: #ffffff;
+  --ev-surface: #f1f6f6;
+  --ev-surface-2: #e2eded;
+  --ev-text: #0e1a1c;
+  --ev-muted: #56666a;
+  --ev-rule: #0e1a1c;
+  --ev-hair: rgba(14, 26, 28, 0.12);
+  --ev-accent: #5ce1e6;
+  --ev-accent-hover: #3fd2d8;
+  --ev-accent-ink: #06292b;
+  --ev-accent-text: #007a81;
+  --ev-accent-soft: #dcf8f9;
+  --ev-card-date: #ffffff;
+  --ev-danger: #c94a3b;
+  --ev-danger-soft: #fbe6e2;
+  --ev-good: #1f9d55;
+  --ev-good-soft: #dff3e5;
+
+  /* Placeholder event covers until an organizer uploads a poster. */
+  --ev-cover-music: repeating-linear-gradient(135deg, #0a5a5f 0 14px, #0d666b 14px 28px);
+  --ev-cover-campus: repeating-linear-gradient(135deg, #5ce1e6 0 14px, #6fe7eb 14px 28px);
+  --ev-cover-corporate: repeating-linear-gradient(135deg, #13272b 0 14px, #182f34 14px 28px);
+  --ev-cover-workshop: repeating-linear-gradient(135deg, #e6dcc6 0 14px, #ece4d1 14px 28px);
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --ev-bg: #0b1113;
+  --ev-surface: #141d20;
+  --ev-surface-2: #1d292c;
+  --ev-text: #eef5f5;
+  --ev-muted: #9fb1b3;
+  --ev-rule: #eef5f5;
+  --ev-hair: rgba(238, 245, 245, 0.14);
+  --ev-accent-text: #5ce1e6;
+  --ev-accent-soft: #0f3437;
+  --ev-card-date: #0b1113;
+  --ev-danger-soft: #3a1f1c;
+  --ev-good-soft: #0f2c1c;
+
+  color-scheme: dark;
+}

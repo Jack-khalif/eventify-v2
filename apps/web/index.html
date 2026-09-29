@@ -11,6 +11,16 @@
       href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // Set the theme before first paint so dark-mode users don't see a white flash. Mirrors initialTheme() in src/app/theme.tsx.
+      try {
+        var t = localStorage.getItem('eventify-theme');
+        if (t !== 'light' && t !== 'dark') {
+          t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

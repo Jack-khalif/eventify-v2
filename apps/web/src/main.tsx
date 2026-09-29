@@ -1,10 +1,16 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Phase0Check } from './Phase0Check';
-import './phase0.css';
+import { createBrowserRouter, RouterProvider } from 'react-router';
+import { routes } from './app/routes';
+import { ThemeProvider } from './app/ThemeProvider';
+import './styles/index.css';
+
+const router = createBrowserRouter(routes);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <Phase0Check />
+    <ThemeProvider>
+      <RouterProvider router={router} />
+    </ThemeProvider>
   </StrictMode>,
 );

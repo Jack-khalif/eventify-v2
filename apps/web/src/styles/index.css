@@ -1,0 +1,108 @@
+@import 'tailwindcss';
+@import './tokens.css';
+
+/* Only the design's tokens exist as colours, so off-palette classes like bg-red-500 won't compile. */
+@theme inline {
+  --color-*: initial;
+  --color-white: #ffffff;
+  --color-transparent: transparent;
+  --color-current: currentColor;
+  --color-bg: var(--ev-bg);
+  --color-surface: var(--ev-surface);
+  --color-surface-2: var(--ev-surface-2);
+  --color-fg: var(--ev-text);
+  --color-muted: var(--ev-muted);
+  --color-rule: var(--ev-rule);
+  --color-hair: var(--ev-hair);
+  --color-accent: var(--ev-accent);
+  --color-accent-hover: var(--ev-accent-hover);
+  --color-accent-ink: var(--ev-accent-ink);
+  --color-accent-text: var(--ev-accent-text);
+  --color-accent-soft: var(--ev-accent-soft);
+  --color-card-date: var(--ev-card-date);
+  --color-danger: var(--ev-danger);
+  --color-danger-soft: var(--ev-danger-soft);
+  --color-good: var(--ev-good);
+  --color-good-soft: var(--ev-good-soft);
+
+  --font-sans: 'Archivo', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Radii used across the design: badges 6, buttons 10–14, cards 16, pass 22. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 22px;
+
+  --animate-ev-pulse: ev-pulse 1.6s ease-out infinite;
+  --animate-ev-spin: ev-spin 0.9s linear infinite;
+}
+
+@keyframes ev-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.55;
+  }
+  70% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+@keyframes ev-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@layer base {
+  html,
+  body {
+    background: var(--ev-bg);
+    color: var(--ev-text);
+    font-family: var(--font-sans);
+  }
+  body {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.015em;
+  }
+  a {
+    color: var(--ev-accent-text);
+    text-underline-offset: 3px;
+  }
+  a:hover {
+    color: var(--ev-text);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ev-accent-text);
+    outline-offset: 2px;
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--ev-accent) 40%, transparent);
+  }
+  button:disabled {
+    cursor: not-allowed;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

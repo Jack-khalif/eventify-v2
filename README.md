@@ -22,13 +22,15 @@ npm install
 npm run dev        # web app on http://localhost:5173
 ```
 
+In development, http://localhost:5173/dev/ui shows every UI component. Use the header toggle to check dark mode.
+
 ## Checks (the same ones CI runs)
 
 ```sh
 npm run format:check
 npm run lint
 npm run typecheck
-npm test
+npm test           # or: npm run test:watch --workspace @eventify/web
 npm run build
 ```
 
@@ -37,4 +39,5 @@ npm run build
 - Money is stored as integers in minor units (`priceMinor: 120000` = KSh 1,200). Format with `formatMoney`.
 - Fee rates are basis points (`450` = 4.5%). Use `feeFor` / `organizerNetFor`.
 - Phone numbers are stored as E.164 (`+254712345678`). Normalise input with `normalizePhone`.
+- Colours come only from the design tokens in `apps/web/src/styles/tokens.css` (Tailwind: `bg-surface`, `text-muted`, `border-rule`…). Default Tailwind colours are switched off.
 - Times are ISO 8601 with an offset and shown in EAT (`Africa/Nairobi`).
