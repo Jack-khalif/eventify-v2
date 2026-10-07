@@ -392,7 +392,7 @@ export function applicationRows(): AdminApplicationRow[] {
         city: o.city,
         agent: agentOf(o),
         contactName: a.contactName,
-        phone: a.phone,
+        email: a.email,
         about: a.about,
         appliedAt: a.appliedAt,
       },

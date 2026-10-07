@@ -1,11 +1,11 @@
 import type { Account, OrganizerApplication } from '../schemas';
 
-/** Sample sign-ins, one per kind of user. The mock API accepts any of these phones. */
+/** Sample sign-ins, one per kind of user. The mock API accepts any of these emails. */
 export const accounts: Account[] = [
   {
     id: 'acc_amani',
     name: 'Amani Wanjiru',
-    phone: '+254700000001',
+    email: 'organizer@eventify.test',
     role: 'organizer',
     organizerId: 'org_amani',
     agentId: null,
@@ -13,7 +13,7 @@ export const accounts: Account[] = [
   {
     id: 'acc_mizizi',
     name: 'Nyandeng Akol',
-    phone: '+254700000002',
+    email: 'pending@eventify.test',
     role: 'organizer',
     organizerId: 'org_mizizi',
     agentId: null,
@@ -21,7 +21,7 @@ export const accounts: Account[] = [
   {
     id: 'acc_lens',
     name: 'Brian Otieno',
-    phone: '+254700000003',
+    email: 'suspended@eventify.test',
     role: 'organizer',
     organizerId: 'org_lens',
     agentId: null,
@@ -29,7 +29,7 @@ export const accounts: Account[] = [
   {
     id: 'acc_grace',
     name: 'Grace Achieng',
-    phone: '+254700000010',
+    email: 'agent@eventify.test',
     role: 'agent',
     organizerId: null,
     agentId: 'agent_grace',
@@ -37,7 +37,7 @@ export const accounts: Account[] = [
   {
     id: 'acc_admin',
     name: 'Naomi Kiptoo',
-    phone: '+254700000020',
+    email: 'admin@eventify.test',
     role: 'super_admin',
     organizerId: null,
     agentId: null,
@@ -48,7 +48,7 @@ export const organizerApplications: OrganizerApplication[] = [
   {
     organizerId: 'org_mizizi',
     contactName: 'Nyandeng Akol',
-    phone: '+254700000002',
+    email: 'pending@eventify.test',
     about:
       'We are a collective of painters and printmakers in Juba. We run open studio days and small exhibitions, about one a month.',
     appliedAt: '2026-09-24T09:30:00+03:00',

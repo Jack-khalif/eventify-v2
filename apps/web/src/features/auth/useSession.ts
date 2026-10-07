@@ -49,11 +49,11 @@ export function useSession(): SessionState & {
   return { status: query.isError ? 'error' : 'loading', user: null, ...extras };
 }
 
-/** Step 1: text a one-time code to this phone. */
+/** Step 1: email a one-time code to this address. */
 export function useStartSignIn() {
   return useMutation({
-    mutationFn: (phone: string) =>
-      apiPost('/api/auth/start', signInStartSchema.parse({ phone }), signInStartResultSchema),
+    mutationFn: (email: string) =>
+      apiPost('/api/auth/start', signInStartSchema.parse({ email }), signInStartResultSchema),
   });
 }
 
@@ -61,7 +61,7 @@ export function useStartSignIn() {
 export function useVerifySignIn() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (req: { phone: string; code: string }) =>
+    mutationFn: (req: { email: string; code: string }) =>
       apiPost('/api/auth/verify', signInVerifySchema.parse(req), sessionSchema),
     onSuccess: ({ token, user }) => {
       forgetPersonalData(queryClient);

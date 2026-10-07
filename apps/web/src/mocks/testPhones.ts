@@ -16,9 +16,9 @@ export const DEMO_TICKET_PHONE = '+254712345678';
 
 /** Mock API only: the sample accounts in the shared fixtures, one per kind of user. */
 export const TEST_SIGN_INS = [
-  { label: 'Organizer (approved)', phone: '+254700000001' },
-  { label: 'Organizer (waiting for approval)', phone: '+254700000002' },
-  { label: 'Organizer (suspended)', phone: '+254700000003' },
-  { label: 'Agent', phone: '+254700000010' },
-  { label: 'Super Admin', phone: '+254700000020' },
+  { label: 'Organizer (approved)', email: 'organizer@eventify.test' },
+  { label: 'Organizer (waiting for approval)', email: 'pending@eventify.test' },
+  { label: 'Organizer (suspended)', email: 'suspended@eventify.test' },
+  { label: 'Agent', email: 'agent@eventify.test' },
+  { label: 'Super Admin', email: 'admin@eventify.test' },
 ] as const;

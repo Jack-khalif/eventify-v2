@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    /* Web Crypto type names (CryptoKey, JsonWebKey) come from the DOM lib, as in packages/shared. */
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"]
+  },
+  "include": ["src", "drizzle.config.ts", "vitest.config.ts"]
+}

@@ -26,6 +26,7 @@ import {
   getOrder,
   getTicket,
   retryPayment,
+  ticketsForEmail,
   ticketsForPhone,
 } from './orders';
 import {
@@ -220,23 +221,26 @@ export const handlers = [
     return HttpResponse.json({ tickets: await ticketsForPhone(body.data.phone, allEvents()) });
   }),
 
-  // Sign-in: a one-time code to the phone, as for "Find my tickets".
+  // Sign-in: a one-time code sent by email.
   http.post('*/api/auth/start', async ({ request }) => {
     await delay();
     const body = signInStartSchema.safeParse(await request.json());
     return body.success
       ? HttpResponse.json({ sent: true })
-      : badRequest('Enter a valid phone number.');
+      : badRequest('Enter a valid email address.');
   }),
 
   http.post('*/api/auth/verify', async ({ request }) => {
     await delay();
     const body = signInVerifySchema.safeParse(await request.json());
-    const session = body.success ? verifySignIn(body.data.phone, body.data.code) : null;
+    const session = body.success ? verifySignIn(body.data.email, body.data.code) : null;
     return session
       ? HttpResponse.json(session)
       : HttpResponse.json(
-          { error: 'invalid_code', message: "That code isn't right. Check the SMS and try again." },
+          {
+            error: 'invalid_code',
+            message: "That code isn't right. Check the email and try again.",
+          },
           { status: 422 },
         );
   }),
@@ -254,12 +258,12 @@ export const handlers = [
     return HttpResponse.json({ ok: true });
   }),
 
-  // Tickets bought with the signed-in phone: it was verified at sign-in, so no second code.
+  // Tickets bought with the signed-in email: it was verified at sign-in, so no second code.
   http.get('*/api/me/tickets', async ({ request }) => {
     await delay();
     const account = accountOf(request);
     if (!account) return unauthorized();
-    return HttpResponse.json({ tickets: await ticketsForPhone(account.phone, allEvents()) });
+    return HttpResponse.json({ tickets: await ticketsForEmail(account.email, allEvents()) });
   }),
 
   http.post('*/api/organizer/apply', async ({ request }) => {

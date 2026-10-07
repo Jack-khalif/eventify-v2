@@ -8,28 +8,28 @@ import { signInAs } from '../../test/signIn';
 
 type User = ReturnType<typeof userEvent.setup>;
 
-async function signIn(user: User, phone: string, button = 'Sign in') {
-  await user.type(await screen.findByLabelText('Phone number'), phone);
-  await user.click(screen.getByRole('button', { name: 'Text me a code' }));
+async function signIn(user: User, email: string, button = 'Sign in') {
+  await user.type(await screen.findByLabelText('Email'), email);
+  await user.click(screen.getByRole('button', { name: 'Email me a code' }));
   await user.type(await screen.findByLabelText('Code'), '123456');
   await user.click(screen.getByRole('button', { name: button }));
 }
 
 describe('Sign in', () => {
   it('offers the sample accounts that exist', () => {
-    expect(TEST_SIGN_INS.map((s) => s.phone)).toEqual(accounts.map((a) => a.phone));
+    expect(TEST_SIGN_INS.map((s) => s.email)).toEqual(accounts.map((a) => a.email));
   });
 
-  it('rejects a bad number and a wrong code', async () => {
+  it('rejects a bad email and a wrong code', async () => {
     const user = userEvent.setup();
     renderApp('/login');
-    await user.type(await screen.findByLabelText('Phone number'), '12345');
-    await user.click(screen.getByRole('button', { name: 'Text me a code' }));
-    expect(screen.getByText('Enter a valid phone number')).toBeInTheDocument();
+    await user.type(await screen.findByLabelText('Email'), 'not-an-email');
+    await user.click(screen.getByRole('button', { name: 'Email me a code' }));
+    expect(screen.getByText('Enter a valid email address')).toBeInTheDocument();
 
-    await user.clear(screen.getByLabelText('Phone number'));
-    await user.type(screen.getByLabelText('Phone number'), '0700000001');
-    await user.click(screen.getByRole('button', { name: 'Text me a code' }));
+    await user.clear(screen.getByLabelText('Email'));
+    await user.type(screen.getByLabelText('Email'), 'organizer@eventify.test');
+    await user.click(screen.getByRole('button', { name: 'Email me a code' }));
     await user.type(await screen.findByLabelText('Code'), '000000');
     await user.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(await screen.findByText(/That code isn't right/)).toBeInTheDocument();
@@ -38,7 +38,7 @@ describe('Sign in', () => {
   it('takes an organizer to their dashboard', async () => {
     const user = userEvent.setup();
     const { router } = renderApp('/login');
-    await signIn(user, '0700 000 001');
+    await signIn(user, ' Organizer@Eventify.test');
     expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/organizer');
   });
@@ -46,7 +46,7 @@ describe('Sign in', () => {
   it('takes staff to the admin portal', async () => {
     const user = userEvent.setup();
     const { router } = renderApp('/login');
-    await signIn(user, '0700000020');
+    await signIn(user, 'admin@eventify.test');
     expect(await screen.findByRole('heading', { level: 1, name: 'Overview' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/admin');
     expect(await screen.findByText('Naomi Kiptoo')).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe('Sign in', () => {
   it('ignores a next link that leaves the site', async () => {
     const user = userEvent.setup();
     const { router } = renderApp('/login?next=//evil.example');
-    await signIn(user, '0700000001');
+    await signIn(user, 'organizer@eventify.test');
     await waitFor(() => expect(router.state.location.pathname).toBe('/organizer'));
   });
 
@@ -121,9 +121,9 @@ describe('Who can create events', () => {
     const first = renderApp('/organizer');
     await user.click((await screen.findAllByRole('link', { name: 'Apply to host' }))[0]!);
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'First, verify your phone' }),
+      await screen.findByRole('heading', { level: 1, name: 'First, verify your email' }),
     ).toBeInTheDocument();
-    await signIn(user, '0711 222 333', 'Continue');
+    await signIn(user, 'wambui@example.com', 'Continue');
 
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Apply to host' }),

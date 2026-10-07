@@ -11,15 +11,15 @@ import { useLookupResult, useMyTickets, useStartLookup, useVerifyLookup } from '
 
 /**
  * /tickets: "Find my tickets". Buyers need no account: they prove the phone is theirs with a
- * one-time SMS code and see every ticket bought with it. Someone signed in already proved theirs,
- * so their tickets show straight away.
+ * one-time SMS code and see every ticket bought with it. Someone signed in already proved their
+ * email, so the tickets bought with it show straight away.
  */
 export function FindTicketsPage() {
   useDocumentTitle('Your tickets');
   const { result, clear } = useLookupResult();
   const [phone, setPhone] = useState<string | null>(null);
   const { user } = useSession();
-  /** Signed in, but looking up tickets bought with another number. */
+  /** Signed in, but looking up tickets by the phone number used at checkout. */
   const [otherNumber, setOtherNumber] = useState(false);
   const mine = useMyTickets({ enabled: !!user && !otherNumber && !result });
   const showMine = !!user && !otherNumber && !result;
@@ -30,9 +30,14 @@ export function FindTicketsPage() {
       {showMine ? (
         mine.data ? (
           <TicketList
-            phone={user.phone}
+            owner={user.email}
             tickets={mine.data}
-            onChangeNumber={() => setOtherNumber(true)}
+            changeLabel="Find tickets by phone number"
+            empty={{
+              title: 'No tickets for this email',
+              body: 'Tickets show here when this email was entered at checkout. You can also find them by the phone number you used.',
+            }}
+            onChange={() => setOtherNumber(true)}
           />
         ) : mine.isError ? (
           <p role="alert" className="m-0 text-sm text-danger">
@@ -50,9 +55,14 @@ export function FindTicketsPage() {
         )
       ) : result ? (
         <TicketList
-          phone={result.phone}
+          owner={formatPhone(result.phone)}
           tickets={result.tickets}
-          onChangeNumber={() => {
+          changeLabel="Use a different number"
+          empty={{
+            title: 'No tickets for this number',
+            body: 'Tickets are listed under the phone number entered at checkout. Try another number, or check the email we sent when you bought them.',
+          }}
+          onChange={() => {
             clear();
             setPhone(null);
           }}
@@ -168,35 +178,37 @@ function CodeStep({ phone, onChangeNumber }: { phone: string; onChangeNumber: ()
 }
 
 function TicketList({
-  phone,
+  owner,
   tickets,
-  onChangeNumber,
+  changeLabel,
+  empty,
+  onChange,
 }: {
-  phone: string;
+  /** Whose tickets these are: the phone number or email they were bought with. */
+  owner: string;
   tickets: TicketView[];
-  onChangeNumber: () => void;
+  changeLabel: string;
+  empty: { title: string; body: string };
+  onChange: () => void;
 }) {
   // Fixed for the visit: whether an event has ended doesn't need to tick over live.
   const [now] = useState(() => Date.now());
   return (
     <div className="flex flex-col gap-4">
       <p className="m-0 text-[15px] text-muted">
-        Tickets for <strong className="whitespace-nowrap text-fg">{formatPhone(phone)}</strong> ·{' '}
+        Tickets for <strong className="break-all text-fg">{owner}</strong> ·{' '}
         <button
           type="button"
-          onClick={onChangeNumber}
+          onClick={onChange}
           className="cursor-pointer text-accent-text underline underline-offset-3 hover:text-fg"
         >
-          Use a different number
+          {changeLabel}
         </button>
       </p>
       {tickets.length === 0 ? (
         <div className="flex flex-col items-start gap-3 rounded-2xl border-2 border-hair p-5">
-          <span className="font-extrabold">No tickets for this number</span>
-          <span className="text-sm text-muted">
-            Tickets are listed under the phone number entered at checkout. Try another number, or
-            check the SMS we sent when you bought them.
-          </span>
+          <span className="font-extrabold">{empty.title}</span>
+          <span className="text-sm text-muted">{empty.body}</span>
           <Link to="/" className="text-sm font-bold">
             Find events
           </Link>
