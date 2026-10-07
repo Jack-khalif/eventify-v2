@@ -1,12 +1,13 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { setDemoRole } from '../../mocks/admin';
 import { renderApp } from '../../test/render';
+import { signInAs } from '../../test/signIn';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-09-29T10:00:00+03:00'));
+  signInAs('superAdmin');
 });
 afterEach(() => vi.useRealTimers());
 
@@ -47,13 +48,12 @@ describe('Organizers', () => {
   });
 
   it('shows an agent only the organizers they onboarded', async () => {
-    const user = userEvent.setup();
+    signInAs('agent');
     renderApp('/admin/organizers');
     await within(await screen.findByRole('table')).findByRole('link', { name: 'Amani Wanjiru' });
-    await user.click(screen.getAllByRole('radio', { name: 'Agent' })[0]!);
 
-    await waitFor(() => expect(tableRows()).toHaveLength(3));
-    expect(screen.getByText(/Viewing as agent/)).toBeInTheDocument();
+    expect(tableRows()).toHaveLength(3);
+    expect(screen.getByText(/Signed in as agent/)).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Admin' });
     expect(within(nav).queryByRole('link', { name: /Approvals/ })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Agent')).not.toBeInTheDocument();
@@ -76,12 +76,13 @@ describe('Organizers', () => {
     expect(screen.getByText('Festival season deal')).toBeInTheDocument();
     unmount();
 
+    signInAs('organizer');
     renderApp('/organizer');
     expect(await screen.findByText('4% rate')).toBeInTheDocument();
   });
 
   it('sends an agent’s rate below 3% to a Super Admin, who approves it', async () => {
-    setDemoRole('agent');
+    signInAs('agent');
     const user = userEvent.setup();
     const first = renderApp('/admin/organizers/ieee-strathmore');
     await user.click(await screen.findByRole('button', { name: 'Change rate' }));
@@ -100,7 +101,7 @@ describe('Organizers', () => {
     expect(screen.getByTestId('org-rate')).toHaveTextContent('5%');
     first.unmount();
 
-    setDemoRole('super_admin');
+    signInAs('superAdmin');
     const second = renderApp('/admin/approvals');
     await user.click(
       await screen.findByRole('button', {
@@ -118,7 +119,69 @@ describe('Organizers', () => {
 
     renderApp('/admin/organizers/ieee-strathmore');
     await waitFor(() => expect(screen.getByTestId('org-rate')).toHaveTextContent('2.5%'));
-    expect(screen.getByText('Grace Achieng, approved by Super Admin')).toBeInTheDocument();
+    expect(screen.getByText('Grace Achieng, approved by Naomi Kiptoo')).toBeInTheDocument();
+  });
+});
+
+describe('Organizer approval', () => {
+  it('lists applications and lets a Super Admin approve one', async () => {
+    const user = userEvent.setup();
+    renderApp('/admin/approvals');
+    const approve = await screen.findByRole('button', {
+      name: 'Approve Mizizi Art Collective as an organizer',
+    });
+    expect(screen.getByText(/collective of painters and printmakers/)).toBeInTheDocument();
+    // One application plus the sample rate request.
+    const nav = screen.getByRole('navigation', { name: 'Admin' });
+    await waitFor(() =>
+      expect(within(nav).getByRole('link', { name: /Approvals/ })).toHaveTextContent(
+        'Approvals2 pending',
+      ),
+    );
+
+    await user.click(approve);
+    expect(await screen.findByText('No applications waiting.')).toBeInTheDocument();
+  });
+
+  it('lets a Super Admin suspend and reinstate an organizer', async () => {
+    const user = userEvent.setup();
+    renderApp('/admin/organizers/amaniwanjiru');
+    await user.click(await screen.findByRole('button', { name: 'Suspend' }));
+    await user.click(
+      within(screen.getByRole('dialog')).getByRole('button', { name: 'Suspend organizer' }),
+    );
+    expect(await screen.findByText('Amani Wanjiru is suspended.')).toBeInTheDocument();
+
+    await user.click(await screen.findByRole('button', { name: 'Reinstate' }));
+    expect(await screen.findByText('Amani Wanjiru can now publish events.')).toBeInTheDocument();
+  });
+
+  it('gives agents no way to approve or suspend', async () => {
+    signInAs('agent');
+    renderApp('/admin/organizers/mizizi');
+    await screen.findByRole('heading', { level: 1, name: 'Mizizi Art Collective' });
+    expect(screen.queryByText('Publishing access')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Approve|Suspend/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('Admin access', () => {
+  it('sends guests to sign in and comes back afterwards', async () => {
+    localStorage.clear();
+    const { router } = renderApp('/admin/payouts');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeInTheDocument();
+    expect(router.state.location.pathname + router.state.location.search).toBe(
+      '/login?next=%2Fadmin%2Fpayouts',
+    );
+  });
+
+  it('turns away signed-in people who are not staff', async () => {
+    signInAs('organizer');
+    renderApp('/admin');
+    expect(
+      await screen.findByRole('heading', { name: "You don't have access to this page" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
   });
 });
 
@@ -146,7 +209,7 @@ describe('Payouts', () => {
   });
 
   it('keeps payouts read-only for agents, and approvals out of reach', async () => {
-    setDemoRole('agent');
+    signInAs('agent');
     const first = renderApp('/admin/payouts');
     expect(
       await screen.findByText('Only a Super Admin can mark payouts as paid.'),

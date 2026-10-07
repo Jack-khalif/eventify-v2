@@ -6,21 +6,49 @@ import { Button, Cover, Tag, TextField } from '../../components/ui';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { DEMO_TICKET_PHONE, TEST_LOOKUP_CODE } from '../../mocks/testPhones';
 import { ticketLine } from './ticketLine';
-import { useLookupResult, useStartLookup, useVerifyLookup } from './useTickets';
+import { useSession } from '../auth/useSession';
+import { useLookupResult, useMyTickets, useStartLookup, useVerifyLookup } from './useTickets';
 
 /**
- * /tickets: "Find my tickets". Buyers have no account, so they prove the phone is theirs with a
- * one-time SMS code and see every ticket bought with it.
+ * /tickets: "Find my tickets". Buyers need no account: they prove the phone is theirs with a
+ * one-time SMS code and see every ticket bought with it. Someone signed in already proved theirs,
+ * so their tickets show straight away.
  */
 export function FindTicketsPage() {
   useDocumentTitle('Your tickets');
   const { result, clear } = useLookupResult();
   const [phone, setPhone] = useState<string | null>(null);
+  const { user } = useSession();
+  /** Signed in, but looking up tickets bought with another number. */
+  const [otherNumber, setOtherNumber] = useState(false);
+  const mine = useMyTickets({ enabled: !!user && !otherNumber && !result });
+  const showMine = !!user && !otherNumber && !result;
 
   return (
     <section className="mx-auto flex w-full max-w-[560px] flex-1 flex-col gap-6 px-5 pt-6 pb-12">
       <h1 className="m-0 text-[28px] tracking-[-0.02em]">Your tickets</h1>
-      {result ? (
+      {showMine ? (
+        mine.data ? (
+          <TicketList
+            phone={user.phone}
+            tickets={mine.data}
+            onChangeNumber={() => setOtherNumber(true)}
+          />
+        ) : mine.isError ? (
+          <p role="alert" className="m-0 text-sm text-danger">
+            Couldn't load your tickets.{' '}
+            <button
+              type="button"
+              onClick={() => mine.refetch()}
+              className="cursor-pointer font-bold underline underline-offset-3"
+            >
+              Retry
+            </button>
+          </p>
+        ) : (
+          <div aria-busy="true" aria-label="Loading your tickets" className="h-40" />
+        )
+      ) : result ? (
         <TicketList
           phone={result.phone}
           tickets={result.tickets}

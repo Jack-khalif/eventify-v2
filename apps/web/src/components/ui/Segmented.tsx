@@ -7,7 +7,7 @@ type SegmentedProps<T extends string> = {
   onChange: (value: T) => void;
 };
 
-/** Two-to-four option switch, e.g. the admin Super Admin / Agent toggle and date ranges. */
+/** Two-to-four option switch, e.g. the admin date ranges and currency switch. */
 export function Segmented<T extends string>({
   label,
   options,

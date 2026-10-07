@@ -1,5 +1,6 @@
 import { apiErrorBodySchema } from '@eventify/shared';
 import type { z } from 'zod';
+import { getSessionToken, setSessionToken } from './session';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
@@ -25,6 +26,20 @@ async function toApiError(res: Response, fallback: string) {
 
 export const isNotFound = (error: unknown) => error instanceof ApiError && error.status === 404;
 
+/** Not signed in, not allowed, or not there: asking again won't change the answer. */
+export const isFinalError = (error: unknown) =>
+  error instanceof ApiError && [401, 403, 404].includes(error.status);
+
+/** Send the request as whoever is signed in. A 401 means the session ended, so forget it. */
+async function send(url: URL, init: RequestInit = {}): Promise<Response> {
+  const token = getSessionToken();
+  const headers = new Headers(init.headers);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const res = await fetch(url, { ...init, headers });
+  if (res.status === 401 && token && getSessionToken() === token) setSessionToken(null);
+  return res;
+}
+
 type Params = Record<string, string | undefined>;
 
 /**
@@ -40,13 +55,13 @@ export async function apiGet<T>(
   for (const [key, value] of Object.entries(params)) {
     if (value) url.searchParams.set(key, value);
   }
-  const res = await fetch(url);
+  const res = await send(url);
   if (!res.ok) throw await toApiError(res, `GET ${path} failed with ${res.status}`);
   return schema.parse(await res.json());
 }
 
 export async function apiPost<T>(path: string, body: unknown, schema: z.ZodType<T>): Promise<T> {
-  const res = await fetch(new URL(BASE_URL + path, window.location.origin), {
+  const res = await send(new URL(BASE_URL + path, window.location.origin), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body ?? {}),

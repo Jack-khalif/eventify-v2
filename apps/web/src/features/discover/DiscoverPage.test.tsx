@@ -133,11 +133,11 @@ describe('Discover', () => {
     expect((await screen.findAllByRole('alert')).length).toBeGreaterThan(0);
   });
 
-  it('links the CTA band to event creation', async () => {
+  it('links the CTA band to hosting, not straight to event creation', async () => {
     renderApp('/');
-    expect(screen.getByRole('link', { name: 'Create an event →' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Host an event →' })).toHaveAttribute(
       'href',
-      '/organizer/events/new',
+      '/organizer',
     );
   });
 });

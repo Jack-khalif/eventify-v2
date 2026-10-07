@@ -1,5 +1,6 @@
 import {
   adminAgentRowSchema,
+  adminApplicationRowSchema,
   adminApprovalRowSchema,
   adminMeSchema,
   adminOrganizerDetailSchema,
@@ -7,7 +8,7 @@ import {
   adminOverviewSchema,
   adminPayoutRowSchema,
   rateChangeResultSchema,
-  type AdminRole,
+  type OrganizerStatusChange,
   type OverviewQuery,
   type RateChangeRequest,
 } from '@eventify/shared';
@@ -15,7 +16,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
 import { apiGet, apiPost } from '../../lib/api';
 
-/** Everything admin lives under this key, so a role switch or a change refreshes it all. */
+/** Everything admin lives under this key, so any change refreshes it all. */
 const ADMIN = 'admin';
 
 function useInvalidateAdmin() {
@@ -27,15 +28,6 @@ export function useAdminMe() {
   return useQuery({
     queryKey: [ADMIN, 'me'],
     queryFn: () => apiGet('/api/admin/me', adminMeSchema),
-  });
-}
-
-/** Demo only, until sign-in (Phase A9): view the portal as Super Admin or as an agent. */
-export function useSetDemoRole() {
-  const invalidate = useInvalidateAdmin();
-  return useMutation({
-    mutationFn: (role: AdminRole) => apiPost('/api/admin/demo-role', { role }, adminMeSchema),
-    onSuccess: invalidate,
   });
 }
 
@@ -75,6 +67,29 @@ export function useChangeRate(handle: string) {
         `/api/admin/organizers/${encodeURIComponent(handle)}/rate`,
         req,
         rateChangeResultSchema,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/** Organizers waiting to be approved. Super Admin only. */
+export function useApplications({ enabled = true } = {}) {
+  return useQuery({
+    queryKey: [ADMIN, 'applications'],
+    queryFn: () => apiGet('/api/admin/applications', z.array(adminApplicationRowSchema)),
+    enabled,
+  });
+}
+
+/** Approve, decline, suspend or reinstate an organizer. */
+export function useSetOrganizerStatus() {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: ({ handle, status }: { handle: string } & OrganizerStatusChange) =>
+      apiPost(
+        `/api/admin/organizers/${encodeURIComponent(handle)}/status`,
+        { status },
+        adminOrganizerDetailSchema,
       ),
     onSuccess: invalidate,
   });

@@ -1,18 +1,27 @@
+import { canCreateEvents } from '@eventify/shared';
 import { Moon, Sun } from 'lucide-react';
-import { Link, NavLink } from 'react-router';
+import { Link, NavLink, useLocation } from 'react-router';
+import { Avatar } from '../components/Avatar';
 import { buttonClass } from '../components/ui';
+import { loginPath } from '../features/auth/roles';
+import { useSession } from '../features/auth/useSession';
 import { cn } from '../lib/cn';
+import { workLink } from './nav';
 import { useTheme } from './theme';
-
-const navItems = [
-  { to: '/', label: 'Discover', end: true },
-  { to: '/organizer', label: 'For organizers', end: false },
-  { to: '/account', label: 'Profile', end: false },
-];
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
+  const { user, status } = useSession();
+  const { pathname, search } = useLocation();
+  const work = workLink(user);
+
+  const navItems = [
+    { to: '/', label: 'Discover', end: true },
+    { to: '/tickets', label: 'Tickets', end: false },
+    { ...work, end: false },
+  ];
+  const firstName = (user?.name || user?.organizer?.name || 'Account').split(' ')[0]!;
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-rule bg-bg">
@@ -28,7 +37,7 @@ export function Header() {
         <nav aria-label="Main" className="hidden gap-6 text-sm font-semibold md:flex">
           {navItems.map((item) => (
             <NavLink
-              key={item.to}
+              key={item.label}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
@@ -40,16 +49,47 @@ export function Header() {
           ))}
         </nav>
 
-        <Link
-          to="/organizer/events/new"
-          className={buttonClass({
-            variant: 'outline',
-            size: 'sm',
-            className: 'hidden text-fg md:inline-flex',
-          })}
-        >
-          Create event
-        </Link>
+        {canCreateEvents(user) && (
+          <Link
+            to="/organizer/events/new"
+            className={buttonClass({
+              variant: 'outline',
+              size: 'sm',
+              className: 'hidden text-fg md:inline-flex',
+            })}
+          >
+            Create event
+          </Link>
+        )}
+
+        {user ? (
+          <Link
+            to="/account"
+            aria-label={`Profile: ${user.name || 'your account'}`}
+            className="hidden items-center gap-2 rounded-full border-2 border-rule py-1 pr-3 pl-1 text-sm font-extrabold text-fg no-underline hover:bg-surface hover:text-fg md:flex"
+          >
+            <Avatar
+              name={user.name || user.organizer?.name || 'You'}
+              className="size-7 rounded-full text-[11px]"
+            />
+            <span className="max-w-[120px] truncate">{firstName}</span>
+          </Link>
+        ) : (
+          // Hidden while the session loads, so signed-in people don't see "Sign in" flash by.
+          status !== 'loading' &&
+          pathname !== '/login' && (
+            <Link
+              to={loginPath(pathname === '/' ? '/account' : pathname + search)}
+              className={buttonClass({
+                variant: 'outline',
+                size: 'sm',
+                className: 'hidden text-fg md:inline-flex',
+              })}
+            >
+              Sign in
+            </Link>
+          )
+        )}
 
         <button
           type="button"

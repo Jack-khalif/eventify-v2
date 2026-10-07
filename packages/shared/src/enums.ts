@@ -26,7 +26,8 @@ export type CoverTone = z.infer<typeof coverToneSchema>;
 export const eventStatusSchema = z.enum(['draft', 'live', 'ended']);
 export type EventStatus = z.infer<typeof eventStatusSchema>;
 
-export const organizerStatusSchema = z.enum(['active', 'pending', 'suspended']);
+/** pending = applied, waiting for a Super Admin; rejected = application declined. Only active organizers can publish. */
+export const organizerStatusSchema = z.enum(['active', 'pending', 'suspended', 'rejected']);
 export type OrganizerStatus = z.infer<typeof organizerStatusSchema>;
 
 export const paymentMethodSchema = z.enum(['mpesa', 'momo', 'card']);
@@ -51,5 +52,6 @@ export type PayoutMethod = z.infer<typeof payoutMethodSchema>;
 export const payoutStatusSchema = z.enum(['pending', 'processing', 'paid']);
 export type PayoutStatus = z.infer<typeof payoutStatusSchema>;
 
-export const roleSchema = z.enum(['organizer', 'agent', 'super_admin']);
+/** attendee = a verified phone with no organizer or staff rights (what every new sign-in starts as). */
+export const roleSchema = z.enum(['attendee', 'organizer', 'agent', 'super_admin']);
 export type Role = z.infer<typeof roleSchema>;

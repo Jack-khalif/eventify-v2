@@ -133,6 +133,28 @@ export const adminPayoutRowSchema = payoutSchema.extend({
 });
 export type AdminPayoutRow = z.infer<typeof adminPayoutRowSchema>;
 
+/** GET /api/admin/applications: organizers waiting for approval, oldest first. Super Admin only. */
+export const adminApplicationRowSchema = z.object({
+  organizerId: idSchema,
+  handle: z.string(),
+  name: z.string(),
+  type: z.string(),
+  category: categorySchema,
+  city: citySchema,
+  agent: agentSchema.nullable(),
+  contactName: z.string(),
+  phone: z.string(),
+  about: z.string(),
+  appliedAt: dateTimeSchema,
+});
+export type AdminApplicationRow = z.infer<typeof adminApplicationRowSchema>;
+
+/** POST /api/admin/organizers/:handle/status. Super Admin only; allowed moves are in adminRules. */
+export const organizerStatusChangeSchema = z.object({
+  status: z.enum(['active', 'suspended', 'rejected']),
+});
+export type OrganizerStatusChange = z.infer<typeof organizerStatusChangeSchema>;
+
 export const adminRateChangeSchema = rateChangeSchema.extend({ eventTitle: z.string().nullable() });
 
 export const adminOrganizerDetailSchema = adminOrganizerRowSchema.extend({

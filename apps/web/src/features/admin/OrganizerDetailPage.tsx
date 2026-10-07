@@ -6,16 +6,18 @@ import {
   isStandardRate,
   type AdminMe,
   type AdminOrganizerDetail,
+  type OrganizerStatusChange,
 } from '@eventify/shared';
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { Button, Card, Tag } from '../../components/ui';
+import { Button, Card, Dialog, Tag } from '../../components/ui';
+import { ApiError } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { ORGANIZER_STATUS, PAYOUT_METHOD, PAYOUT_STATUS } from './format';
 import { QueryView } from './QueryView';
 import { RateDialog } from './RateDialog';
-import { useAdminMe, useAdminOrganizer } from './useAdmin';
+import { useAdminMe, useAdminOrganizer, useSetOrganizerStatus } from './useAdmin';
 
 export function OrganizerDetailPage() {
   const { handle = '' } = useParams();
@@ -70,6 +72,8 @@ function Detail({ org, me }: { org: AdminOrganizerDetail; me: AdminMe }) {
           {notice}
         </p>
       )}
+
+      {me.role === 'super_admin' && <StatusActions org={org} onDone={setNotice} />}
 
       <div className="flex flex-wrap gap-4">
         <Card className="flex flex-[1_1_260px] flex-col gap-2 p-5">
@@ -188,5 +192,106 @@ function Detail({ org, me }: { org: AdminOrganizerDetail; me: AdminMe }) {
         />
       )}
     </>
+  );
+}
+
+const STATUS_NOTE: Record<AdminOrganizerDetail['status'], string> = {
+  pending: 'Applied to host and is waiting for approval. They can’t publish events yet.',
+  active: 'Approved. They can publish events and sell tickets.',
+  suspended: 'Suspended. They can see past sales but can’t publish new events.',
+  rejected: 'Application declined. They can apply again, or you can approve them here.',
+};
+
+/** Super Admin only: who is allowed to publish. */
+function StatusActions({
+  org,
+  onDone,
+}: {
+  org: AdminOrganizerDetail;
+  onDone: (message: string) => void;
+}) {
+  const setStatus = useSetOrganizerStatus();
+  const [confirmSuspend, setConfirmSuspend] = useState(false);
+  const change = (status: OrganizerStatusChange['status'], message: string) =>
+    setStatus.mutate(
+      { handle: org.handle, status },
+      {
+        onSuccess: () => onDone(message),
+        onSettled: () => setConfirmSuspend(false),
+      },
+    );
+  const approve = () => change('active', `${org.name} can now publish events.`);
+  const busy = setStatus.isPending;
+
+  return (
+    <Card variant="surface" className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+      <div className="flex flex-col gap-0.5">
+        <h2 className="m-0 text-xs font-semibold text-muted">Publishing access</h2>
+        <span className="text-sm">{STATUS_NOTE[org.status]}</span>
+        {setStatus.error && (
+          <span role="alert" className="text-sm font-semibold text-danger">
+            {setStatus.error instanceof ApiError
+              ? setStatus.error.message
+              : "Couldn't save. Try again."}
+          </span>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {(org.status === 'pending' || org.status === 'rejected') && (
+          <Button size="sm" disabled={busy} onClick={approve}>
+            Approve organizer
+          </Button>
+        )}
+        {org.status === 'pending' && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => change('rejected', `${org.name}'s application was declined.`)}
+          >
+            Decline
+          </Button>
+        )}
+        {org.status === 'active' && (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy}
+            onClick={() => setConfirmSuspend(true)}
+          >
+            Suspend
+          </Button>
+        )}
+        {org.status === 'suspended' && (
+          <Button size="sm" disabled={busy} onClick={approve}>
+            Reinstate
+          </Button>
+        )}
+      </div>
+
+      <Dialog
+        open={confirmSuspend}
+        onClose={() => setConfirmSuspend(false)}
+        title={`Suspend ${org.name}?`}
+        actions={
+          <>
+            <Button variant="ghost" size="sm" onClick={() => setConfirmSuspend(false)}>
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={busy}
+              className="bg-danger text-white hover:bg-danger hover:opacity-90"
+              onClick={() => change('suspended', `${org.name} is suspended.`)}
+            >
+              Suspend organizer
+            </Button>
+          </>
+        }
+      >
+        They won't be able to publish new events until you reinstate them. Events already on sale
+        and payouts owed are not changed.
+      </Dialog>
+    </Card>
   );
 }

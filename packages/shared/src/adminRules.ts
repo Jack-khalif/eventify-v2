@@ -1,3 +1,4 @@
+import type { OrganizerStatus } from './enums';
 import type { AdminRole, RateChangeRequest } from './schemas';
 import {
   DEFAULT_RATE_BPS,
@@ -49,3 +50,17 @@ export function decideRateChange(
 }
 
 export const isStandardRate = (bps: number) => bps === DEFAULT_RATE_BPS;
+
+/**
+ * Organizer status moves a Super Admin can make: approve or decline an application, suspend an
+ * active organizer, and bring a suspended or declined one back.
+ */
+const STATUS_MOVES: Record<OrganizerStatus, readonly OrganizerStatus[]> = {
+  pending: ['active', 'rejected'],
+  active: ['suspended'],
+  suspended: ['active'],
+  rejected: ['active'],
+};
+
+export const canMoveOrganizerStatus = (from: OrganizerStatus, to: OrganizerStatus) =>
+  STATUS_MOVES[from].includes(to);

@@ -1,4 +1,5 @@
 import {
+  canMoveOrganizerStatus,
   CITY_CURRENCY,
   DEFAULT_RATE_BPS,
   decideRateChange,
@@ -7,17 +8,19 @@ import {
   isRateError,
   overviewQuerySchema,
   toEatIso,
+  type Account,
   type AdminAgentRow,
+  type AdminApplicationRow,
   type AdminApprovalRow,
   type AdminMe,
   type AdminOrganizerDetail,
   type AdminOrganizerRow,
   type AdminOverview,
   type AdminPayoutRow,
-  type AdminRole,
   type Currency,
   type MoneyByCurrency,
   type Organizer,
+  type OrganizerStatus,
   type OverviewQuery,
   type RateChangeRequest,
 } from '@eventify/shared';
@@ -27,10 +30,14 @@ import {
   mpesaDaily,
   organizerDailySalesMinor,
   organizerSalesMinor,
-  organizers,
   payouts as samplePayouts,
 } from '@eventify/shared/fixtures';
 import { allEvents } from './events';
+import {
+  allOrganizers,
+  applications,
+  setOrganizerStatus as storeOrganizerStatus,
+} from './organizers';
 import {
   eventOverride,
   eventRate,
@@ -42,20 +49,16 @@ import {
   resolveApproval,
 } from './rates';
 
-/**
- * In-browser stand-in for the admin API until the backend exists. Who is signed in is a demo
- * switch (Super Admin, or agent Grace Achieng) until sign-in arrives in Phase A9.
- */
+/** In-browser stand-in for the admin API until the backend exists. */
 
 type StoredPayout = AdminPayoutRow;
-type Db = { role: AdminRole; payouts: Record<string, { reference: string; paidAt: string }> };
+type Db = { payouts: Record<string, { reference: string; paidAt: string }> };
 
 const STORAGE_KEY = 'eventify-mock-admin';
-const DEMO_AGENT_ID = 'agent_grace';
 let db: Db = load();
 
 function empty(): Db {
-  return { role: 'super_admin', payouts: {} };
+  return { payouts: {} };
 }
 
 function load(): Db {
@@ -91,25 +94,20 @@ const forbidden: AdminError = {
 };
 const notFound: AdminError = { status: 404, error: 'not_found', message: 'Not found' };
 
-export function adminMe(): AdminMe {
-  return db.role === 'agent'
-    ? {
-        role: 'agent',
-        name: agents.find((a) => a.id === DEMO_AGENT_ID)!.name,
-        agentId: DEMO_AGENT_ID,
-      }
-    : { role: 'super_admin', name: 'Super Admin', agentId: null };
-}
-
-export function setDemoRole(role: AdminRole) {
-  db.role = role;
-  save();
-  return adminMe();
+/** The admin portal's view of a signed-in account; null for anyone who isn't staff. */
+export function adminMe(account: Account): AdminMe | null {
+  if (account.role === 'super_admin') {
+    return { role: 'super_admin', name: account.name, agentId: null };
+  }
+  if (account.role === 'agent' && account.agentId) {
+    return { role: 'agent', name: account.name, agentId: account.agentId };
+  }
+  return null;
 }
 
 /** Agents only see organizers they onboarded. */
 const visibleOrganizers = (me: AdminMe) =>
-  organizers.filter((o) => me.role === 'super_admin' || o.agentId === me.agentId);
+  allOrganizers().filter((o) => me.role === 'super_admin' || o.agentId === me.agentId);
 
 const currencyOf = (o: Organizer): Currency => CITY_CURRENCY[o.city];
 const agentOf = (o: Organizer) => agents.find((a) => a.id === o.agentId) ?? null;
@@ -131,7 +129,7 @@ function row(o: Organizer): AdminOrganizerRow {
 
 function payoutRows(): StoredPayout[] {
   return samplePayouts.map((p) => {
-    const o = organizers.find((x) => x.id === p.organizerId)!;
+    const o = allOrganizers().find((x) => x.id === p.organizerId)!;
     const paid = db.payouts[p.id];
     return {
       ...p,
@@ -207,9 +205,9 @@ export function overview(me: AdminMe, query: OverviewQuery, now = new Date()): A
 export const organizerRows = (me: AdminMe) => visibleOrganizers(me).map(row);
 
 function findVisible(me: AdminMe, handle: string): Organizer | AdminError {
-  const o = organizers.find((x) => x.handle === handle);
+  const o = allOrganizers().find((x) => x.handle === handle);
   if (!o) return notFound;
-  return visibleOrganizers(me).includes(o) ? o : forbidden;
+  return me.role === 'super_admin' || o.agentId === me.agentId ? o : forbidden;
 }
 
 export function organizerDetail(
@@ -294,7 +292,7 @@ export function changeRate(
 export function approvalRows(): AdminApprovalRow[] {
   const events = allEvents();
   return pendingApprovals().map((a) => {
-    const o = organizers.find((x) => x.id === a.organizerId)!;
+    const o = allOrganizers().find((x) => x.id === a.organizerId)!;
     return {
       ...a,
       organizerName: o.name,
@@ -336,7 +334,7 @@ export function resolve(
 
 export function agentRows(): AdminAgentRow[] {
   return agents.map((a) => {
-    const mine = organizers.filter((o) => o.agentId === a.id);
+    const mine = allOrganizers().filter((o) => o.agentId === a.id);
     const sales: MoneyByCurrency = [];
     const fees: MoneyByCurrency = [];
     for (const o of mine) {
@@ -376,4 +374,48 @@ export function markPaid(
   db.payouts[id] = { reference: reference.toUpperCase(), paidAt: toEatIso(now) };
   save();
   return payoutRows().find((p) => p.id === id)!;
+}
+
+/** Organizers waiting for approval, with what they told us when they applied. */
+export function applicationRows(): AdminApplicationRow[] {
+  const orgs = allOrganizers();
+  return applications().flatMap((a) => {
+    const o = orgs.find((x) => x.id === a.organizerId);
+    if (!o || o.status !== 'pending') return [];
+    return [
+      {
+        organizerId: o.id,
+        handle: o.handle,
+        name: o.name,
+        type: o.type,
+        category: o.category,
+        city: o.city,
+        agent: agentOf(o),
+        contactName: a.contactName,
+        phone: a.phone,
+        about: a.about,
+        appliedAt: a.appliedAt,
+      },
+    ];
+  });
+}
+
+/** Approve, decline, suspend or reinstate an organizer. */
+export function setOrganizerStatus(
+  me: AdminMe,
+  handle: string,
+  status: OrganizerStatus,
+): AdminOrganizerDetail | AdminError {
+  if (me.role !== 'super_admin') return forbidden;
+  const o = allOrganizers().find((x) => x.handle === handle);
+  if (!o) return notFound;
+  if (!canMoveOrganizerStatus(o.status, status)) {
+    return {
+      status: 409,
+      error: 'status_conflict',
+      message: `${o.name} is ${o.status}, so that change doesn't apply. Refresh and try again.`,
+    };
+  }
+  storeOrganizerStatus(o.id, status);
+  return organizerDetail(me, handle);
 }

@@ -9,6 +9,7 @@ import { server } from '../../mocks/node';
 import { seedDemoTicket, ticketsForPhone } from '../../mocks/orders';
 import { DEMO_TICKET_PHONE } from '../../mocks/testPhones';
 import { renderApp } from '../../test/render';
+import { signInAs } from '../../test/signIn';
 
 const URL = '/checkin/sauti-a92f';
 type User = ReturnType<typeof userEvent.setup>;
@@ -63,6 +64,7 @@ describe('Door check-in', () => {
     await waitFor(() => expect(scannerCheckIns('evt_sauti')).toHaveLength(1));
     unmount();
 
+    signInAs('organizer');
     renderApp('/organizer');
     const sideGate = (await screen.findByText('Side Gate')).closest('li')!;
     expect(within(sideGate).getByText('39')).toBeInTheDocument();

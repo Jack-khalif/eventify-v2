@@ -1,4 +1,5 @@
 import {
+  canCreateEvents,
   formatDate,
   formatMoney,
   formatRate,
@@ -18,6 +19,7 @@ import { Button, buttonClass, Card, Cover, Tag } from '../../components/ui';
 import { cn } from '../../lib/cn';
 import { displayUrl, siteUrl } from '../../lib/site';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
+import { useSession } from '../auth/useSession';
 import { useEventDashboard, useOrganizerHome } from './useDashboard';
 
 const STATUS_LABEL: Record<EventStatus, string> = { live: 'Live', draft: 'Draft', ended: 'Ended' };
@@ -37,6 +39,9 @@ export function DashboardPage() {
 }
 
 function Dashboard({ home }: { home: OrganizerHome }) {
+  const { user } = useSession();
+  const canCreate = canCreateEvents(user);
+  const suspended = user?.organizer?.status === 'suspended';
   const [params, setParams] = useSearchParams();
   const events = home.events;
   // The chosen event, else the next one still on sale, else the most recent.
@@ -102,20 +107,40 @@ function Dashboard({ home }: { home: OrganizerHome }) {
           <h1 className="m-0 text-[28px] tracking-[-0.02em]">Dashboard</h1>
           <span className="text-sm text-muted">{home.organizer.name}</span>
         </div>
-        <Link
-          to="/organizer/events/new"
-          className={buttonClass({ className: 'text-accent-ink hover:text-accent-ink' })}
-        >
-          + Create event
-        </Link>
+        {canCreate && (
+          <Link
+            to="/organizer/events/new"
+            className={buttonClass({ className: 'text-accent-ink hover:text-accent-ink' })}
+          >
+            + Create event
+          </Link>
+        )}
       </div>
+
+      {suspended && (
+        <p role="status" className="m-0 rounded-xl bg-danger-soft p-4 text-sm text-danger">
+          <strong>Your organizer account is suspended.</strong> You can still see sales and payouts
+          for past events, but you can't publish new ones. Reply to our last message or contact
+          Eventify support to sort this out.
+        </p>
+      )}
 
       {!selected ? (
         <Card className="flex flex-col items-start gap-3 p-6">
           <h2 className="m-0 text-xl">No events yet</h2>
           <p className="m-0 text-muted">
-            Create your first event and its sales and check-ins will show up here.
+            {canCreate
+              ? "You're approved. Create your first event and its sales and check-ins will show up here."
+              : 'Sales and check-ins for your events will show up here.'}
           </p>
+          {canCreate && (
+            <Link
+              to="/organizer/events/new"
+              className={buttonClass({ className: 'text-accent-ink hover:text-accent-ink' })}
+            >
+              Create your first event
+            </Link>
+          )}
         </Card>
       ) : dashboard.isError ? (
         <ErrorState onRetry={dashboard.refetch}>Couldn't load numbers for this event.</ErrorState>

@@ -1,31 +1,25 @@
-import type { AdminRole } from '@eventify/shared';
-import { Moon, Sun } from 'lucide-react';
+import { LogOut, Moon, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router';
+import { Link, NavLink, Outlet } from 'react-router';
 import { ScrollToTop } from '../../app/ScrollToTop';
 import { useTheme } from '../../app/theme';
-import { buttonClass, Segmented } from '../../components/ui';
+import { buttonClass, Tag } from '../../components/ui';
 import { cn } from '../../lib/cn';
-import { useAdminMe, useApprovals, useSetDemoRole } from './useAdmin';
+import { useSignOut } from '../auth/useSession';
+import { useAdminMe, useApplications, useApprovals } from './useAdmin';
 
-const ROLES = [
-  { value: 'super_admin', label: 'Super Admin' },
-  { value: 'agent', label: 'Agent' },
-] as const satisfies readonly { value: AdminRole; label: string }[];
-
-/** Screens only a Super Admin can open. */
-const SUPER_ONLY = ['/admin/approvals', '/admin/agents'];
+const ROLE_LABEL = { super_admin: 'Super Admin', agent: 'Agent' } as const;
 
 /** Admin portal shell: its own header and nav, separate from the public site. */
 export function AdminLayout() {
   const me = useAdminMe();
   const isSuper = me.data?.role === 'super_admin';
   const approvals = useApprovals({ enabled: isSuper });
-  const setRole = useSetDemoRole();
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
+  const applications = useApplications({ enabled: isSuper });
+  const signOut = useSignOut();
   const { theme, toggleTheme } = useTheme();
-  const pending = isSuper ? (approvals.data?.length ?? 0) : 0;
+  // Rate requests and organizer applications both wait on the Approvals screen.
+  const pending = isSuper ? (approvals.data?.length ?? 0) + (applications.data?.length ?? 0) : 0;
 
   const items: { to: string; label: ReactNode; end?: boolean; name: string }[] = [
     { to: '/admin', label: 'Overview', end: true, name: 'Overview' },
@@ -52,11 +46,6 @@ export function AdminLayout() {
       : []),
     { to: '/admin/payouts', label: 'Payouts', name: 'Payouts' },
   ];
-
-  const switchRole = (role: AdminRole) => {
-    setRole.mutate(role);
-    if (role === 'agent' && SUPER_ONLY.some((p) => pathname.startsWith(p))) navigate('/admin');
-  };
 
   const nav = (className: string) =>
     items.map((item) => (
@@ -94,17 +83,25 @@ export function AdminLayout() {
             {nav('')}
           </nav>
           <span className="mr-auto lg:hidden" />
+          <Link to="/" className="hidden text-[13px] font-semibold text-muted sm:inline">
+            View site
+          </Link>
           {me.data && (
-            <div className="flex items-center gap-2">
-              <span className="hidden text-xs text-muted sm:inline">Viewing as</span>
-              <Segmented
-                label="Viewing as (demo until sign-in)"
-                options={ROLES}
-                value={me.data.role}
-                onChange={switchRole}
-              />
+            <div className="flex items-center gap-2 text-[13px] font-extrabold">
+              <span className="hidden max-w-[160px] truncate sm:inline">{me.data.name}</span>
+              <Tag tone="accent">{ROLE_LABEL[me.data.role]}</Tag>
             </div>
           )}
+          <button
+            type="button"
+            onClick={() => signOut.mutate()}
+            disabled={signOut.isPending}
+            aria-label="Sign out"
+            title="Sign out"
+            className={buttonClass({ variant: 'ghost', size: 'icon' })}
+          >
+            <LogOut size={17} />
+          </button>
           <button
             type="button"
             onClick={toggleTheme}
@@ -124,7 +121,8 @@ export function AdminLayout() {
       <main className="flex flex-1 flex-col">
         {me.data?.role === 'agent' && (
           <p className="m-0 bg-surface px-5 py-2 text-center text-xs">
-            Viewing as agent <strong>{me.data.name}</strong>: only organizers you onboarded.
+            Signed in as agent <strong>{me.data.name}</strong>: you see only the organizers you
+            onboarded.
           </p>
         )}
         <Outlet />

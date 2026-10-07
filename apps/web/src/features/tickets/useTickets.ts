@@ -70,3 +70,17 @@ export function useVerifyLookup() {
     },
   });
 }
+
+/** Tickets bought with the signed-in phone. It was verified at sign-in, so no second code. */
+export function useMyTickets({ enabled }: { enabled: boolean }) {
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ['my-tickets'],
+    queryFn: async () => {
+      const { tickets } = await apiGet('/api/me/tickets', ticketLookupResultSchema);
+      for (const t of tickets) queryClient.setQueryData(['ticket', t.id], t);
+      return tickets;
+    },
+    enabled,
+  });
+}
