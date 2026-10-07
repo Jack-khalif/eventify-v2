@@ -9,7 +9,7 @@ The designs in `design/` (exported from Claude Design) are the source of truth f
 | Path              | What                                                                         |
 | ----------------- | ---------------------------------------------------------------------------- |
 | `apps/web`        | React app: public site, organizer tools, door scanner and admin portal       |
-| `apps/api`        | Backend API (Phase B)                                                        |
+| `apps/api`        | Backend API: events, orders, tickets and the ticket email (more to come)     |
 | `packages/shared` | Zod schemas, types, money/phone helpers and fixtures used by web and API     |
 | `design/`         | Claude Design export. Open `design/EventifyApp.dc.html` in a browser to view |
 
@@ -22,11 +22,35 @@ npm install
 npm run dev        # web app on http://localhost:5173
 ```
 
-Until the backend exists, a mock API (MSW, in `apps/web/src/mocks`) answers `/api/*` in the browser using the sample data in `packages/shared`. See `apps/web/.env.example` to turn it off.
+By default a mock API (MSW, in `apps/web/src/mocks`) answers `/api/*` in the browser using the sample data in `packages/shared`.
+
+### The backend
+
+`apps/api` is the real API (Hono, Postgres through Drizzle). So far it covers browsing events, buying tickets and emailing them, and signing in; "Find my tickets" by phone, organizer tools, check-in and admin still run on the mock.
+
+```sh
+npm run dev:api    # API on http://localhost:8787
+```
+
+To point the web app at it, put `VITE_API_MOCKS=off` in `apps/web/.env.local` and restart `npm run dev`.
+
+With no settings at all it runs on its own: the database is a local file (`apps/api/.data`, delete it to start again) filled with the sample events, emails (tickets and sign-in codes) are printed in the terminal, and M-Pesa is simulated the same way as in the mock (a phone ending `0000`, `1111`, `2222` or `3333` fails). Copy `apps/api/.env.example` to `apps/api/.env` to change that:
+
+| Setting              | What it does                                                                                 |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`     | Send ticket emails through [Resend](https://resend.com) instead of printing them             |
+| `EMAIL_FROM`         | Sender address. Needs a domain verified in Resend to reach anyone but your own Resend email  |
+| `DATABASE_URL`       | Use a real Postgres. Run `npm run db:migrate --workspace @eventify/api` after every pull     |
+| `PAYMENTS`           | `simulated` or `off` (free tickets only). Production defaults to `off`                       |
+| `QR_PRIVATE_KEY`     | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`     |
+| `SITE_URL`           | Where the web app lives, for the ticket links in emails                                      |
+| `SUPER_ADMIN_EMAILS` | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in) |
+
+After changing `apps/api/src/db/schema.ts`, run `npm run db:generate --workspace @eventify/api` and commit the new file in `apps/api/drizzle`.
 
 ### Who can do what
 
-Sign-in is a phone number and a one-time SMS code (`/login`); there are no passwords. The rules live in `packages/shared/src/access.ts` and the API must enforce them too.
+Sign-in is an email address and a one-time code sent to it (`/login`); there are no passwords and no SMS. The rules live in `packages/shared/src/access.ts` and the API must enforce them too.
 
 | Who                  | Can                                                                                 |
 | -------------------- | ----------------------------------------------------------------------------------- |
@@ -38,7 +62,7 @@ Sign-in is a phone number and a one-time SMS code (`/login`); there are no passw
 | Agent                | Admin portal, limited to organizers they onboarded                                  |
 | Super Admin          | Whole admin portal, including approving, declining and suspending organizers        |
 
-With the mock API the code is always `123456`. Sample accounts: `0700 000 001` organizer, `0700 000 002` organizer waiting for approval, `0700 000 003` suspended organizer, `0700 000 010` agent, `0700 000 020` Super Admin. Any other number signs in as a new attendee.
+With the mock API the code is always `123456`. Sample accounts: `organizer@eventify.test`, `pending@eventify.test` (organizer waiting for approval), `suspended@eventify.test`, `agent@eventify.test` and `admin@eventify.test` (Super Admin). Any other email signs in as a new attendee.
 
 In development, http://localhost:5173/dev/ui shows every UI component. Use the header toggle to check dark mode.
 

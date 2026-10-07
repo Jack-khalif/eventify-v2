@@ -52,6 +52,6 @@ export type PayoutMethod = z.infer<typeof payoutMethodSchema>;
 export const payoutStatusSchema = z.enum(['pending', 'processing', 'paid']);
 export type PayoutStatus = z.infer<typeof payoutStatusSchema>;
 
-/** attendee = a verified phone with no organizer or staff rights (what every new sign-in starts as). */
+/** attendee = a verified email with no organizer or staff rights (what every new sign-in starts as). */
 export const roleSchema = z.enum(['attendee', 'organizer', 'agent', 'super_admin']);
 export type Role = z.infer<typeof roleSchema>;

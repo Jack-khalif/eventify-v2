@@ -1,24 +1,22 @@
-import { formatPhone, normalizePhone } from '@eventify/shared';
+import { normalizeEmail } from '@eventify/shared';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Button, TextField } from '../../components/ui';
 import { useStartSignIn, useVerifySignIn } from './useSession';
 
 /**
- * Phone, then the 6-digit code we text to it. There is no password: the phone is the account,
- * the same way buyers prove a ticket is theirs.
+ * Email, then the 6-digit code we send to it. There is no password: the email address is the
+ * account.
  */
 export function OtpForm({
   submitLabel,
-  initialPhone = '',
   hint,
 }: {
   submitLabel: string;
-  initialPhone?: string;
   /** Shown under both steps (the test-mode note). */
-  hint?: (fill: (phone: string) => void) => ReactNode;
+  hint?: (fill: (email: string) => void) => ReactNode;
 }) {
-  const [input, setInput] = useState(initialPhone);
-  const [phone, setPhone] = useState<string | null>(null);
+  const [input, setInput] = useState('');
+  const [email, setEmail] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [error, setError] = useState<string>();
   const [resent, setResent] = useState(false);
@@ -27,20 +25,22 @@ export function OtpForm({
 
   const send = (ev: FormEvent) => {
     ev.preventDefault();
-    const normalized = normalizePhone(input);
-    if (!normalized) return setError('Enter a valid phone number');
-    start.mutate(normalized, { onSuccess: () => setPhone(normalized) });
+    const normalized = normalizeEmail(input);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      return setError('Enter a valid email address');
+    }
+    start.mutate(normalized, { onSuccess: () => setEmail(normalized) });
   };
 
   const check = (ev: FormEvent) => {
     ev.preventDefault();
-    if (!phone) return;
+    if (!email) return;
     if (!/^\d{6}$/.test(code)) return setError('Enter the 6-digit code');
-    verify.mutate({ phone, code });
+    verify.mutate({ email, code });
   };
 
-  const changeNumber = () => {
-    setPhone(null);
+  const changeEmail = () => {
+    setEmail(null);
     setCode('');
     setError(undefined);
     setResent(false);
@@ -49,29 +49,28 @@ export function OtpForm({
   };
 
   const fill = (value: string) => {
-    changeNumber();
+    changeEmail();
     setInput(value);
   };
 
-  if (!phone) {
+  if (!email) {
     return (
       <form onSubmit={send} noValidate className="flex flex-col gap-4">
         <TextField
-          label="Phone number"
-          type="tel"
-          autoComplete="tel"
-          inputMode="tel"
-          placeholder="07XX XXX XXX"
+          label="Email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          placeholder="you@example.com"
           value={input}
           onChange={(ev) => {
             setInput(ev.target.value);
             setError(undefined);
           }}
           error={error}
-          hint="Kenya (+254) or South Sudan (+211)."
         />
         <Button type="submit" size="lg" disabled={start.isPending}>
-          {start.isPending ? 'Sending…' : 'Text me a code'}
+          {start.isPending ? 'Sending…' : 'Email me a code'}
         </Button>
         {start.error && (
           <p role="alert" className="m-0 text-sm text-danger">
@@ -86,8 +85,8 @@ export function OtpForm({
   return (
     <form onSubmit={check} noValidate className="flex flex-col gap-4">
       <p className="m-0 text-[15px] text-muted">
-        We sent a 6-digit code to{' '}
-        <strong className="whitespace-nowrap text-fg">{formatPhone(phone)}</strong>.
+        We sent a 6-digit code to <strong className="break-all text-fg">{email}</strong>. It can
+        take a minute to arrive; check your spam folder too.
       </p>
       <TextField
         label="Code"
@@ -111,7 +110,7 @@ export function OtpForm({
         <Button
           variant="outline"
           size="sm"
-          onClick={() => start.mutate(phone, { onSuccess: () => setResent(true) })}
+          onClick={() => start.mutate(email, { onSuccess: () => setResent(true) })}
           disabled={start.isPending}
         >
           {resent ? 'Code sent again' : 'Resend code'}
@@ -120,9 +119,9 @@ export function OtpForm({
           variant="ghost"
           size="sm"
           className="border-transparent text-muted"
-          onClick={changeNumber}
+          onClick={changeEmail}
         >
-          Use a different number
+          Use a different email
         </Button>
       </div>
       {hint?.(fill)}

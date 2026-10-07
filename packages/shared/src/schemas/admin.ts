@@ -143,7 +143,7 @@ export const adminApplicationRowSchema = z.object({
   city: citySchema,
   agent: agentSchema.nullable(),
   contactName: z.string(),
-  phone: z.string(),
+  email: z.string(),
   about: z.string(),
   appliedAt: dateTimeSchema,
 });

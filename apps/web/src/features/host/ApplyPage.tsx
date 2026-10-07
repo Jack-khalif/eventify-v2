@@ -3,7 +3,6 @@ import {
   canApplyToHost,
   CATEGORIES,
   CITIES,
-  formatPhone,
   ORGANIZER_TYPES,
   organizerApplicationRequestSchema,
   slugify,
@@ -24,7 +23,7 @@ type Errors = Partial<Record<keyof Draft, string>>;
 
 const PAYOUT_LABEL = { mpesa: 'M-Pesa', bank: 'Bank transfer' } as const;
 
-/** /organizer/apply: ask to host. Signing in comes first, so the application has a verified phone. */
+/** /organizer/apply: ask to host. Signing in comes first, so the application has a verified email. */
 export function ApplyPage() {
   return (
     <SignedIn>
@@ -76,7 +75,7 @@ function ApplyForm({ user }: { user: SessionUser }) {
         <h1 className="m-0 text-[28px] tracking-[-0.02em]">Apply to host</h1>
         <p className="m-0 text-[15px] text-muted">
           We review every organizer before they can publish, usually within one working day. You're
-          applying with <strong className="text-fg">{formatPhone(user.phone)}</strong>.
+          applying with <strong className="break-all text-fg">{user.email}</strong>.
         </p>
       </div>
 

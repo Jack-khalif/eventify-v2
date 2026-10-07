@@ -4,7 +4,8 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  server: { port: 5173 },
+  // With the mock API off (VITE_API_MOCKS=off), /api goes to the backend from `npm run dev:api`.
+  server: { port: 5173, proxy: { '/api': 'http://localhost:8787' } },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],

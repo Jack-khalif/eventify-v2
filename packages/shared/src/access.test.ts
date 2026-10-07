@@ -7,7 +7,7 @@ import type { SessionUser } from './schemas';
 const user = (role: Role, status?: OrganizerStatus): SessionUser => ({
   id: 'acc_1',
   name: 'Test',
-  phone: '+254700000001',
+  email: 'test@example.com',
   role,
   organizer: status ? { id: 'org_1', handle: 'test', name: 'Test', status } : null,
 });

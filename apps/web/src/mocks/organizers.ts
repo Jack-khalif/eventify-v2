@@ -87,7 +87,7 @@ function uniqueHandle(name: string, ownId?: string) {
  */
 export function submitApplication(
   req: OrganizerApplicationRequest,
-  phone: string,
+  email: string,
   existingId: string | null,
   now = Date.now(),
 ): Organizer {
@@ -114,7 +114,7 @@ export function submitApplication(
     {
       organizerId: id,
       contactName: req.contactName,
-      phone,
+      email,
       about: req.about,
       appliedAt: toEatIso(now),
     },

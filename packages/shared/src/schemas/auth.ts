@@ -8,14 +8,18 @@ import {
 } from '../enums';
 import { dateTimeSchema, handleSchema, idSchema } from './common';
 
-const phoneSchema = z.string().regex(/^\+\d{9,15}$/);
+/** Email addresses are compared in lower case, so Amina@x.com and amina@x.com are one account. */
+export const normalizeEmail = (input: string) => input.trim().toLowerCase();
+const emailSchema = z.email();
+/** What the sign-in form sends: tidied before it is checked. */
+const emailInputSchema = z.string().transform(normalizeEmail).pipe(z.email());
 
-/** A person who can sign in. One phone number, one account. */
+/** A person who can sign in. One email address, one account. */
 export const accountSchema = z.object({
   id: idSchema,
   /** Empty until they tell us (the organizer application asks). */
   name: z.string(),
-  phone: phoneSchema,
+  email: emailSchema,
   role: roleSchema,
   organizerId: idSchema.nullable(),
   agentId: idSchema.nullable(),
@@ -24,7 +28,7 @@ export type Account = z.infer<typeof accountSchema>;
 
 /** GET /api/auth/me: who is signed in and what they are allowed to do. */
 export const sessionUserSchema = accountSchema
-  .pick({ id: true, name: true, phone: true, role: true })
+  .pick({ id: true, name: true, email: true, role: true })
   .extend({
     /** Set for organizers, including ones still waiting for approval. */
     organizer: z
@@ -38,13 +42,13 @@ export const sessionUserSchema = accountSchema
   });
 export type SessionUser = z.infer<typeof sessionUserSchema>;
 
-/** POST /api/auth/start: text a one-time code. Always "sent", so nobody can probe for accounts. */
-export const signInStartSchema = z.object({ phone: phoneSchema });
+/** POST /api/auth/start: email a one-time code. Always "sent", so nobody can probe for accounts. */
+export const signInStartSchema = z.object({ email: emailInputSchema });
 export const signInStartResultSchema = z.object({ sent: z.boolean() });
 
-/** POST /api/auth/verify: exchange the code for a session. A new phone gets an attendee account. */
+/** POST /api/auth/verify: exchange the code for a session. A new email gets an attendee account. */
 export const signInVerifySchema = z.object({
-  phone: phoneSchema,
+  email: emailInputSchema,
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 });
 export const sessionSchema = z.object({ token: z.string().min(16), user: sessionUserSchema });
@@ -87,7 +91,7 @@ export type OrganizerApplicationRequest = z.infer<typeof organizerApplicationReq
 export const organizerApplicationSchema = z.object({
   organizerId: idSchema,
   contactName: z.string().min(1),
-  phone: phoneSchema,
+  email: emailSchema,
   about: z.string(),
   appliedAt: dateTimeSchema,
 });

@@ -1,7 +1,6 @@
 import {
   APPROVAL_FLOOR_BPS,
   formatDate,
-  formatPhone,
   formatRate,
   type AdminApplicationRow,
 } from '@eventify/shared';
@@ -179,7 +178,7 @@ function Application({
         </span>
         <p className="m-0 text-[13px]">{a.about}</p>
         <span className="text-xs text-muted">
-          {a.contactName} · <span className="whitespace-nowrap">{formatPhone(a.phone)}</span>
+          {a.contactName} · <a href={`mailto:${a.email}`}>{a.email}</a>
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2.5">

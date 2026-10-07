@@ -1,4 +1,4 @@
-import { formatPhone, homePathFor, safeNextPath } from '@eventify/shared';
+import { homePathFor, safeNextPath } from '@eventify/shared';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { ErrorState } from '../../components/PageStates';
 import { Card } from '../../components/ui';
@@ -14,7 +14,7 @@ import { useSession } from './useSession';
 export function LoginPage() {
   const [params] = useSearchParams();
   const hosting = params.get('intent') === 'host';
-  useDocumentTitle(hosting ? 'Verify your phone' : 'Sign in');
+  useDocumentTitle(hosting ? 'Verify your email' : 'Sign in');
   const session = useSession();
   const next = safeNextPath(params.get('next'));
 
@@ -32,12 +32,12 @@ export function LoginPage() {
     <section className="mx-auto flex w-full max-w-[440px] flex-1 flex-col gap-6 px-5 pt-8 pb-12">
       <div className="flex flex-col gap-2">
         <h1 className="m-0 text-[32px] leading-[1.05] tracking-[-0.02em] text-balance">
-          {hosting ? 'First, verify your phone' : 'Sign in'}
+          {hosting ? 'First, verify your email' : 'Sign in'}
         </h1>
         <p className="m-0 text-[15px] text-muted">
           {hosting
-            ? "We'll text you a code. Your application and payouts are tied to this number."
-            : "Enter your phone number and we'll text you a code. No password to remember."}
+            ? "We'll email you a code. Your application is tied to this address."
+            : "Enter your email and we'll send you a code. No password to remember."}
         </p>
       </div>
 
@@ -69,25 +69,25 @@ export function LoginPage() {
 }
 
 /** Only while the mock API is on: a sample account for each kind of user. */
-function LoginTestHint({ onPick }: { onPick: (phone: string) => void }) {
+function LoginTestHint({ onPick }: { onPick: (email: string) => void }) {
   if (import.meta.env.VITE_API_MOCKS === 'off') return null;
   return (
     <div className="flex flex-col gap-2 rounded-xl border-2 border-dashed border-hair p-3.5 text-xs text-muted">
       <span>
-        <strong className="text-fg">Test mode</strong> · no SMS is sent. The code is always{' '}
-        <code className="font-mono text-fg">{TEST_LOOKUP_CODE}</code>. Any other number signs in as
-        a new attendee.
+        <strong className="text-fg">Test mode</strong> · no email is sent. The code is always{' '}
+        <code className="font-mono text-fg">{TEST_LOOKUP_CODE}</code>. Any other email signs in as a
+        new attendee.
       </span>
       <ul className="m-0 flex list-none flex-col gap-1 p-0">
         {TEST_SIGN_INS.map((a) => (
-          <li key={a.phone}>
+          <li key={a.email}>
             <button
               type="button"
-              onClick={() => onPick(formatPhone(a.phone))}
+              onClick={() => onPick(a.email)}
               className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left hover:bg-surface"
             >
               <span className="font-semibold text-fg">{a.label}</span>
-              <code className="flex-none font-mono whitespace-nowrap">{formatPhone(a.phone)}</code>
+              <code className="flex-none font-mono whitespace-nowrap">{a.email}</code>
             </button>
           </li>
         ))}

@@ -12,7 +12,7 @@ import { TEST_LOOKUP_CODE } from './testPhones';
 /**
  * In-browser stand-in for sign-in until the backend exists. A session is a random token the web
  * app sends as `Authorization: Bearer …`; accounts created here and open sessions are kept in
- * localStorage so a refresh keeps you signed in. The real API sends the code by SMS (Phase B).
+ * localStorage so a refresh keeps you signed in. The real API emails the code.
  */
 
 type Db = {
@@ -66,7 +66,7 @@ export function sessionUser(account: Account): SessionUser {
   return {
     id: account.id,
     name: account.name,
-    phone: account.phone,
+    email: account.email,
     role: account.role,
     organizer: o ? { id: o.id, handle: o.handle, name: o.name, status: o.status } : null,
   };
@@ -80,15 +80,15 @@ export function startSession(accountId: string): string {
   return token;
 }
 
-/** Null when the code is wrong. A phone we haven't seen gets a new attendee account. */
-export function verifySignIn(phone: string, code: string): Session | null {
+/** Null when the code is wrong. An email we haven't seen gets a new attendee account. */
+export function verifySignIn(email: string, code: string): Session | null {
   if (code !== TEST_LOOKUP_CODE) return null;
-  let account = allAccounts().find((a) => a.phone === phone);
+  let account = allAccounts().find((a) => a.email === email);
   if (!account) {
     account = {
       id: `acc_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`,
       name: '',
-      phone,
+      email,
       role: 'attendee',
       organizerId: null,
       agentId: null,
@@ -114,7 +114,7 @@ export function applyToHost(
   req: OrganizerApplicationRequest,
 ): SessionUser | null {
   if (!canApplyToHost(sessionUser(account))) return null;
-  const organizer = submitApplication(req, account.phone, account.organizerId);
+  const organizer = submitApplication(req, account.email, account.organizerId);
   const updated: Account = {
     ...account,
     name: req.contactName,

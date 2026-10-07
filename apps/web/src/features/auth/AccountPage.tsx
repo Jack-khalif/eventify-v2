@@ -1,4 +1,4 @@
-import { canCreateEvents, formatPhone, isStaff, type SessionUser } from '@eventify/shared';
+import { canCreateEvents, isStaff, type SessionUser } from '@eventify/shared';
 import {
   ChevronRight,
   Heart,
@@ -103,7 +103,7 @@ function Identity({ user }: { user: SessionUser }) {
           {name || 'Your account'}
         </span>
         <span className="flex flex-wrap items-center gap-2 text-sm text-muted">
-          {formatPhone(user.phone)}
+          <span className="min-w-0 truncate">{user.email}</span>
           <Tag tone={badge.tone}>{badge.label}</Tag>
         </span>
       </div>
@@ -144,7 +144,7 @@ function RoleLinks({ user }: { user: SessionUser }) {
             icon: Megaphone,
             label: status === 'pending' ? 'Application in review' : 'Application declined',
             note:
-              status === 'pending' ? "We'll text you when it's approved" : 'See what to do next',
+              status === 'pending' ? "We'll email you when it's approved" : 'See what to do next',
           },
         ]}
       />

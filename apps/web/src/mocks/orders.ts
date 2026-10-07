@@ -211,10 +211,16 @@ export const getTicket = (id: string, events: PublicEvent[]) => {
 };
 
 /** All tickets bought with this phone number, soonest event first. */
-export async function ticketsForPhone(phone: string, events: PublicEvent[]) {
+export const ticketsForPhone = (phone: string, events: PublicEvent[]) =>
+  ticketsWhere((order) => order.buyer.phone === phone, events);
+
+async function ticketsWhere(matches: (order: OrderView) => boolean, events: PublicEvent[]) {
   const views = await Promise.all(
     Object.values(db.tickets)
-      .filter((t) => db.orders[t.orderId]?.buyer.phone === phone)
+      .filter((t) => {
+        const order = db.orders[t.orderId];
+        return order !== undefined && matches(order);
+      })
       .map((t) => toTicketView(t, events)),
   );
   return views
@@ -223,6 +229,10 @@ export async function ticketsForPhone(phone: string, events: PublicEvent[]) {
       (a, b) => Date.parse(a.event.startsAt) - Date.parse(b.event.startsAt) || a.index - b.index,
     );
 }
+
+/** All tickets bought with this email address (what a signed-in buyer sees), soonest event first. */
+export const ticketsForEmail = (email: string, events: PublicEvent[]) =>
+  ticketsWhere((order) => order.buyer.email.toLowerCase() === email, events);
 
 /** One paid ticket for the demo phone, so "Find my tickets" has something to show before any purchase. */
 export function seedDemoTicket(events: PublicEvent[]) {

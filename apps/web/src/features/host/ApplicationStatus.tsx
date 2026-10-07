@@ -46,7 +46,7 @@ export function ApplicationStatus({ organizer }: { organizer: Organizer }) {
         </h1>
         <p className="m-0 text-muted">
           A person on our team checks every organizer before they can publish. This usually takes
-          one working day, and we'll text you as soon as it's done.
+          one working day, and we'll email you as soon as it's done.
         </p>
       </div>
 
