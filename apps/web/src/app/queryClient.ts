@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query';
-import { isNotFound } from '../lib/api';
+import { isFinalError } from '../lib/api';
 
 export function createQueryClient() {
   return new QueryClient({
@@ -7,8 +7,8 @@ export function createQueryClient() {
       queries: {
         staleTime: 30_000,
         refetchOnWindowFocus: false,
-        // A missing event won't appear on retry; other failures get the usual retries.
-        retry: (failureCount, error) => !isNotFound(error) && failureCount < 3,
+        // A missing event or a "no access" won't change on retry; other failures get the usual retries.
+        retry: (failureCount, error) => !isFinalError(error) && failureCount < 3,
       },
     },
   });

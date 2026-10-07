@@ -14,7 +14,8 @@ export const formatMoneyList = (list: MoneyByCurrency) =>
 export const ORGANIZER_STATUS: Record<OrganizerStatus, { label: string; tone: TagTone }> = {
   active: { label: 'Active', tone: 'accent' },
   pending: { label: 'Pending', tone: 'outline' },
-  suspended: { label: 'Suspended', tone: 'neutral' },
+  suspended: { label: 'Suspended', tone: 'danger' },
+  rejected: { label: 'Declined', tone: 'neutral' },
 };
 
 export const PAYOUT_STATUS: Record<PayoutStatus, { label: string; tone: TagTone }> = {

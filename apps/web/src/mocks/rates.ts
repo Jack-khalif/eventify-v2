@@ -1,5 +1,6 @@
 import { toEatIso, type RateApproval, type RateChange } from '@eventify/shared';
-import { organizers, rateApprovals, rateChanges } from '@eventify/shared/fixtures';
+import { rateApprovals, rateChanges } from '@eventify/shared/fixtures';
+import { findOrganizer } from './organizers';
 
 /**
  * Organizer fee rates as the admin portal changes them, until the backend exists. Checkout, the
@@ -46,7 +47,7 @@ const latest = (changes: RateChange[]) =>
 /** The organizer's current rate for new sales. */
 export function organizerRate(organizerId: string): number {
   const change = latest(db.changes.filter((c) => c.organizerId === organizerId && !c.eventId));
-  return change?.newBps ?? organizers.find((o) => o.id === organizerId)?.rateBps ?? 500;
+  return change?.newBps ?? findOrganizer(organizerId)?.rateBps ?? 500;
 }
 
 /** The event's own rate if it has one, else null. */

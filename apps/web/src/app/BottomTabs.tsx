@@ -1,16 +1,38 @@
-import { Compass, Heart, Ticket, User, type LucideIcon } from 'lucide-react';
+import { isStaff } from '@eventify/shared';
+import {
+  Compass,
+  Heart,
+  LayoutDashboard,
+  ShieldCheck,
+  Ticket,
+  User,
+  type LucideIcon,
+} from 'lucide-react';
 import { NavLink } from 'react-router';
+import { useSession } from '../features/auth/useSession';
 import { cn } from '../lib/cn';
 
-const tabs: { to: string; label: string; icon: LucideIcon; end?: boolean }[] = [
-  { to: '/', label: 'Discover', icon: Compass, end: true },
-  { to: '/tickets', label: 'Tickets', icon: Ticket },
-  { to: '/saved', label: 'Saved', icon: Heart },
-  { to: '/account', label: 'Profile', icon: User },
-];
+type Tab = { to: string; label: string; icon: LucideIcon; end?: boolean };
 
-/** Mobile-only tab bar from the design. Hidden at md and up, where the header nav takes over. */
+/**
+ * Mobile-only tab bar from the design. Hidden at md and up, where the header nav takes over.
+ * Organizers and staff get their workspace in place of Saved, which stays on the Profile tab.
+ */
 export function BottomTabs() {
+  const { user } = useSession();
+  const third: Tab =
+    user && isStaff(user.role)
+      ? { to: '/admin', label: 'Admin', icon: ShieldCheck }
+      : user?.organizer
+        ? { to: '/organizer', label: 'Dashboard', icon: LayoutDashboard }
+        : { to: '/saved', label: 'Saved', icon: Heart };
+  const tabs: Tab[] = [
+    { to: '/', label: 'Discover', icon: Compass, end: true },
+    { to: '/tickets', label: 'Tickets', icon: Ticket },
+    third,
+    { to: '/account', label: 'Profile', icon: User },
+  ];
+
   return (
     <nav
       aria-label="Tabs"

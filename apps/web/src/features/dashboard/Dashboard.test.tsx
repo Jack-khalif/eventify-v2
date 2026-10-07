@@ -2,10 +2,12 @@ import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderApp } from '../../test/render';
+import { signInAs } from '../../test/signIn';
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-09-29T10:00:00+03:00'));
+  signInAs('organizer');
 });
 afterEach(() => vi.useRealTimers());
 

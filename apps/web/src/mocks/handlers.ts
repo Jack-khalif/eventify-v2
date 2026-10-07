@@ -3,8 +3,13 @@ import {
   createEventRequestSchema,
   doorSyncRequestSchema,
   markPaidRequestSchema,
+  organizerApplicationRequestSchema,
+  organizerStatusChangeSchema,
   rateChangeRequestSchema,
-  adminRoleSchema,
+  signInStartSchema,
+  signInVerifySchema,
+  type AdminMe,
+  type Organizer,
   eventQuerySchema,
   filterEvents,
   ticketLookupStartSchema,
@@ -12,6 +17,8 @@ import {
   type OrderView,
 } from '@eventify/shared';
 import { organizerProfiles } from '@eventify/shared/fixtures';
+import { accountForToken, applyToHost, endSession, sessionUser, verifySignIn } from './auth';
+import { allOrganizers, findOrganizer } from './organizers';
 import { delay, http, HttpResponse, type JsonBodyType } from 'msw';
 import {
   cancelOrder,
@@ -24,6 +31,7 @@ import {
 import {
   adminMe,
   agentRows,
+  applicationRows,
   approvalRows,
   changeRate,
   isAdminError,
@@ -33,14 +41,13 @@ import {
   overview,
   payoutsFor,
   resolve,
-  setDemoRole,
+  setOrganizerStatus,
   type AdminError,
 } from './admin';
 import { doorList, scannerCheckIns, syncDoor } from './checkin';
 import {
   allEvents,
   createEvent,
-  DEMO_ORGANIZER_ID,
   eventDashboard,
   eventForCheckinCode,
   organizerHome,
@@ -57,10 +64,36 @@ const adminError = (e: AdminError) =>
 const adminReply = <T extends JsonBodyType>(result: T | AdminError) =>
   isAdminError(result) ? adminError(result) : HttpResponse.json(result);
 
-const superAdminOnly = () =>
-  adminMe().role === 'super_admin'
-    ? null
-    : adminError({ status: 403, error: 'forbidden', message: "You don't have access to that." });
+const unauthorized = () =>
+  HttpResponse.json({ error: 'unauthorized', message: 'Sign in to continue.' }, { status: 401 });
+
+const forbidden = (message = "You don't have access to that.") =>
+  HttpResponse.json({ error: 'forbidden', message }, { status: 403 });
+
+const tokenOf = (request: Request) =>
+  /^Bearer (.+)$/.exec(request.headers.get('Authorization') ?? '')?.[1] ?? null;
+
+const accountOf = (request: Request) => {
+  const token = tokenOf(request);
+  return token ? accountForToken(token) : null;
+};
+
+/** The signed-in staff member, or the response that turns everyone else away. */
+function staffOf(request: Request): AdminMe | Response {
+  const account = accountOf(request);
+  if (!account) return unauthorized();
+  return adminMe(account) ?? forbidden();
+}
+
+/** The signed-in organizer (whatever their status), or the response that turns everyone else away. */
+function organizerOf(request: Request): Organizer | Response {
+  const account = accountOf(request);
+  if (!account) return unauthorized();
+  const organizer = account.organizerId ? findOrganizer(account.organizerId) : undefined;
+  return organizer ?? forbidden('Organizer tools are for organizer accounts.');
+}
+
+const superAdminOnly = (me: AdminMe) => (me.role === 'super_admin' ? null : forbidden());
 
 const badRequest = (message: string) =>
   HttpResponse.json({ error: 'validation', message }, { status: 400 });
@@ -94,8 +127,25 @@ export const handlers = [
 
   http.get('*/api/organizers/:handle', async ({ params }) => {
     await delay();
-    const profile = organizerProfiles.find((o) => o.handle === params.handle);
-    return profile ? HttpResponse.json(profile) : notFound();
+    const o = allOrganizers().find((x) => x.handle === params.handle);
+    // No public page for an applicant until they are approved or have an event up.
+    const hidden =
+      (o?.status === 'pending' || o?.status === 'rejected') &&
+      !allEvents().some((e) => e.organizerId === o.id);
+    if (!o || hidden) return notFound();
+    const sample = organizerProfiles.find((p) => p.id === o.id);
+    return HttpResponse.json(
+      sample ?? {
+        id: o.id,
+        handle: o.handle,
+        name: o.name,
+        type: o.type,
+        verified: o.verified,
+        bio: o.bio,
+        bannerTone: o.bannerTone,
+        pastEvents: [],
+      },
+    );
   }),
 
   http.post('*/api/orders', async ({ request }) => {
@@ -170,21 +220,93 @@ export const handlers = [
     return HttpResponse.json({ tickets: await ticketsForPhone(body.data.phone, allEvents()) });
   }),
 
-  // Organizer tools act as the demo organizer until sign-in exists (Phase A9).
-  http.get('*/api/organizer/me', async () => {
+  // Sign-in: a one-time code to the phone, as for "Find my tickets".
+  http.post('*/api/auth/start', async ({ request }) => {
     await delay();
-    return HttpResponse.json(organizerHome(DEMO_ORGANIZER_ID));
+    const body = signInStartSchema.safeParse(await request.json());
+    return body.success
+      ? HttpResponse.json({ sent: true })
+      : badRequest('Enter a valid phone number.');
   }),
 
-  http.get('*/api/organizer/events/:id/dashboard', async ({ params }) => {
+  http.post('*/api/auth/verify', async ({ request }) => {
     await delay();
+    const body = signInVerifySchema.safeParse(await request.json());
+    const session = body.success ? verifySignIn(body.data.phone, body.data.code) : null;
+    return session
+      ? HttpResponse.json(session)
+      : HttpResponse.json(
+          { error: 'invalid_code', message: "That code isn't right. Check the SMS and try again." },
+          { status: 422 },
+        );
+  }),
+
+  http.get('*/api/auth/me', async ({ request }) => {
+    await delay();
+    const account = accountOf(request);
+    return account ? HttpResponse.json(sessionUser(account)) : unauthorized();
+  }),
+
+  http.post('*/api/auth/logout', async ({ request }) => {
+    await delay();
+    const token = tokenOf(request);
+    if (token) endSession(token);
+    return HttpResponse.json({ ok: true });
+  }),
+
+  // Tickets bought with the signed-in phone: it was verified at sign-in, so no second code.
+  http.get('*/api/me/tickets', async ({ request }) => {
+    await delay();
+    const account = accountOf(request);
+    if (!account) return unauthorized();
+    return HttpResponse.json({ tickets: await ticketsForPhone(account.phone, allEvents()) });
+  }),
+
+  http.post('*/api/organizer/apply', async ({ request }) => {
+    await delay();
+    const account = accountOf(request);
+    if (!account) return unauthorized();
+    const body = organizerApplicationRequestSchema.safeParse(await request.json());
+    if (!body.success) return badRequest('Some details are missing or invalid.');
+    const user = applyToHost(account, body.data);
+    return user
+      ? HttpResponse.json(user, { status: 201 })
+      : HttpResponse.json(
+          { error: 'already_applied', message: 'This account already has an organizer profile.' },
+          { status: 409 },
+        );
+  }),
+
+  http.get('*/api/organizer/me', async ({ request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    return HttpResponse.json(organizerHome(organizer.id));
+  }),
+
+  http.get('*/api/organizer/events/:id/dashboard', async ({ params, request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
     const id = String(params.id);
-    const dashboard = eventDashboard(DEMO_ORGANIZER_ID, id, scannerCheckIns(id));
+    const dashboard = eventDashboard(organizer.id, id, scannerCheckIns(id));
     return dashboard ? HttpResponse.json(dashboard) : notFound();
   }),
 
+  // Publishing is the gate: only organizers a Super Admin has approved get past it.
   http.post('*/api/organizer/events', async ({ request }) => {
     await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    if (organizer.status !== 'active') {
+      return HttpResponse.json(
+        {
+          error: 'organizer_not_approved',
+          message: 'Your organizer account has to be approved before you can publish events.',
+        },
+        { status: 403 },
+      );
+    }
     const body = createEventRequestSchema.safeParse(await request.json());
     if (!body.success) {
       return HttpResponse.json(
@@ -192,7 +314,7 @@ export const handlers = [
         { status: 400 },
       );
     }
-    return HttpResponse.json(createEvent(body.data, DEMO_ORGANIZER_ID), { status: 201 });
+    return HttpResponse.json(createEvent(body.data, organizer.id), { status: 201 });
   }),
 
   // Door check-in: the link's code is the only credential door staff have.
@@ -218,72 +340,98 @@ export const handlers = [
     return HttpResponse.json(syncDoor(event, code, body.data));
   }),
 
-  // Admin portal. Who is signed in is a demo switch until sign-in exists (Phase A9).
-  http.get('*/api/admin/me', async () => {
+  // Admin portal: staff only. Agents see the organizers they onboarded; the rest is Super Admin.
+  http.get('*/api/admin/me', async ({ request }) => {
     await delay();
-    return HttpResponse.json(adminMe());
-  }),
-
-  http.post('*/api/admin/demo-role', async ({ request }) => {
-    await delay();
-    const body = adminRoleSchema.safeParse(((await request.json()) as { role?: unknown }).role);
-    return body.success ? HttpResponse.json(setDemoRole(body.data)) : badRequest('Unknown role.');
+    const me = staffOf(request);
+    return me instanceof Response ? me : HttpResponse.json(me);
   }),
 
   http.get('*/api/admin/overview', async ({ request }) => {
     await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
     const params = Object.fromEntries(new URL(request.url).searchParams);
     try {
-      return HttpResponse.json(overview(adminMe(), params));
+      return HttpResponse.json(overview(me, params));
     } catch {
       return badRequest('Invalid filters.');
     }
   }),
 
-  http.get('*/api/admin/organizers', async () => {
+  http.get('*/api/admin/organizers', async ({ request }) => {
     await delay();
-    return HttpResponse.json(organizerRows(adminMe()));
+    const me = staffOf(request);
+    return me instanceof Response ? me : HttpResponse.json(organizerRows(me));
   }),
 
-  http.get('*/api/admin/organizers/:handle', async ({ params }) => {
+  http.get('*/api/admin/organizers/:handle', async ({ params, request }) => {
     await delay();
-    return adminReply(organizerDetail(adminMe(), String(params.handle)));
+    const me = staffOf(request);
+    return me instanceof Response ? me : adminReply(organizerDetail(me, String(params.handle)));
   }),
 
   http.post('*/api/admin/organizers/:handle/rate', async ({ params, request }) => {
     await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
     const body = rateChangeRequestSchema.safeParse(await request.json());
     if (!body.success) return badRequest('Check the rate and reason.');
-    return adminReply(changeRate(adminMe(), String(params.handle), body.data));
+    return adminReply(changeRate(me, String(params.handle), body.data));
   }),
 
-  http.get('*/api/admin/approvals', async () => {
+  http.post('*/api/admin/organizers/:handle/status', async ({ params, request }) => {
     await delay();
-    return superAdminOnly() ?? HttpResponse.json(approvalRows());
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    const body = organizerStatusChangeSchema.safeParse(await request.json());
+    if (!body.success) return badRequest('Unknown status.');
+    return adminReply(setOrganizerStatus(me, String(params.handle), body.data.status));
   }),
 
-  http.post('*/api/admin/approvals/:id/:decision', async ({ params }) => {
+  http.get('*/api/admin/applications', async ({ request }) => {
     await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    return superAdminOnly(me) ?? HttpResponse.json(applicationRows());
+  }),
+
+  http.get('*/api/admin/approvals', async ({ request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    return superAdminOnly(me) ?? HttpResponse.json(approvalRows());
+  }),
+
+  http.post('*/api/admin/approvals/:id/:decision', async ({ params, request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
     const decision =
       params.decision === 'approve' ? 'approved' : params.decision === 'reject' ? 'rejected' : null;
     if (!decision) return notFound();
-    return adminReply(resolve(adminMe(), String(params.id), decision));
+    return adminReply(resolve(me, String(params.id), decision));
   }),
 
-  http.get('*/api/admin/agents', async () => {
+  http.get('*/api/admin/agents', async ({ request }) => {
     await delay();
-    return superAdminOnly() ?? HttpResponse.json(agentRows());
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    return superAdminOnly(me) ?? HttpResponse.json(agentRows());
   }),
 
-  http.get('*/api/admin/payouts', async () => {
+  http.get('*/api/admin/payouts', async ({ request }) => {
     await delay();
-    return HttpResponse.json(payoutsFor(adminMe()));
+    const me = staffOf(request);
+    return me instanceof Response ? me : HttpResponse.json(payoutsFor(me));
   }),
 
   http.post('*/api/admin/payouts/:id/paid', async ({ params, request }) => {
     await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
     const body = markPaidRequestSchema.safeParse(await request.json());
     if (!body.success) return badRequest(body.error.issues[0]?.message ?? 'Enter the reference.');
-    return adminReply(markPaid(adminMe(), String(params.id), body.data.reference));
+    return adminReply(markPaid(me, String(params.id), body.data.reference));
   }),
 ];

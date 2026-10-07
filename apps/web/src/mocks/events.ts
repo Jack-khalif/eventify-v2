@@ -10,16 +10,14 @@ import {
   type OrganizerHome,
   type PublicEvent,
 } from '@eventify/shared';
-import { organizers, publicEvents, sautiDashboard } from '@eventify/shared/fixtures';
+import { publicEvents, sautiDashboard } from '@eventify/shared/fixtures';
+import { findOrganizer } from './organizers';
 import { eventRate, organizerRate } from './rates';
 
 /**
  * In-browser stand-in for events organizers create, until the backend exists. Created events are
  * kept in localStorage so they survive a refresh and show up on Discover like any other event.
  */
-
-/** Until sign-in (Phase A9), the organizer screens act as this organizer. */
-export const DEMO_ORGANIZER_ID = 'org_amani';
 
 const STORAGE_KEY = 'eventify-mock-events';
 const CODES_KEY = 'eventify-mock-checkin-codes';
@@ -52,7 +50,7 @@ export function resetEvents() {
 }
 
 const withOrganizer = (e: Event): PublicEvent => {
-  const o = organizers.find((org) => org.id === e.organizerId)!;
+  const o = findOrganizer(e.organizerId)!;
   return {
     ...e,
     organizer: { id: o.id, handle: o.handle, name: o.name, type: o.type, verified: o.verified },
@@ -99,7 +97,7 @@ const ownEvents = (organizerId: string) =>
     .sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
 
 export function organizerHome(organizerId: string, now = new Date()): OrganizerHome {
-  const o = organizers.find((org) => org.id === organizerId)!;
+  const o = findOrganizer(organizerId)!;
   return {
     organizer: {
       id: o.id,
@@ -148,7 +146,7 @@ export function eventDashboard(
 ): EventDashboard | null {
   const e = ownEvents(organizerId).find((x) => x.id === eventId);
   if (!e) return null;
-  const o = organizers.find((org) => org.id === organizerId)!;
+  const o = findOrganizer(organizerId)!;
   // Traffic, daily sales and door counts only exist for the design's sample event.
   const traffic =
     e.id === sautiDashboard.eventId

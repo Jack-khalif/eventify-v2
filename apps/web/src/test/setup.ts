@@ -5,9 +5,11 @@ import { resetFollowingForTests } from '../lib/following';
 import { resetSavedForTests } from '../lib/saved';
 import { server } from '../mocks/node';
 import { resetAdmin } from '../mocks/admin';
+import { resetAuth } from '../mocks/auth';
 import { resetCheckIns } from '../mocks/checkin';
 import { resetEvents } from '../mocks/events';
 import { resetOrders } from '../mocks/orders';
+import { resetOrganizers } from '../mocks/organizers';
 import { resetRates } from '../mocks/rates';
 
 // findBy*/waitFor give up after 1s by default; debounced search plus mock latency can exceed that on a busy machine.
@@ -39,6 +41,8 @@ afterEach(() => {
   resetCheckIns();
   resetAdmin();
   resetRates();
+  resetAuth();
+  resetOrganizers();
   delete document.documentElement.dataset.theme;
 });
 afterAll(() => server.close());

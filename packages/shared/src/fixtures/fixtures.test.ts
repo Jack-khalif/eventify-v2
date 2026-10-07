@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
+  accountSchema,
   agentSchema,
   doorSchema,
   eventSchema,
   guestSchema,
+  organizerApplicationSchema,
   organizerDashboardSchema,
   organizerProfileSchema,
   organizerSchema,
@@ -27,6 +29,8 @@ describe('fixtures match the shared schemas', () => {
     ['rateChanges', z.array(rateChangeSchema), f.rateChanges],
     ['rateApprovals', z.array(rateApprovalSchema), f.rateApprovals],
     ['payouts', z.array(payoutSchema), f.payouts],
+    ['accounts', z.array(accountSchema), f.accounts],
+    ['organizerApplications', z.array(organizerApplicationSchema), f.organizerApplications],
   ] as const)('%s', (_name, schema, data) => {
     expect(schema.safeParse(data).error).toBeUndefined();
   });
@@ -36,6 +40,11 @@ describe('fixtures match the shared schemas', () => {
     const agentIds = new Set(f.agents.map((a) => a.id));
     for (const e of f.events) expect(orgIds).toContain(e.organizerId);
     for (const o of f.organizers) if (o.agentId) expect(agentIds).toContain(o.agentId);
+    for (const a of f.accounts) {
+      if (a.organizerId) expect(orgIds).toContain(a.organizerId);
+      if (a.agentId) expect(agentIds).toContain(a.agentId);
+    }
+    for (const a of f.organizerApplications) expect(orgIds).toContain(a.organizerId);
   });
 
   it('has unique slugs and handles', () => {

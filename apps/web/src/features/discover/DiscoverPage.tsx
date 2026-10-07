@@ -10,7 +10,9 @@ import {
 import { MapPin, Search } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
+import { hostCta } from '../../app/nav';
 import { Button, buttonClass, Chip } from '../../components/ui';
+import { useSession } from '../auth/useSession';
 import { EventCard, EventCardSkeleton } from './EventCard';
 import { useEvents } from './useEvents';
 
@@ -41,6 +43,7 @@ function useDiscoverFilters() {
 }
 
 export function DiscoverPage() {
+  const cta = hostCta(useSession().user);
   const { city, category, q, update, clear } = useDiscoverFilters();
   const [searchText, setSearchText] = useState(q);
 
@@ -208,14 +211,14 @@ export function DiscoverPage() {
             </span>
           </div>
           <Link
-            to="/organizer/events/new"
+            to={cta.to}
             className={buttonClass({
               variant: 'ink',
               size: 'md',
               className: 'min-w-[200px] justify-start text-white hover:text-white',
             })}
           >
-            Create an event →
+            {cta.label} →
           </Link>
         </div>
       </section>

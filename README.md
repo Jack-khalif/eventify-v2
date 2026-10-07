@@ -24,6 +24,22 @@ npm run dev        # web app on http://localhost:5173
 
 Until the backend exists, a mock API (MSW, in `apps/web/src/mocks`) answers `/api/*` in the browser using the sample data in `packages/shared`. See `apps/web/.env.example` to turn it off.
 
+### Who can do what
+
+Sign-in is a phone number and a one-time SMS code (`/login`); there are no passwords. The rules live in `packages/shared/src/access.ts` and the API must enforce them too.
+
+| Who                  | Can                                                                                 |
+| -------------------- | ----------------------------------------------------------------------------------- |
+| Guest (no sign-in)   | Browse, buy tickets, find tickets by phone, scan at the door with a check-in link   |
+| Attendee (signed in) | The same, with their tickets shown without a second code; can apply to host         |
+| Organizer, pending   | See their application's progress. Cannot create events until a Super Admin approves |
+| Organizer, active    | Dashboard and Create event                                                          |
+| Organizer, suspended | Dashboard for past events; cannot create events                                     |
+| Agent                | Admin portal, limited to organizers they onboarded                                  |
+| Super Admin          | Whole admin portal, including approving, declining and suspending organizers        |
+
+With the mock API the code is always `123456`. Sample accounts: `0700 000 001` organizer, `0700 000 002` organizer waiting for approval, `0700 000 003` suspended organizer, `0700 000 010` agent, `0700 000 020` Super Admin. Any other number signs in as a new attendee.
+
 In development, http://localhost:5173/dev/ui shows every UI component. Use the header toggle to check dark mode.
 
 ## Checks (the same ones CI runs)

@@ -6,17 +6,20 @@ import { OrganizerDetailPage } from '../features/admin/OrganizerDetailPage';
 import { OrganizersPage } from '../features/admin/OrganizersPage';
 import { OverviewPage } from '../features/admin/OverviewPage';
 import { PayoutsPage } from '../features/admin/PayoutsPage';
+import { AccountPage } from '../features/auth/AccountPage';
+import { ActiveOrganizerOnly, StaffOnly } from '../features/auth/guards';
+import { LoginPage } from '../features/auth/LoginPage';
 import { UiKit } from '../features/dev/UiKit';
 import { CheckinPage } from '../features/checkin/CheckinPage';
 import { CheckoutPage } from '../features/checkout/CheckoutPage';
 import { CreateEventPage } from '../features/create-event/CreateEventPage';
-import { DashboardPage } from '../features/dashboard/DashboardPage';
 import { OrderPage } from '../features/checkout/OrderPage';
 import { DiscoverPage } from '../features/discover/DiscoverPage';
 import { EventPage } from '../features/event/EventPage';
 import { OrganizerPage } from '../features/organizer/OrganizerPage';
 import { SavedPage } from '../features/saved/SavedPage';
-import { ComingSoon } from '../features/placeholder/ComingSoon';
+import { ApplyPage } from '../features/host/ApplyPage';
+import { OrganizerHome } from '../features/host/OrganizerHome';
 import { DeliveryPage } from '../features/tickets/DeliveryPage';
 import { FindTicketsPage } from '../features/tickets/FindTicketsPage';
 import { TicketPage } from '../features/tickets/TicketPage';
@@ -25,12 +28,17 @@ import { AppLayout, type RouteHandle } from './AppLayout';
 
 /**
  * URL scheme follows the design: eventify.co/e/{slug}, /t/{ticketId}, /checkin/{code}, /{orgHandle}.
- * Placeholders name the phase that replaces them.
+ * Buying, tickets and door check-in need no account. Publishing needs an approved organizer and
+ * /admin needs staff; the guards only pick the screen, the API enforces the same rules.
  */
 export const routes: RouteObject[] = [
   {
     path: 'admin',
-    element: <AdminLayout />,
+    element: (
+      <StaffOnly>
+        <AdminLayout />
+      </StaffOnly>
+    ),
     children: [
       { index: true, element: <OverviewPage /> },
       { path: 'organizers', element: <OrganizersPage /> },
@@ -62,26 +70,25 @@ export const routes: RouteObject[] = [
         handle: { hideTabs: true } satisfies RouteHandle,
       },
       { path: 't/:ticketId/delivery', element: <DeliveryPage /> },
-      { path: 'organizer', element: <DashboardPage /> },
-      { path: 'organizer/events/new', element: <CreateEventPage /> },
+      { path: 'organizer', element: <OrganizerHome /> },
+      { path: 'organizer/apply', element: <ApplyPage /> },
+      {
+        path: 'organizer/events/new',
+        element: (
+          <ActiveOrganizerOnly>
+            <CreateEventPage />
+          </ActiveOrganizerOnly>
+        ),
+      },
       {
         path: 'checkin/:code',
         element: <CheckinPage />,
         handle: { hideTabs: true } satisfies RouteHandle,
       },
-      { path: 'login', element: <ComingSoon title="Sign in" phase="Phase A9" /> },
+      { path: 'login', element: <LoginPage /> },
       { path: 'tickets', element: <FindTicketsPage /> },
       { path: 'saved', element: <SavedPage /> },
-      {
-        path: 'account',
-        element: (
-          <ComingSoon
-            title="Organizer sign-in"
-            phase="Phase A9"
-            note="Organizers sign in here to reach their dashboard."
-          />
-        ),
-      },
+      { path: 'account', element: <AccountPage /> },
       ...(import.meta.env.DEV ? [{ path: 'dev/ui', element: <UiKit /> }] : []),
       /* Organizer public profile: eventify.co/{handle}. Kept last so named routes win. */
       { path: ':handle', element: <OrganizerPage /> },
