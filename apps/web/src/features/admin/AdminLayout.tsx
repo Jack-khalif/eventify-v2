@@ -45,6 +45,8 @@ export function AdminLayout() {
         ]
       : []),
     { to: '/admin/payouts', label: 'Payouts', name: 'Payouts' },
+    ...(isSuper ? [{ to: '/admin/staff', label: 'Staff', name: 'Staff' }] : []),
+    { to: '/admin/security', label: 'Security', name: 'Security' },
   ];
 
   const nav = (className: string) =>

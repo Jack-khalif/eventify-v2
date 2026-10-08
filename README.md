@@ -48,14 +48,20 @@ With no settings at all it runs on its own: the database is a local file (`apps/
 | `SUPER_ADMIN_EMAILS`        | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in)                                                 |
 | `TRUST_PROXY`               | `1` when hosted behind the host's proxy, so rate limits count each visitor rather than the proxy                                             |
 
-Protections worth knowing about: sign-in codes and checkouts are rate limited per visitor (and codes per email or phone), one phone number can hold three unpaid orders at a time, agents and Super Admins are signed out after 12 hours (everyone else after 30 days), and every change made in the admin portal is written to the `audit_log` table with who made it.
+Protections worth knowing about:
+
+- **Sessions** are held in two halves: a cookie scripts can't read, and a token the web app sends back. The API needs both, so the web app and the API have to share a site: put the API on a subdomain of the web app's domain, or forward `/api/*` from the web host to the API (a rewrite in `apps/web/vercel.json`) and leave `VITE_API_URL` empty. On two unrelated addresses, browsers won't send the cookie and nobody stays signed in.
+- **Two-step sign-in** (an authenticator app, set up under Admin → Security) is open to all staff. In production a Super Admin can't approve organizers, change rates, record payouts or manage staff until theirs is on (`REQUIRE_TWO_STEP`).
+- **Staff** are added and removed under Admin → Staff, and each organizer's agent is picked on the organizer's page. `SUPER_ADMIN_EMAILS` is only for the first admin.
+- **Rate limits**: sign-in codes and checkouts are limited per visitor (and codes per email or phone), and one phone number can hold three unpaid orders at a time.
+- **Staff sessions** end after 12 hours; everyone else's after 30 days.
+- **Audit log**: every change made in the admin portal is written to the `audit_log` table with who made it.
 
 What the numbers mean on the real API:
 
 - **Posters** are stored in the database and served from `/api/images/{id}` (JPEG, PNG or WebP, 2 MB at most).
 - **Payouts** appear in the admin portal ten minutes after an event ends: one per event, its paid orders less the fee each order was sold at. A Super Admin sends the money by hand and records the reference.
 - **Page views** on the organizer dashboard count requests for the event page.
-- **Agents** have no screen for adding them yet: add a row to `agents`, and set `role = 'agent'` and `agent_id` on the person's account.
 
 After changing `apps/api/src/db/schema.ts`, run `npm run db:generate --workspace @eventify/api` and commit the new file in `apps/api/drizzle`.
 

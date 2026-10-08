@@ -69,6 +69,11 @@ export const accounts = pgTable('accounts', {
   role: text('role').$type<Role>().notNull(),
   organizerId: text('organizer_id').references(() => organizers.id),
   agentId: text('agent_id'),
+  /** Two-step sign-in: the authenticator app's secret (base32), in use once totpEnabledAt is set. */
+  totpSecret: text('totp_secret'),
+  totpEnabledAt: instant('totp_enabled_at'),
+  /** The 30-second step of the last code accepted, so a code can't be used twice. */
+  totpLastStep: integer('totp_last_step'),
   createdAt: instant('created_at').notNull().defaultNow(),
 });
 
@@ -82,6 +87,10 @@ export const sessions = pgTable(
       .references(() => accounts.id),
     expiresAt: instant('expires_at').notNull(),
     createdAt: instant('created_at').notNull(),
+    /** The emailed code was right but the authenticator code is still owed; not a sign-in yet. */
+    pendingTotp: boolean('pending_totp').notNull().default(false),
+    /** Wrong authenticator codes so far; the pending sign-in is dropped after a few. */
+    totpAttempts: integer('totp_attempts').notNull().default(0),
   },
   (t) => [index('sessions_account_idx').on(t.accountId)],
 );

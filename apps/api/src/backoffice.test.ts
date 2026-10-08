@@ -109,7 +109,7 @@ const send = (path: string, token?: string, body?: unknown) =>
   api().request(`/api${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: {
-      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(token && { Authorization: `Bearer ${token}`, Cookie: cookies.get(token) ?? '' }),
       ...(body !== undefined && { 'Content-Type': 'application/json' }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -122,6 +122,8 @@ async function get<T>(path: string, schema: z.ZodType<T>, token?: string): Promi
 }
 
 const tokens = new Map<string, string>();
+/** The cookie half of each session, by its token. */
+const cookies = new Map<string, string>();
 
 /** Sign in with the emailed code. One session per address is kept for the whole file. */
 async function signIn(email: string): Promise<string> {
@@ -132,6 +134,7 @@ async function signIn(email: string): Promise<string> {
   const code = /^(\d{6}) /.exec(emails.at(-1)!.subject)![1]!;
   const res = await send('/auth/verify', undefined, { email, code });
   const { token } = sessionSchema.parse(await res.json());
+  cookies.set(token, res.headers.get('Set-Cookie')!.split(';')[0]!);
   tokens.set(email, token);
   return token;
 }

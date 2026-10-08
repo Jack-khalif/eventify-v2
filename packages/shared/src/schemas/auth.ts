@@ -54,6 +54,33 @@ export const signInVerifySchema = z.object({
 export const sessionSchema = z.object({ token: z.string().min(16), user: sessionUserSchema });
 export type Session = z.infer<typeof sessionSchema>;
 
+/**
+ * Two-step sign-in (an authenticator app, for staff). When it is on, POST /api/auth/verify answers
+ * with a challenge instead of a session, and POST /api/auth/totp trades it and the app's code for one.
+ */
+export const totpChallengeSchema = z.object({
+  totpRequired: z.literal(true),
+  challenge: z.string().min(16),
+});
+export const signInResultSchema = z.union([sessionSchema, totpChallengeSchema]);
+export type SignInResult = z.infer<typeof signInResultSchema>;
+
+const totpCodeSchema = z
+  .string()
+  .transform((s) => s.replace(/\s+/g, ''))
+  .pipe(z.string().regex(/^\d{6}$/, 'Enter the 6-digit code from your app'));
+export const totpSignInSchema = z.object({ challenge: z.string().min(16), code: totpCodeSchema });
+export const totpCodeRequestSchema = z.object({ code: totpCodeSchema });
+
+/** GET /api/auth/totp: whether two-step sign-in is on for the signed-in account. */
+export const totpStatusSchema = z.object({ enabled: z.boolean() });
+/** POST /api/auth/totp/setup: what to scan or type into the authenticator app. */
+export const totpSetupSchema = z.object({
+  secret: z.string().min(16),
+  /** The same thing as a QR picture (a PNG data URL). */
+  qrDataUrl: z.string().startsWith('data:image/png'),
+});
+
 export const ORGANIZER_TYPES = [
   'Independent artist',
   'Student society',

@@ -50,6 +50,7 @@ const app = createApp({
   verifyKey: { kty: 'OKP', crv: 'Ed25519', x: publicX },
   siteUrl: config.siteUrl,
   superAdminEmails: config.superAdminEmails,
+  requireTwoStep: config.requireTwoStep,
   clientIp: (c) => {
     // Only the last entry was written by the host's proxy; anything before it is the visitor's claim.
     const forwarded =

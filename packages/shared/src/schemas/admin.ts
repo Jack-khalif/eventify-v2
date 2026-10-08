@@ -212,3 +212,34 @@ export const markPaidRequestSchema = z.object({
     .trim()
     .regex(/^[A-Za-z0-9-]{6,30}$/, 'Enter the M-Pesa or bank reference (letters and numbers).'),
 });
+
+// ── Staff ───────────────────────────────────────────────────────────────────
+
+/** GET /api/admin/staff: everyone who can open the admin portal. Super Admin only. */
+export const staffRowSchema = z.object({
+  id: idSchema,
+  email: z.string(),
+  name: z.string(),
+  role: adminRoleSchema,
+  /** Set for agents: what organizers are assigned to. */
+  agentId: idSchema.nullable(),
+  /** Whether they sign in with an authenticator app as well as the emailed code. */
+  twoStep: z.boolean(),
+  /** Organizers they look after (agents only). */
+  organizers: z.int().nonnegative(),
+});
+export type StaffRow = z.infer<typeof staffRowSchema>;
+
+/** POST /api/admin/staff: give someone access. They sign in with this email. */
+export const addStaffRequestSchema = z.object({
+  email: z
+    .string()
+    .transform((s) => s.trim().toLowerCase())
+    .pipe(z.email('Enter a valid email address.')),
+  name: z.string().trim().min(2, 'Enter their name.').max(80),
+  role: adminRoleSchema,
+});
+export type AddStaffRequest = z.infer<typeof addStaffRequestSchema>;
+
+/** POST /api/admin/organizers/:handle/agent: who looks after this organizer (null = nobody). */
+export const assignAgentRequestSchema = z.object({ agentId: idSchema.nullable() });

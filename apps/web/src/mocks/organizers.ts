@@ -20,6 +20,8 @@ type Db = {
   created: Organizer[];
   status: Record<string, OrganizerStatus>;
   applications: OrganizerApplication[];
+  /** Agents assigned in the admin portal, by organizer id (null = nobody). */
+  agent?: Record<string, string | null>;
 };
 
 const STORAGE_KEY = 'eventify-mock-organizers';
@@ -54,13 +56,19 @@ export function resetOrganizers() {
 export const allOrganizers = (): Organizer[] =>
   [...sampleOrganizers, ...db.created].map((o) => {
     const status = db.status[o.id];
-    return status ? { ...o, status } : o;
+    const agentId = db.agent && o.id in db.agent ? db.agent[o.id]! : o.agentId;
+    return { ...o, agentId, ...(status && { status }) };
   });
 
 export const findOrganizer = (id: string) => allOrganizers().find((o) => o.id === id);
 
 export function setOrganizerStatus(id: string, status: OrganizerStatus) {
   db.status[id] = status;
+  save();
+}
+
+export function setOrganizerAgent(id: string, agentId: string | null) {
+  db.agent = { ...db.agent, [id]: agentId };
   save();
 }
 

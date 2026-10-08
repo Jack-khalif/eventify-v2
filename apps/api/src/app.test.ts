@@ -361,10 +361,16 @@ describe('signing in by email', () => {
     const { code } = await requestCode(api, email);
     const res = await post(api, '/api/auth/verify', { email, code });
     expect(res.status).toBe(200);
-    return sessionSchema.parse(await res.json());
+    const session = sessionSchema.parse(await res.json());
+    // What a browser would keep: the cookie it can't read, next to the token it sends back.
+    cookies.set(session.token, res.headers.get('Set-Cookie')!.split(';')[0]!);
+    return session;
   }
 
-  const as = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } });
+  const cookies = new Map<string, string>();
+  const as = (token: string) => ({
+    headers: { Authorization: `Bearer ${token}`, Cookie: cookies.get(token) ?? '' },
+  });
 
   it('keeps attendees signed in for weeks, but makes staff sign in again each day', async () => {
     const api = app();
@@ -380,6 +386,31 @@ describe('signing in by email', () => {
     expect((await api.request('/api/admin/me', as(staff.token))).status).toBe(401);
     clock += 20 * 24 * 60 * 60_000;
     expect((await me(attendee.token)).status).toBe(200);
+  });
+
+  it('keeps the session in a cookie scripts can’t read, and needs both halves of it', async () => {
+    const api = app();
+    const { code } = await requestCode(api, 'halves@example.com');
+    const res = await post(api, '/api/auth/verify', { email: 'halves@example.com', code });
+    const { token } = sessionSchema.parse(await res.json());
+    const setCookie = res.headers.get('Set-Cookie')!;
+    expect(setCookie).toMatch(/^eventify_session=[^;]{40,}; .*HttpOnly/);
+    expect(setCookie).toContain('SameSite=Lax');
+    expect(setCookie).toContain('Secure'); // the site is https
+    const cookie = setCookie.split(';')[0]!;
+    expect(cookie).not.toContain(token);
+
+    const me = (headers: Record<string, string>) => api.request('/api/auth/me', { headers });
+    const both = { Authorization: `Bearer ${token}`, Cookie: cookie };
+    expect((await me(both)).status).toBe(200);
+    // The token alone is what a script could steal; the cookie alone is what another site could ride on.
+    expect((await me({ Authorization: both.Authorization })).status).toBe(401);
+    expect((await me({ Cookie: cookie })).status).toBe(401);
+    expect((await me({ ...both, Authorization: 'Bearer someone-elses' })).status).toBe(401);
+
+    const out = await api.request('/api/auth/logout', { method: 'POST', headers: both });
+    expect(out.headers.get('Set-Cookie')).toMatch(/^eventify_session=;/);
+    expect((await me(both)).status).toBe(401);
   });
 
   it('emails a code, and the code opens a session for a new attendee', async () => {

@@ -18,6 +18,8 @@ export type Config = {
    * address is the last one in X-Forwarded-For. Off, the connection's own address is used.
    */
   trustProxy: boolean;
+  /** Super Admins need two-step sign-in before changing anything. On in production unless set to "off". */
+  requireTwoStep: boolean;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -44,6 +46,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         : null,
     qrPrivateKey: env.QR_PRIVATE_KEY || null,
     trustProxy: env.TRUST_PROXY === '1' || env.TRUST_PROXY === 'true',
+    requireTwoStep: env.REQUIRE_TWO_STEP ? env.REQUIRE_TWO_STEP !== 'off' : production,
     superAdminEmails: (env.SUPER_ADMIN_EMAILS || '')
       .split(',')
       .map((email) => email.trim().toLowerCase())

@@ -9,8 +9,12 @@ import {
   organizerStatusChangeSchema,
   overviewQuerySchema,
   rateChangeRequestSchema,
+  addStaffRequestSchema,
+  assignAgentRequestSchema,
   signInStartSchema,
   signInVerifySchema,
+  totpCodeRequestSchema,
+  totpSignInSchema,
   ticketLookupStartSchema,
   ticketLookupVerifySchema,
   type AdminMe,
@@ -18,7 +22,9 @@ import {
 } from '@eventify/shared';
 import { eq } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
+import QRCode from 'qrcode';
 import { bodyLimit } from 'hono/body-limit';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import { cors } from 'hono/cors';
 import { secureHeaders } from 'hono/secure-headers';
 import {
@@ -39,11 +45,15 @@ import {
 } from './admin';
 import {
   accountForRequest,
+  beginTotpSetup,
+  completeTotpSignIn,
   endSession,
   sessionUserFor,
+  setTotpEnabled,
   startSignIn,
   verifySignIn,
   type AccountRow,
+  type OpenedSession,
 } from './auth';
 import { doorList, eventForCheckinCode, syncDoor, type VerifyKey } from './checkin';
 import type { Db } from './db/client';
@@ -67,6 +77,8 @@ import {
 import type { PaymentProvider } from './payments';
 import { createRateLimiter } from './ratelimit';
 import type { SmsSender } from './sms';
+import { addStaff, assignAgent, removeStaff, staffRows } from './staff';
+import { otpauthUrl } from './totp';
 import { ticketView, ticketViewsForEmail } from './tickets';
 
 export type AppDeps = {
@@ -87,6 +99,11 @@ export type AppDeps = {
    * The address a request came from, for rate limits. Left out (tests), everyone shares one bucket.
    */
   clientIp?: (c: Context) => string;
+  /**
+   * Super Admins must have two-step sign-in on before they can change anything in the admin
+   * portal. On in production; off by default so development and tests need no authenticator.
+   */
+  requireTwoStep?: boolean;
   now?: () => number;
 };
 
@@ -99,7 +116,7 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
   const { db } = deps;
   const app = new Hono().basePath('/api');
 
-  app.use(cors({ origin: deps.siteUrl }));
+  app.use(cors({ origin: deps.siteUrl, credentials: true }));
   // Posters are shown on the web app's origin, so they may be loaded from elsewhere.
   app.use(secureHeaders({ crossOriginResourcePolicy: 'cross-origin' }));
 
@@ -232,26 +249,63 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return c.json({ sent: true });
   });
 
+  /** The secret half of a session lives in a cookie scripts can't read (see auth.ts). */
+  const SESSION_COOKIE = 'eventify_session';
+  const cookieOptions = {
+    httpOnly: true,
+    secure: deps.siteUrl.startsWith('https:'),
+    sameSite: 'Lax',
+    path: '/api',
+  } as const;
+  const credentialsOf = (c: Context) => ({
+    cookie: getCookie(c, SESSION_COOKIE),
+    authorization: c.req.header('Authorization'),
+  });
+  function signedIn(c: Context, opened: OpenedSession) {
+    setCookie(c, SESSION_COOKIE, opened.secret, { ...cookieOptions, maxAge: opened.maxAgeSeconds });
+    return c.json(opened.session);
+  }
+
   app.post('/auth/verify', async (c) => {
     const stop = limited(c, 'guesses', 40, 10 * MINUTE);
     if (stop) return stop;
     const body = signInVerifySchema.safeParse(await c.req.json().catch(() => null));
-    const session = body.success ? await verifySignIn(deps, body.data.email, body.data.code) : null;
-    return session
-      ? c.json(session)
-      : c.json(
-          {
-            error: 'invalid_code',
-            message:
-              "That code isn't right or has expired. Check the email, or ask for a new code.",
-          },
-          422,
-        );
+    const outcome = body.success ? await verifySignIn(deps, body.data.email, body.data.code) : null;
+    if (!outcome) {
+      return c.json(
+        {
+          error: 'invalid_code',
+          message: "That code isn't right or has expired. Check the email, or ask for a new code.",
+        },
+        422,
+      );
+    }
+    // With two-step sign-in the emailed code only earns a challenge; the app's code finishes it.
+    return 'totpRequired' in outcome ? c.json(outcome) : signedIn(c, outcome);
+  });
+
+  const wrongAppCode = (c: Context) =>
+    c.json(
+      {
+        error: 'invalid_code',
+        message: "That code isn't right. Enter the 6 digits your authenticator app shows now.",
+      },
+      422,
+    );
+
+  app.post('/auth/totp', async (c) => {
+    const stop = limited(c, 'guesses', 40, 10 * MINUTE);
+    if (stop) return stop;
+    const body = totpSignInSchema.safeParse(await c.req.json().catch(() => null));
+    const opened = body.success
+      ? await completeTotpSignIn(deps, body.data.challenge, body.data.code)
+      : null;
+    return opened ? signedIn(c, opened) : wrongAppCode(c);
   });
 
   const unauthorized = (c: Context) =>
     c.json({ error: 'unauthorized', message: 'Sign in to continue.' }, 401);
-  const accountOf = (c: Context) => accountForRequest(deps, c.req.header('Authorization'));
+  const accountOf = (c: Context) => accountForRequest(deps, credentialsOf(c));
 
   app.get('/auth/me', async (c) => {
     const account = await accountOf(c);
@@ -259,9 +313,45 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
   });
 
   app.post('/auth/logout', async (c) => {
-    await endSession(db, c.req.header('Authorization'));
+    await endSession(db, credentialsOf(c));
+    deleteCookie(c, SESSION_COOKIE, cookieOptions);
     return c.json({ ok: true });
   });
+
+  // Two-step sign-in with an authenticator app. Anyone may turn it on; Super Admins have to.
+  app.get('/auth/totp', async (c) => {
+    const account = await accountOf(c);
+    return account ? c.json({ enabled: !!account.totpEnabledAt }) : unauthorized(c);
+  });
+
+  app.post('/auth/totp/setup', async (c) => {
+    const account = await accountOf(c);
+    if (!account) return unauthorized(c);
+    const secret = await beginTotpSetup(db, account);
+    if (!secret) {
+      return c.json(
+        { error: 'already_on', message: 'Two-step sign-in is already on for this account.' },
+        409,
+      );
+    }
+    const qrDataUrl = await QRCode.toDataURL(otpauthUrl(secret, account.email), { margin: 1 });
+    return c.json({ secret, qrDataUrl });
+  });
+
+  for (const [path, enabled] of [
+    ['/auth/totp/enable', true],
+    ['/auth/totp/disable', false],
+  ] as const) {
+    app.post(path, async (c) => {
+      const stop = limited(c, 'guesses', 40, 10 * MINUTE);
+      if (stop) return stop;
+      const account = await accountOf(c);
+      if (!account) return unauthorized(c);
+      const body = totpCodeRequestSchema.safeParse(await c.req.json().catch(() => null));
+      const done = body.success && (await setTotpEnabled(deps, account, enabled, body.data.code));
+      return done ? c.json({ enabled }) : wrongAppCode(c);
+    });
+  }
 
   // Tickets bought with the signed-in email: it was verified at sign-in, so no second code.
   app.get('/me/tickets', async (c) => {
@@ -403,6 +493,17 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return me ?? forbidden(c);
   }
   const actors = new WeakMap<AdminMe, AccountRow>();
+  /** The 403 for a Super Admin who hasn't set up two-step sign-in yet, otherwise null. */
+  const needsTwoStep = (c: Context, me: AdminMe) =>
+    deps.requireTwoStep && me.role === 'super_admin' && !actors.get(me)!.totpEnabledAt
+      ? c.json(
+          {
+            error: 'two_step_required',
+            message: 'Turn on two-step sign-in (Admin → Security) before making changes.',
+          },
+          403,
+        )
+      : null;
   /** Keep a record of a change made in the admin portal, once it has gone through. */
   async function audit(
     me: AdminMe,
@@ -458,6 +559,8 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
   app.post('/admin/organizers/:handle/rate', async (c) => {
     const me = await staffOf(c);
     if (me instanceof Response) return me;
+    const locked = needsTwoStep(c, me);
+    if (locked) return locked;
     const body = rateChangeRequestSchema.safeParse(await c.req.json().catch(() => null));
     if (!body.success) return badRequest(c, 'Check the rate and reason.');
     const result = await changeRate(deps, me, c.req.param('handle'), body.data);
@@ -468,6 +571,8 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
   app.post('/admin/organizers/:handle/status', async (c) => {
     const me = await staffOf(c);
     if (me instanceof Response) return me;
+    const locked = needsTwoStep(c, me);
+    if (locked) return locked;
     const body = organizerStatusChangeSchema.safeParse(await c.req.json().catch(() => null));
     if (!body.success) return badRequest(c, 'Unknown status.');
     const result = await setOrganizerStatus(deps, me, c.req.param('handle'), body.data.status);
@@ -490,6 +595,8 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
   app.post('/admin/approvals/:id/:decision', async (c) => {
     const me = await staffOf(c);
     if (me instanceof Response) return me;
+    const locked = needsTwoStep(c, me);
+    if (locked) return locked;
     const { id, decision } = c.req.param();
     if (decision !== 'approve' && decision !== 'reject') return notFound(c);
     const result = await resolveApproval(
@@ -516,6 +623,8 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
   app.post('/admin/payouts/:id/paid', async (c) => {
     const me = await staffOf(c);
     if (me instanceof Response) return me;
+    const locked = needsTwoStep(c, me);
+    if (locked) return locked;
     const body = markPaidRequestSchema.safeParse(await c.req.json().catch(() => null));
     if (!body.success) {
       return badRequest(c, body.error.issues[0]?.message ?? 'Enter the reference.');
@@ -526,6 +635,54 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
       ...('amountMinor' in result && { amountMinor: result.amountMinor, handle: result.handle }),
     });
     return adminReply(c, result);
+  });
+
+  // Staff: who can open the admin portal, and which agent looks after which organizer.
+  app.get('/admin/staff', async (c) => {
+    const me = await staffOf(c);
+    if (me instanceof Response) return me;
+    return superAdminOnly(c, me) ?? c.json(await staffRows(db));
+  });
+
+  app.post('/admin/staff', async (c) => {
+    const me = await staffOf(c);
+    if (me instanceof Response) return me;
+    const locked = needsTwoStep(c, me);
+    if (locked) return locked;
+    const body = addStaffRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return badRequest(c, body.error.issues[0]?.message ?? 'Check the details.');
+    const result = await addStaff(db, me, body.data);
+    await audit(me, result, 'staff.add', body.data.email, { role: body.data.role });
+    return isAdminError(result)
+      ? c.json({ error: result.error, message: result.message }, result.status)
+      : c.json(result, 201);
+  });
+
+  app.post('/admin/staff/:id/remove', async (c) => {
+    const me = await staffOf(c);
+    if (me instanceof Response) return me;
+    const locked = needsTwoStep(c, me);
+    if (locked) return locked;
+    const id = c.req.param('id');
+    const result = await removeStaff(db, me, actors.get(me)!.id, id, deps.superAdminEmails);
+    await audit(me, result, 'staff.remove', id, {});
+    return adminReply(c, result);
+  });
+
+  app.post('/admin/organizers/:handle/agent', async (c) => {
+    const me = await staffOf(c);
+    if (me instanceof Response) return me;
+    const locked = needsTwoStep(c, me);
+    if (locked) return locked;
+    const body = assignAgentRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return badRequest(c, 'Pick an agent.');
+    const handle = c.req.param('handle');
+    const assigned = await assignAgent(db, me, handle, body.data.agentId);
+    await audit(me, assigned, 'organizer.agent', handle, body.data);
+    return adminReply(
+      c,
+      isAdminError(assigned) ? assigned : await organizerDetail(deps, me, handle),
+    );
   });
 
   return app;

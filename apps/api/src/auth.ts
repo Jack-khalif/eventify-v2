@@ -4,6 +4,7 @@ import { issueCode, redeemCode, sha256 } from './codes';
 import type { Db } from './db/client';
 import { accounts, organizers, sessions } from './db/schema';
 import type { Mailer } from './email/mailer';
+import { generateTotpSecret, matchTotp } from './totp';
 
 export type AuthDeps = {
   db: Db;
@@ -56,12 +57,44 @@ async function toSessionUser(db: Db, account: AccountRow): Promise<SessionUser> 
   };
 }
 
-/** Exchange the emailed code for a session. Null when the code is wrong, used up or out of date. */
+/**
+ * A sign-in the browser holds in two halves. `secret` goes in a cookie scripts can't read, so a
+ * malicious script on the page can't carry the session off. `token` is derived from it and sent
+ * back in the Authorization header: no use on its own, but only our own pages can send it, which
+ * stops other sites riding on the cookie.
+ */
+export type OpenedSession = { session: Session; secret: string; maxAgeSeconds: number };
+export type SignInOutcome = OpenedSession | { totpRequired: true; challenge: string } | null;
+
+const publicHalf = (secret: string) => sha256(`public-half:${secret}`);
+const CHALLENGE_LIFETIME_MS = 10 * 60_000;
+const MAX_TOTP_ATTEMPTS = 5;
+
+async function openSession(db: Db, account: AccountRow, at: number): Promise<OpenedSession> {
+  const lifetime = isStaff(account.role) ? STAFF_SESSION_LIFETIME_MS : SESSION_LIFETIME_MS;
+  const secret = randomToken(32);
+  await db.insert(sessions).values({
+    tokenHash: sha256(secret),
+    accountId: account.id,
+    expiresAt: new Date(at + lifetime),
+    createdAt: new Date(at),
+  });
+  return {
+    session: { token: publicHalf(secret), user: await toSessionUser(db, account) },
+    secret,
+    maxAgeSeconds: lifetime / 1000,
+  };
+}
+
+/**
+ * Exchange the emailed code for a session, or, for an account with two-step sign-in, for a
+ * challenge that the authenticator code completes. Null when the code is wrong, used up or old.
+ */
 export async function verifySignIn(
   { db, superAdminEmails, now }: AuthDeps,
   email: string,
   code: string,
-): Promise<Session | null> {
+): Promise<SignInOutcome> {
   const at = now();
   if (!(await redeemCode(db, email, code, at))) return null;
 
@@ -78,39 +111,135 @@ export async function verifySignIn(
     await db.update(accounts).set({ role: 'super_admin' }).where(eq(accounts.email, email));
   }
   const [account] = await db.select().from(accounts).where(eq(accounts.email, email));
+  if (!account!.totpEnabledAt) return openSession(db, account!, at);
 
-  const token = randomToken(32);
+  const challenge = randomToken(32);
   await db.insert(sessions).values({
-    tokenHash: sha256(token),
+    tokenHash: sha256(challenge),
     accountId: account!.id,
-    expiresAt: new Date(
-      at + (isStaff(account!.role) ? STAFF_SESSION_LIFETIME_MS : SESSION_LIFETIME_MS),
-    ),
+    expiresAt: new Date(at + CHALLENGE_LIFETIME_MS),
     createdAt: new Date(at),
+    pendingTotp: true,
   });
-  return { token, user: await toSessionUser(db, account!) };
+  return { totpRequired: true, challenge };
 }
 
-const bearerToken = (header: string | undefined) => /^Bearer (.+)$/.exec(header ?? '')?.[1] ?? null;
+/** Accept an authenticator code for this account once. Call inside a transaction. */
+async function redeemTotp(tx: Db, accountId: string, code: string, at: number): Promise<boolean> {
+  const [account] = await tx
+    .select()
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .for('update');
+  if (!account?.totpSecret) return false;
+  const step = matchTotp(account.totpSecret, code, at, account.totpLastStep);
+  if (step === null) return false;
+  await tx.update(accounts).set({ totpLastStep: step }).where(eq(accounts.id, accountId));
+  return true;
+}
 
-/** The account behind an `Authorization: Bearer …` header, or null if it isn't a live session. */
+/** The second step: the challenge from verifySignIn plus the app's code. Null when either is wrong. */
+export async function completeTotpSignIn(
+  { db, now }: Pick<AuthDeps, 'db' | 'now'>,
+  challenge: string,
+  code: string,
+): Promise<OpenedSession | null> {
+  const at = now();
+  const account = await db.transaction(async (tx) => {
+    const [pending] = await tx
+      .select()
+      .from(sessions)
+      .where(and(eq(sessions.tokenHash, sha256(challenge)), eq(sessions.pendingTotp, true)))
+      .for('update');
+    if (!pending || at >= pending.expiresAt.getTime()) return null;
+    if (!(await redeemTotp(tx, pending.accountId, code, at))) {
+      // A few wrong codes and the emailed code has to be asked for again.
+      if (pending.totpAttempts + 1 >= MAX_TOTP_ATTEMPTS) {
+        await tx.delete(sessions).where(eq(sessions.tokenHash, pending.tokenHash));
+      } else {
+        await tx
+          .update(sessions)
+          .set({ totpAttempts: pending.totpAttempts + 1 })
+          .where(eq(sessions.tokenHash, pending.tokenHash));
+      }
+      return null;
+    }
+    await tx.delete(sessions).where(eq(sessions.tokenHash, pending.tokenHash));
+    const [row] = await tx.select().from(accounts).where(eq(accounts.id, pending.accountId));
+    return row!;
+  });
+  return account && openSession(db, account, at);
+}
+
+/** Start setting up an authenticator app: a new secret, not in use until a code from it is confirmed. */
+export async function beginTotpSetup(db: Db, account: AccountRow): Promise<string | null> {
+  if (account.totpEnabledAt) return null;
+  const secret = generateTotpSecret();
+  await db
+    .update(accounts)
+    .set({ totpSecret: secret, totpLastStep: null })
+    .where(eq(accounts.id, account.id));
+  return secret;
+}
+
+/** Turn two-step sign-in on (once the app shows the right code) or off (which also needs a code). */
+export function setTotpEnabled(
+  { db, now }: Pick<AuthDeps, 'db' | 'now'>,
+  account: AccountRow,
+  enabled: boolean,
+  code: string,
+): Promise<boolean> {
+  return db.transaction(async (tx) => {
+    if (enabled === !!account.totpEnabledAt) return false;
+    if (!(await redeemTotp(tx, account.id, code, now()))) return false;
+    await tx
+      .update(accounts)
+      .set(
+        enabled
+          ? { totpEnabledAt: new Date(now()) }
+          : { totpEnabledAt: null, totpSecret: null, totpLastStep: null },
+      )
+      .where(eq(accounts.id, account.id));
+    return true;
+  });
+}
+
+export type Credentials = { cookie: string | undefined; authorization: string | undefined };
+
+/** The session secret, if the request carries both halves and they belong together. */
+function secretOf({ cookie, authorization }: Credentials): string | null {
+  const token = /^Bearer (.+)$/.exec(authorization ?? '')?.[1];
+  return cookie && token && publicHalf(cookie) === token ? cookie : null;
+}
+
+/** The account behind a request, or null if it isn't a live session. */
 export async function accountForRequest(
   { db, now }: Pick<AuthDeps, 'db' | 'now'>,
-  authorization: string | undefined,
+  credentials: Credentials,
 ): Promise<AccountRow | null> {
-  const token = bearerToken(authorization);
-  if (!token) return null;
+  const secret = secretOf(credentials);
+  if (!secret) return null;
   const [row] = await db
     .select({ account: accounts })
     .from(sessions)
     .innerJoin(accounts, eq(sessions.accountId, accounts.id))
-    .where(and(eq(sessions.tokenHash, sha256(token)), gt(sessions.expiresAt, new Date(now()))));
+    .where(
+      and(
+        eq(sessions.tokenHash, sha256(secret)),
+        eq(sessions.pendingTotp, false),
+        gt(sessions.expiresAt, new Date(now())),
+      ),
+    );
   return row?.account ?? null;
 }
 
 export const sessionUserFor = toSessionUser;
 
-export async function endSession(db: Db, authorization: string | undefined) {
-  const token = bearerToken(authorization);
-  if (token) await db.delete(sessions).where(eq(sessions.tokenHash, sha256(token)));
+export async function endSession(db: Db, credentials: Credentials) {
+  const secret = secretOf(credentials);
+  if (secret) await db.delete(sessions).where(eq(sessions.tokenHash, sha256(secret)));
 }
+
+/** Sign an account out everywhere, e.g. when its staff access is taken away. */
+export const endAllSessions = (db: Db, accountId: string) =>
+  db.delete(sessions).where(eq(sessions.accountId, accountId));
