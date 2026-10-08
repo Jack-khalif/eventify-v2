@@ -9,12 +9,28 @@ import type {
   PaymentFailure,
   PaymentMethod,
   PayoutMethod,
+  PayoutStatus,
   Role,
 } from '@eventify/shared';
-import { boolean, index, integer, jsonb, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+} from 'drizzle-orm/pg-core';
 
 /** Enum-like columns are text typed from the shared schemas, so adding a value needs no migration. */
 const instant = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
+
+/** Eventify staff who onboard organizers and look after their rates. */
+export const agents = pgTable('agents', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+});
 
 export const organizers = pgTable('organizers', {
   id: text('id').primaryKey(),
@@ -27,9 +43,21 @@ export const organizers = pgTable('organizers', {
   city: text('city').$type<City>().notNull(),
   category: text('category').$type<Category>().notNull(),
   agentId: text('agent_id'),
+  /** The rate charged on new sales. Every change is also written to rate_changes. */
   rateBps: integer('rate_bps').notNull(),
   status: text('status').$type<OrganizerStatus>().notNull(),
   payoutMethod: text('payout_method').$type<PayoutMethod>().notNull(),
+});
+
+/** What an applicant told us, kept for the Super Admin who reviews it. Applying again replaces it. */
+export const organizerApplications = pgTable('organizer_applications', {
+  organizerId: text('organizer_id')
+    .primaryKey()
+    .references(() => organizers.id),
+  contactName: text('contact_name').notNull(),
+  email: text('email').notNull(),
+  about: text('about').notNull(),
+  appliedAt: instant('applied_at').notNull(),
 });
 
 /** A person who can sign in. One email address (stored in lower case), one account. */
@@ -58,7 +86,10 @@ export const sessions = pgTable(
   (t) => [index('sessions_account_idx').on(t.accountId)],
 );
 
-/** The one-time sign-in code last emailed to an address; a new one replaces it. */
+/**
+ * The one-time code last sent to an address; a new one replaces it. The address is an email for
+ * sign-in, or a phone number (+254…) for "Find my tickets".
+ */
 export const loginCodes = pgTable('login_codes', {
   email: text('email').primaryKey(),
   codeHash: text('code_hash').notNull(),
@@ -96,10 +127,48 @@ export const events = pgTable(
     rateBps: integer('rate_bps'),
     /** Last ticket number issued, for codes like EVT-SAUTI-0412. */
     ticketSeq: integer('ticket_seq').notNull().default(0),
+    /** Door staff open /checkin/{code}. The link is their only credential, so it is long and random. */
+    checkinCode: text('checkin_code').notNull().unique(),
     createdAt: instant('created_at').notNull().defaultNow(),
   },
   (t) => [index('events_organizer_idx').on(t.organizerId)],
 );
+
+/** Door names devices have picked for an event, offered to the next device. */
+export const eventDoors = pgTable(
+  'event_doors',
+  {
+    eventId: text('event_id')
+      .notNull()
+      .references(() => events.id),
+    name: text('name').notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.name] })],
+);
+
+/** Event page views per day, for the organizer dashboard. */
+export const eventViews = pgTable(
+  'event_views',
+  {
+    eventId: text('event_id')
+      .notNull()
+      .references(() => events.id),
+    /** Days since 1970 in EAT (see eatDay). */
+    day: integer('day').notNull(),
+    count: integer('count').notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.eventId, t.day] })],
+);
+
+/** Posters organizers upload, served from /api/images/{id}. */
+export const images = pgTable('images', {
+  /** Random, so it can be cached for ever. */
+  id: text('id').primaryKey(),
+  contentType: text('content_type').notNull(),
+  /** Base64. */
+  data: text('data').notNull(),
+  createdAt: instant('created_at').notNull(),
+});
 
 export const tiers = pgTable(
   'tiers',
@@ -177,4 +246,102 @@ export const tickets = pgTable(
     checkedInDoor: text('checked_in_door'),
   },
   (t) => [index('tickets_order_idx').on(t.orderId), index('tickets_event_idx').on(t.eventId)],
+);
+
+/** Every payment prompt sent for an order (a retry is a new one), for the admin overview. */
+export const paymentAttempts = pgTable(
+  'payment_attempts',
+  {
+    id: text('id').primaryKey(),
+    orderId: text('order_id')
+      .notNull()
+      .references(() => orders.id),
+    requestedAt: instant('requested_at').notNull(),
+    /** null while the buyer hasn't answered (or never did before the hold ran out). */
+    outcome: text('outcome').$type<'paid' | PaymentFailure>(),
+    resolvedAt: instant('resolved_at'),
+  },
+  (t) => [index('payment_attempts_order_idx').on(t.orderId)],
+);
+
+/** Every fee rate change, newest shown first in the admin portal. */
+export const rateChanges = pgTable(
+  'rate_changes',
+  {
+    id: text('id').primaryKey(),
+    organizerId: text('organizer_id')
+      .notNull()
+      .references(() => organizers.id),
+    /** Set when the change applies to one event only. */
+    eventId: text('event_id').references(() => events.id),
+    oldBps: integer('old_bps').notNull(),
+    newBps: integer('new_bps').notNull(),
+    reason: text('reason').notNull(),
+    changedBy: text('changed_by').notNull(),
+    at: instant('at').notNull(),
+  },
+  (t) => [index('rate_changes_organizer_idx').on(t.organizerId)],
+);
+
+/** An agent's request for a rate below the floor, waiting for (or decided by) a Super Admin. */
+export const rateApprovals = pgTable(
+  'rate_approvals',
+  {
+    id: text('id').primaryKey(),
+    organizerId: text('organizer_id')
+      .notNull()
+      .references(() => organizers.id),
+    agentId: text('agent_id').notNull(),
+    eventId: text('event_id').references(() => events.id),
+    requestedBps: integer('requested_bps').notNull(),
+    reason: text('reason').notNull(),
+    requestedAt: instant('requested_at').notNull(),
+    status: text('status').$type<'pending' | 'approved' | 'rejected'>().notNull(),
+  },
+  (t) => [index('rate_approvals_organizer_idx').on(t.organizerId)],
+);
+
+/**
+ * What an organizer is owed for one event: its paid orders less Eventify's fee. Written once the
+ * event has ended and sales are final; a Super Admin marks it paid after sending the money.
+ */
+export const payouts = pgTable(
+  'payouts',
+  {
+    id: text('id').primaryKey(),
+    organizerId: text('organizer_id')
+      .notNull()
+      .references(() => organizers.id),
+    eventId: text('event_id')
+      .notNull()
+      .unique()
+      .references(() => events.id),
+    amountMinor: integer('amount_minor').notNull(),
+    currency: text('currency').$type<Currency>().notNull(),
+    method: text('method').$type<PayoutMethod>().notNull(),
+    status: text('status').$type<PayoutStatus>().notNull(),
+    /** M-Pesa or bank transaction reference, recorded when marked paid. */
+    reference: text('reference'),
+    paidAt: instant('paid_at'),
+    createdAt: instant('created_at').notNull(),
+  },
+  (t) => [index('payouts_organizer_idx').on(t.organizerId)],
+);
+
+/** Who did what in the admin portal, for looking into a dispute or a mistake. Rows are never changed. */
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: text('id').primaryKey(),
+    at: instant('at').notNull(),
+    /** The account that acted, with its email as it was then. */
+    accountId: text('account_id').notNull(),
+    email: text('email').notNull(),
+    /** e.g. "organizer.status", "rate.change", "payout.paid". */
+    action: text('action').notNull(),
+    /** What it was done to: an organizer handle, a payout id… */
+    target: text('target').notNull(),
+    detail: jsonb('detail').$type<Record<string, unknown>>().notNull(),
+  },
+  (t) => [index('audit_log_at_idx').on(t.at)],
 );

@@ -6,7 +6,7 @@ import { createQueryClient } from './app/queryClient';
 import { routes } from './app/routes';
 import './styles/index.css';
 
-/** Until the backend exists (Phase B) the mock API answers /api/* in the browser. */
+/** Unless it is switched off (VITE_API_MOCKS=off), the mock API answers /api/* in the browser. */
 async function startMockApi() {
   if (import.meta.env.VITE_API_MOCKS === 'off') return;
   const { worker } = await import('./mocks/browser');

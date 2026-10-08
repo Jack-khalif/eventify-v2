@@ -59,7 +59,8 @@ export function OtpForm({
         <TextField
           label="Email"
           type="email"
-          autoComplete="email"
+          name="email"
+          autoComplete="username"
           inputMode="email"
           placeholder="you@example.com"
           value={input}
@@ -90,6 +91,7 @@ export function OtpForm({
       </p>
       <TextField
         label="Code"
+        name="code"
         autoComplete="one-time-code"
         inputMode="numeric"
         maxLength={6}

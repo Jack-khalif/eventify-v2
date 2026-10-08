@@ -13,7 +13,9 @@ import { useSession } from './useSession';
  */
 export function LoginPage() {
   const [params] = useSearchParams();
-  const hosting = params.get('intent') === 'host';
+  const intent = params.get('intent');
+  const hosting = intent === 'host';
+  const creating = intent === 'create';
   useDocumentTitle(hosting ? 'Verify your email' : 'Sign in');
   const session = useSession();
   const next = safeNextPath(params.get('next'));
@@ -32,12 +34,18 @@ export function LoginPage() {
     <section className="mx-auto flex w-full max-w-[440px] flex-1 flex-col gap-6 px-5 pt-8 pb-12">
       <div className="flex flex-col gap-2">
         <h1 className="m-0 text-[32px] leading-[1.05] tracking-[-0.02em] text-balance">
-          {hosting ? 'First, verify your email' : 'Sign in'}
+          {hosting
+            ? 'First, verify your email'
+            : creating
+              ? 'Sign in to create an event'
+              : 'Sign in'}
         </h1>
         <p className="m-0 text-[15px] text-muted">
           {hosting
             ? "We'll email you a code. Your application is tied to this address."
-            : "Enter your email and we'll send you a code. No password to remember."}
+            : creating
+              ? "Only signed-in organizers can create events. Enter your email and we'll send you a code."
+              : "Enter your email and we'll send you a code. No password to remember."}
         </p>
       </div>
 

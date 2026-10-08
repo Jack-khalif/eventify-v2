@@ -9,7 +9,7 @@ The designs in `design/` (exported from Claude Design) are the source of truth f
 | Path              | What                                                                         |
 | ----------------- | ---------------------------------------------------------------------------- |
 | `apps/web`        | React app: public site, organizer tools, door scanner and admin portal       |
-| `apps/api`        | Backend API: events, orders, tickets and the ticket email (more to come)     |
+| `apps/api`        | Backend API (Hono, Postgres): everything the web app asks of `/api/*`        |
 | `packages/shared` | Zod schemas, types, money/phone helpers and fixtures used by web and API     |
 | `design/`         | Claude Design export. Open `design/EventifyApp.dc.html` in a browser to view |
 
@@ -26,7 +26,7 @@ By default a mock API (MSW, in `apps/web/src/mocks`) answers `/api/*` in the bro
 
 ### The backend
 
-`apps/api` is the real API (Hono, Postgres through Drizzle). So far it covers browsing events, buying tickets and emailing them, and signing in; "Find my tickets" by phone, organizer tools, check-in and admin still run on the mock.
+`apps/api` is the real API (Hono, Postgres through Drizzle). It answers every path the mock does, from the database: browsing, buying and emailing tickets, sign-in, organizer applications and tools, door check-in and the admin portal. Payments are still simulated (see `PAYMENTS` below).
 
 ```sh
 npm run dev:api    # API on http://localhost:8787
@@ -34,17 +34,28 @@ npm run dev:api    # API on http://localhost:8787
 
 To point the web app at it, put `VITE_API_MOCKS=off` in `apps/web/.env.local` and restart `npm run dev`.
 
-With no settings at all it runs on its own: the database is a local file (`apps/api/.data`, delete it to start again) filled with the sample events, emails (tickets and sign-in codes) are printed in the terminal, and M-Pesa is simulated the same way as in the mock (a phone ending `0000`, `1111`, `2222` or `3333` fails). Copy `apps/api/.env.example` to `apps/api/.env` to change that:
+With no settings at all it runs on its own: the database is a local file (`apps/api/.data`, delete it to start again) filled with the sample organizers, sign-ins and events, emails and SMS (tickets and one-time codes) are printed in the terminal, and M-Pesa is simulated the same way as in the mock (a phone ending `0000`, `1111`, `2222` or `3333` fails). Sign in with a sample account from the table below and read the code off the terminal. Copy `apps/api/.env.example` to `apps/api/.env` to change that:
 
-| Setting              | What it does                                                                                 |
-| -------------------- | -------------------------------------------------------------------------------------------- |
-| `RESEND_API_KEY`     | Send ticket emails through [Resend](https://resend.com) instead of printing them             |
-| `EMAIL_FROM`         | Sender address. Needs a domain verified in Resend to reach anyone but your own Resend email  |
-| `DATABASE_URL`       | Use a real Postgres. Run `npm run db:migrate --workspace @eventify/api` after every pull     |
-| `PAYMENTS`           | `simulated` or `off` (free tickets only). Production defaults to `off`                       |
-| `QR_PRIVATE_KEY`     | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`     |
-| `SITE_URL`           | Where the web app lives, for the ticket links in emails                                      |
-| `SUPER_ADMIN_EMAILS` | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in) |
+| Setting                     | What it does                                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`            | Send ticket emails through [Resend](https://resend.com) instead of printing them                                                             |
+| `EMAIL_FROM`                | Sender address. Needs a domain verified in Resend to reach anyone but your own Resend email                                                  |
+| `DATABASE_URL`              | Use a real Postgres. Run `npm run db:migrate --workspace @eventify/api` after every pull                                                     |
+| `PAYMENTS`                  | `simulated` or `off` (free tickets only). Production defaults to `off`                                                                       |
+| `AT_USERNAME`, `AT_API_KEY` | [Africa's Talking](https://africastalking.com) account that texts the "Find my tickets" code. Without one, production turns phone lookup off |
+| `QR_PRIVATE_KEY`            | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`                                                     |
+| `SITE_URL`                  | Where the web app lives, for the ticket links in emails                                                                                      |
+| `SUPER_ADMIN_EMAILS`        | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in)                                                 |
+| `TRUST_PROXY`               | `1` when hosted behind the host's proxy, so rate limits count each visitor rather than the proxy                                             |
+
+Protections worth knowing about: sign-in codes and checkouts are rate limited per visitor (and codes per email or phone), one phone number can hold three unpaid orders at a time, agents and Super Admins are signed out after 12 hours (everyone else after 30 days), and every change made in the admin portal is written to the `audit_log` table with who made it.
+
+What the numbers mean on the real API:
+
+- **Posters** are stored in the database and served from `/api/images/{id}` (JPEG, PNG or WebP, 2 MB at most).
+- **Payouts** appear in the admin portal ten minutes after an event ends: one per event, its paid orders less the fee each order was sold at. A Super Admin sends the money by hand and records the reference.
+- **Page views** on the organizer dashboard count requests for the event page.
+- **Agents** have no screen for adding them yet: add a row to `agents`, and set `role = 'agent'` and `agent_id` on the person's account.
 
 After changing `apps/api/src/db/schema.ts`, run `npm run db:generate --workspace @eventify/api` and commit the new file in `apps/api/drizzle`.
 
@@ -62,7 +73,7 @@ Sign-in is an email address and a one-time code sent to it (`/login`); there are
 | Agent                | Admin portal, limited to organizers they onboarded                                  |
 | Super Admin          | Whole admin portal, including approving, declining and suspending organizers        |
 
-With the mock API the code is always `123456`. Sample accounts: `organizer@eventify.test`, `pending@eventify.test` (organizer waiting for approval), `suspended@eventify.test`, `agent@eventify.test` and `admin@eventify.test` (Super Admin). Any other email signs in as a new attendee.
+With the mock API the code is always `123456`; the real API emails a new code each time. Sample accounts (in the mock, and in the API's local development database): `organizer@eventify.test`, `pending@eventify.test` (organizer waiting for approval), `suspended@eventify.test`, `agent@eventify.test` and `admin@eventify.test` (Super Admin). Any other email signs in as a new attendee.
 
 In development, http://localhost:5173/dev/ui shows every UI component. Use the header toggle to check dark mode.
 
