@@ -88,6 +88,7 @@ function app(payments: PaymentProvider | null = simulatedPayments) {
     verifyKey: { kty: 'OKP', crv: 'Ed25519', x: 'unused-here' },
     siteUrl: 'https://tickets.test',
     superAdminEmails: ['boss@example.com'],
+    clientIp: (c) => c.req.header('X-Test-Ip') ?? 'one-visitor',
     now: () => clock,
   });
 }
@@ -365,6 +366,22 @@ describe('signing in by email', () => {
 
   const as = (token: string) => ({ headers: { Authorization: `Bearer ${token}` } });
 
+  it('keeps attendees signed in for weeks, but makes staff sign in again each day', async () => {
+    const api = app();
+    const attendee = await signIn(api, 'weeks@example.com');
+    clock += 60_000;
+    const staff = await signIn(api, 'agent@eventify.test');
+    const me = (token: string) => api.request('/api/auth/me', as(token));
+
+    clock += 11 * 60 * 60_000;
+    expect((await me(staff.token)).status).toBe(200);
+    clock += 2 * 60 * 60_000;
+    expect((await me(staff.token)).status).toBe(401);
+    expect((await api.request('/api/admin/me', as(staff.token))).status).toBe(401);
+    clock += 20 * 24 * 60 * 60_000;
+    expect((await me(attendee.token)).status).toBe(200);
+  });
+
   it('emails a code, and the code opens a session for a new attendee', async () => {
     const api = app();
     const { message } = await requestCode(api, ' New.Person@Example.com ');
@@ -465,5 +482,52 @@ describe('signing in by email', () => {
     const { tickets } = ticketLookupResultSchema.parse(await res.json());
     expect(tickets.map((t) => t.id)).toEqual(paid.tickets.map((t) => t.id));
     expect((await api.request('/api/me/tickets')).status).toBe(401);
+  });
+});
+
+describe('limits on hammering', () => {
+  it('stops one visitor asking for code after code, without touching anyone else', async () => {
+    const api = app();
+    const ask = (n: number, ip?: string) =>
+      api.request('/api/auth/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(ip && { 'X-Test-Ip': ip }) },
+        body: JSON.stringify({ email: `flood-${n}@example.com` }),
+      });
+
+    for (let n = 0; n < 20; n++) expect((await ask(n)).status).toBe(200);
+    const refused = await ask(20);
+    expect(refused.status).toBe(429);
+    expect(((await refused.json()) as { error: string }).error).toBe('rate_limited');
+    expect(sent).toHaveLength(20);
+
+    expect((await ask(21, 'someone-else')).status).toBe(200);
+    clock += 10 * 60_000;
+    expect((await ask(22)).status).toBe(200);
+  });
+
+  it('slows down guessing at door links, but never a door with the right link', async () => {
+    const api = app();
+    for (let n = 0; n < 20; n++) {
+      expect((await api.request(`/api/checkin/tiny-guess${n}`)).status).toBe(404);
+    }
+    expect((await api.request('/api/checkin/tiny-guess20')).status).toBe(429);
+    expect((await api.request('/api/checkin/tiny-0123456789ab')).status).toBe(200);
+  });
+
+  it('lets one phone hold only a few unpaid orders at a time', async () => {
+    const api = app();
+    const hoarder = { name: 'Hoarder', phone: '+254799000111', email: 'hoarder@example.com' };
+    const order = { eventId: 'evt_sauti', tierId: 'tier_sauti_regular', buyer: hoarder };
+    const held = [];
+    for (let n = 0; n < 3; n++) held.push(await placeOrder(api, order));
+
+    const refused = await post(api, '/api/orders', checkout(order));
+    expect(refused.status).toBe(429);
+    expect(((await refused.json()) as { error: string }).error).toBe('too_many_open_orders');
+    // Someone else is not affected, and cancelling one frees a place.
+    await placeOrder(api, { eventId: 'evt_sauti', tierId: 'tier_sauti_regular' });
+    expect((await post(api, `/api/orders/${held[0]!.id}/cancel`)).status).toBe(200);
+    await placeOrder(api, order);
   });
 });

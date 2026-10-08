@@ -21,12 +21,13 @@ import {
   type CheckoutRequest,
   type CreateEventRequest,
 } from '@eventify/shared';
+import { asc } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createApp } from './app';
 import { openLocalDatabase, type Database } from './db/client';
 import { seedSamples } from './db/samples';
-import { events, tiers } from './db/schema';
+import { auditLog, events, tiers } from './db/schema';
 import type { Email } from './email/mailer';
 import { simulatedPayments } from './payments';
 
@@ -681,5 +682,28 @@ describe('the admin portal', () => {
     const detail = await get('/admin/organizers/amaniwanjiru', adminOrganizerDetailSchema, boss);
     expect(detail.payout).toMatchObject({ status: 'paid', reference: 'SJK4H7X2QP' });
     expect(detail.events.find((e) => e.id === 'evt_tiny')!.status).toBe('ended');
+  });
+
+  it('keeps a record of who changed what', async () => {
+    const log = await database.db.select().from(auditLog).orderBy(asc(auditLog.at));
+    const of = (action: string) => log.filter((entry) => entry.action === action);
+
+    expect(of('payout.paid')).toHaveLength(1); // the refused attempts left no entry
+    expect(of('payout.paid')[0]).toMatchObject({
+      email: 'admin@eventify.test',
+      detail: { reference: 'SJK4H7X2QP', amountMinor: 97000, handle: 'amaniwanjiru' },
+    });
+    expect(of('rate.change').map((entry) => [entry.email, entry.detail.outcome])).toEqual([
+      ['agent@eventify.test', 'applied'],
+      ['agent@eventify.test', 'sent_for_approval'],
+      ['agent@eventify.test', 'sent_for_approval'],
+    ]);
+    expect(of('rate.approval').map((entry) => entry.detail.decision)).toEqual([
+      'approve',
+      'reject',
+    ]);
+    expect(of('organizer.status').map((entry) => `${entry.target}:${entry.detail.status}`)).toEqual(
+      ['tickets-2:active', 'kiln-club:rejected', 'amaniwanjiru:suspended', 'amaniwanjiru:active'],
+    );
   });
 });

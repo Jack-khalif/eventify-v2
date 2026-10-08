@@ -46,6 +46,9 @@ With no settings at all it runs on its own: the database is a local file (`apps/
 | `QR_PRIVATE_KEY`            | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`                                                     |
 | `SITE_URL`                  | Where the web app lives, for the ticket links in emails                                                                                      |
 | `SUPER_ADMIN_EMAILS`        | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in)                                                 |
+| `TRUST_PROXY`               | `1` when hosted behind the host's proxy, so rate limits count each visitor rather than the proxy                                             |
+
+Protections worth knowing about: sign-in codes and checkouts are rate limited per visitor (and codes per email or phone), one phone number can hold three unpaid orders at a time, agents and Super Admins are signed out after 12 hours (everyone else after 30 days), and every change made in the admin portal is written to the `audit_log` table with who made it.
 
 What the numbers mean on the real API:
 

@@ -1,4 +1,4 @@
-import { randomToken, type Session, type SessionUser } from '@eventify/shared';
+import { isStaff, randomToken, type Session, type SessionUser } from '@eventify/shared';
 import { and, eq, gt } from 'drizzle-orm';
 import { issueCode, redeemCode, sha256 } from './codes';
 import type { Db } from './db/client';
@@ -14,7 +14,10 @@ export type AuthDeps = {
 
 export type AccountRow = typeof accounts.$inferSelect;
 
-const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60_000;
+const HOUR_MS = 60 * 60_000;
+const SESSION_LIFETIME_MS = 30 * 24 * HOUR_MS;
+/** Agents and Super Admins can move money and approve organizers, so they sign in again each day. */
+const STAFF_SESSION_LIFETIME_MS = 12 * HOUR_MS;
 
 /**
  * Email a one-time sign-in code. The answer is the same whether or not the address has an account.
@@ -80,7 +83,9 @@ export async function verifySignIn(
   await db.insert(sessions).values({
     tokenHash: sha256(token),
     accountId: account!.id,
-    expiresAt: new Date(at + SESSION_LIFETIME_MS),
+    expiresAt: new Date(
+      at + (isStaff(account!.role) ? STAFF_SESSION_LIFETIME_MS : SESSION_LIFETIME_MS),
+    ),
     createdAt: new Date(at),
   });
   return { token, user: await toSessionUser(db, account!) };

@@ -13,6 +13,11 @@ export type Config = {
   qrPrivateKey: string | null;
   /** Whoever signs in with one of these emails is a Super Admin (how the first admin gets in). */
   superAdminEmails: string[];
+  /**
+   * The host puts the API behind its own proxy (Railway, Render and Fly all do), so the visitor's
+   * address is the last one in X-Forwarded-For. Off, the connection's own address is used.
+   */
+  trustProxy: boolean;
 };
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -38,6 +43,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         ? { username: env.AT_USERNAME, apiKey: env.AT_API_KEY, senderId: env.AT_SENDER_ID || null }
         : null,
     qrPrivateKey: env.QR_PRIVATE_KEY || null,
+    trustProxy: env.TRUST_PROXY === '1' || env.TRUST_PROXY === 'true',
     superAdminEmails: (env.SUPER_ADMIN_EMAILS || '')
       .split(',')
       .map((email) => email.trim().toLowerCase())

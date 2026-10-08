@@ -1,5 +1,6 @@
 import { importSigningKey } from '@eventify/shared';
 import { serve } from '@hono/node-server';
+import { getConnInfo } from '@hono/node-server/conninfo';
 import { createApp } from './app';
 import { loadConfig } from './config';
 import { openDatabase } from './db/client';
@@ -49,6 +50,12 @@ const app = createApp({
   verifyKey: { kty: 'OKP', crv: 'Ed25519', x: publicX },
   siteUrl: config.siteUrl,
   superAdminEmails: config.superAdminEmails,
+  clientIp: (c) => {
+    // Only the last entry was written by the host's proxy; anything before it is the visitor's claim.
+    const forwarded =
+      config.trustProxy && c.req.header('X-Forwarded-For')?.split(',').at(-1)?.trim();
+    return forwarded || getConnInfo(c).remote.address || 'unknown';
+  },
 });
 
 serve({ fetch: app.fetch, port: config.port }, ({ port }) => {

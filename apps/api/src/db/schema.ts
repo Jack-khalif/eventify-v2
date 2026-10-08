@@ -327,3 +327,21 @@ export const payouts = pgTable(
   },
   (t) => [index('payouts_organizer_idx').on(t.organizerId)],
 );
+
+/** Who did what in the admin portal, for looking into a dispute or a mistake. Rows are never changed. */
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: text('id').primaryKey(),
+    at: instant('at').notNull(),
+    /** The account that acted, with its email as it was then. */
+    accountId: text('account_id').notNull(),
+    email: text('email').notNull(),
+    /** e.g. "organizer.status", "rate.change", "payout.paid". */
+    action: text('action').notNull(),
+    /** What it was done to: an organizer handle, a payout id… */
+    target: text('target').notNull(),
+    detail: jsonb('detail').$type<Record<string, unknown>>().notNull(),
+  },
+  (t) => [index('audit_log_at_idx').on(t.at)],
+);

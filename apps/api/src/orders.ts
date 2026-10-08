@@ -17,7 +17,7 @@ import { publishedEvent } from './events';
 import type { PaymentProvider } from './payments';
 
 export type OrderRow = typeof orders.$inferSelect;
-export type Failure = { status: 404 | 409 | 422 | 503; error: string; message: string };
+export type Failure = { status: 404 | 409 | 422 | 429 | 503; error: string; message: string };
 export const isFailure = (r: object): r is Failure => 'error' in r;
 
 export type OrderDeps = {
@@ -26,6 +26,12 @@ export type OrderDeps = {
   payments: PaymentProvider | null;
   now: () => number;
 };
+
+/**
+ * Unpaid orders one phone number may have open at once. Each holds tickets off sale for ten
+ * minutes, so without a cap one person could keep a small event looking sold out.
+ */
+export const MAX_OPEN_ORDERS_PER_PHONE = 3;
 
 /** Statuses whose tickets are still held for the buyer (until holdExpiresAt). */
 const OPEN = ['awaiting_payment', 'failed'] as const;
@@ -143,6 +149,24 @@ export async function createOrder(
       new Date(at),
     );
     if (isCheckoutError(check)) return check;
+
+    const [open] = await tx
+      .select({ count: sql<number>`count(*)::int` })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.buyerPhone, req.buyer.phone),
+          inArray(orders.status, OPEN),
+          gt(orders.holdExpiresAt, new Date(at)),
+        ),
+      );
+    if (open!.count >= MAX_OPEN_ORDERS_PER_PHONE) {
+      return {
+        status: 429,
+        error: 'too_many_open_orders',
+        message: 'You have unpaid orders waiting. Finish or cancel one of them first.',
+      };
+    }
 
     const free = check.totalMinor === 0;
     if (!free && !payments) {
