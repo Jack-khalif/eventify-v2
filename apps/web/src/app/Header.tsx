@@ -83,7 +83,7 @@ export function Header() {
               className={buttonClass({
                 variant: 'outline',
                 size: 'sm',
-                className: 'hidden text-fg md:inline-flex',
+                className: 'text-fg',
               })}
             >
               Sign in

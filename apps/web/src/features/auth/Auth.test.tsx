@@ -77,8 +77,10 @@ describe('Sign in', () => {
 describe('Who can create events', () => {
   it('sends a guest who opens the create link to sign in', async () => {
     const { router } = renderApp('/organizer/events/new');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Sign in' })).toBeInTheDocument();
-    expect(router.state.location.search).toBe('?next=%2Forganizer%2Fevents%2Fnew');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Sign in to create an event' }),
+    ).toBeInTheDocument();
+    expect(router.state.location.search).toBe('?next=%2Forganizer%2Fevents%2Fnew&intent=create');
   });
 
   it('keeps an organizer who is waiting for approval out', async () => {

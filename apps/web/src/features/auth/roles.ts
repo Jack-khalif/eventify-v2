@@ -16,6 +16,9 @@ const ORGANIZER_BADGE: Record<OrganizerStatus, { label: string; tone: TagTone }>
   rejected: { label: 'Application declined', tone: 'neutral' },
 };
 
+/** Why someone was sent to sign in, so the page can say so. */
+export type LoginIntent = 'host' | 'create';
+
 /** A link to sign-in that comes back to `next` afterwards. */
-export const loginPath = (next: string, intent?: 'host') =>
+export const loginPath = (next: string, intent?: LoginIntent) =>
   `/login?next=${encodeURIComponent(next)}${intent ? `&intent=${intent}` : ''}`;

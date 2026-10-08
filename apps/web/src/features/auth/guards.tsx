@@ -5,7 +5,7 @@ import { Link, Navigate, useLocation } from 'react-router';
 import { ErrorState } from '../../components/PageStates';
 import { buttonClass } from '../../components/ui';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
-import { loginPath } from './roles';
+import { loginPath, type LoginIntent } from './roles';
 import { useSession } from './useSession';
 
 /** Shown to someone signed in who opens a screen their account can't use. */
@@ -40,7 +40,13 @@ export function NoAccess({
  * Wait for the session, send guests to sign in (and back here afterwards), then let `children`
  * decide what this person sees.
  */
-export function SignedIn({ children }: { children: (user: SessionUser) => ReactNode }) {
+export function SignedIn({
+  intent,
+  children,
+}: {
+  intent?: LoginIntent;
+  children: (user: SessionUser) => ReactNode;
+}) {
   const session = useSession();
   const { pathname, search } = useLocation();
 
@@ -50,14 +56,14 @@ export function SignedIn({ children }: { children: (user: SessionUser) => ReactN
   if (session.status === 'error') {
     return <ErrorState onRetry={session.refetch}>Couldn't check your account.</ErrorState>;
   }
-  if (!session.user) return <Navigate to={loginPath(pathname + search)} replace />;
+  if (!session.user) return <Navigate to={loginPath(pathname + search, intent)} replace />;
   return <>{children(session.user)}</>;
 }
 
 /** Publishing tools: approved organizers only. Everyone else goes to /organizer, which explains why. */
 export function ActiveOrganizerOnly({ children }: { children: ReactNode }) {
   return (
-    <SignedIn>
+    <SignedIn intent="create">
       {(user) => (canCreateEvents(user) ? children : <Navigate to="/organizer" replace />)}
     </SignedIn>
   );
