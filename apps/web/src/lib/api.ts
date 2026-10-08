@@ -4,6 +4,12 @@ import { getSessionToken, setSessionToken } from './session';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '';
 
+/**
+ * Where to load a picture from. Posters kept by the backend come back as /api/images/…, which
+ * has to be asked of the backend when it lives on another origin; everything else is left alone.
+ */
+export const imageSrc = (url: string) => (url.startsWith('/api/') ? BASE_URL + url : url);
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,

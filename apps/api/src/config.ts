@@ -7,6 +7,8 @@ export type Config = {
   resendApiKey: string | null;
   emailFrom: string;
   payments: 'simulated' | 'off';
+  /** Africa's Talking account for the "Find my tickets" SMS; null means there isn't one. */
+  sms: { username: string; apiKey: string; senderId: string | null } | null;
   /** JWK JSON for signing ticket QRs; null means make a throwaway key (development only). */
   qrPrivateKey: string | null;
   /** Whoever signs in with one of these emails is a Super Admin (how the first admin gets in). */
@@ -31,6 +33,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     resendApiKey: env.RESEND_API_KEY || null,
     emailFrom: env.EMAIL_FROM || 'Eventify <onboarding@resend.dev>',
     payments,
+    sms:
+      env.AT_USERNAME && env.AT_API_KEY
+        ? { username: env.AT_USERNAME, apiKey: env.AT_API_KEY, senderId: env.AT_SENDER_ID || null }
+        : null,
     qrPrivateKey: env.QR_PRIVATE_KEY || null,
     superAdminEmails: (env.SUPER_ADMIN_EMAILS || '')
       .split(',')

@@ -1,5 +1,6 @@
 import type { CoverTone } from '@eventify/shared';
 import type { ReactNode } from 'react';
+import { imageSrc } from '../../lib/api';
 import { cn } from '../../lib/cn';
 
 const toneBg: Record<CoverTone, string> = {
@@ -33,14 +34,14 @@ export function Cover({ tone, imageUrl, alt = '', className, children }: CoverPr
       {imageUrl && (
         <>
           <img
-            src={imageUrl}
+            src={imageSrc(imageUrl)}
             alt=""
             aria-hidden
             loading="lazy"
             className="absolute inset-0 size-full scale-125 object-cover opacity-70 blur-2xl"
           />
           <img
-            src={imageUrl}
+            src={imageSrc(imageUrl)}
             alt={alt}
             loading="lazy"
             className="absolute inset-0 size-full object-contain"

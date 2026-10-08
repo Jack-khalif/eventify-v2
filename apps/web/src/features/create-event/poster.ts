@@ -3,8 +3,9 @@ const MAX_SIDE = 1200;
 export const MAX_POSTER_BYTES = 10 * 1024 * 1024;
 
 /**
- * Shrink a chosen poster to a JPEG data URL. Until uploads go to the backend (Phase B) the poster
- * travels inside the event, so it has to stay small. Keeps the whole image: covers never crop.
+ * Shrink a chosen poster to a JPEG data URL. It travels inside the Create event request (the
+ * backend takes up to 2 MB and serves it from /api/images), so it has to stay small. Keeps the
+ * whole image: covers never crop.
  */
 export async function readPoster(file: File): Promise<string> {
   const url = URL.createObjectURL(file);

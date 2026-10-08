@@ -1,8 +1,8 @@
 import { randomToken, type Session, type SessionUser } from '@eventify/shared';
 import { and, eq, gt } from 'drizzle-orm';
-import { createHash, randomInt } from 'node:crypto';
+import { issueCode, redeemCode, sha256 } from './codes';
 import type { Db } from './db/client';
-import { accounts, loginCodes, organizers, sessions } from './db/schema';
+import { accounts, organizers, sessions } from './db/schema';
 import type { Mailer } from './email/mailer';
 
 export type AuthDeps = {
@@ -14,17 +14,7 @@ export type AuthDeps = {
 
 export type AccountRow = typeof accounts.$inferSelect;
 
-export const CODE_LIFETIME_MS = 10 * 60_000;
-/** Wrong guesses allowed before a code stops working (a 6-digit code must not be guessable). */
-export const MAX_CODE_ATTEMPTS = 5;
-/** One address can't be sent codes faster or more often than this, whoever is asking. */
-export const RESEND_AFTER_MS = 30_000;
-export const MAX_CODES_PER_HOUR = 5;
-const HOUR_MS = 60 * 60_000;
-const SESSION_LIFETIME_MS = 30 * 24 * HOUR_MS;
-
-const sha256 = (text: string) => createHash('sha256').update(text).digest('hex');
-const hashCode = (email: string, code: string) => sha256(`${email}:${code}`);
+const SESSION_LIFETIME_MS = 30 * 24 * 60 * 60_000;
 
 /**
  * Email a one-time sign-in code. The answer is the same whether or not the address has an account.
@@ -34,34 +24,8 @@ export async function startSignIn(
   { db, mailer, now }: AuthDeps,
   email: string,
 ): Promise<'sent' | 'too_many'> {
-  const at = now();
-  const code = String(randomInt(1_000_000)).padStart(6, '0');
-
-  const allowed = await db.transaction(async (tx) => {
-    const [last] = await tx
-      .select()
-      .from(loginCodes)
-      .where(eq(loginCodes.email, email))
-      .for('update');
-    const sameHour = last !== undefined && at - last.hourStartedAt.getTime() < HOUR_MS;
-    if (last && at - last.sentAt.getTime() < RESEND_AFTER_MS) return false;
-    if (last && sameHour && last.sentThisHour >= MAX_CODES_PER_HOUR) return false;
-
-    const next = {
-      codeHash: hashCode(email, code),
-      expiresAt: new Date(at + CODE_LIFETIME_MS),
-      attempts: 0,
-      sentAt: new Date(at),
-      sentThisHour: sameHour ? last.sentThisHour + 1 : 1,
-      hourStartedAt: sameHour ? last.hourStartedAt : new Date(at),
-    };
-    await tx
-      .insert(loginCodes)
-      .values({ email, ...next })
-      .onConflictDoUpdate({ target: loginCodes.email, set: next });
-    return true;
-  });
-  if (!allowed) return 'too_many';
+  const code = await issueCode(db, email, now());
+  if (!code) return 'too_many';
 
   await mailer({
     to: email,
@@ -96,29 +60,7 @@ export async function verifySignIn(
   code: string,
 ): Promise<Session | null> {
   const at = now();
-  // Decided in its own transaction, so a wrong guess is counted even though nothing else happens.
-  const ok = await db.transaction(async (tx) => {
-    const [sent] = await tx
-      .select()
-      .from(loginCodes)
-      .where(eq(loginCodes.email, email))
-      .for('update');
-    if (!sent || at >= sent.expiresAt.getTime() || sent.attempts >= MAX_CODE_ATTEMPTS) return false;
-    if (sent.codeHash !== hashCode(email, code)) {
-      await tx
-        .update(loginCodes)
-        .set({ attempts: sent.attempts + 1 })
-        .where(eq(loginCodes.email, email));
-      return false;
-    }
-    // A code works once. The send counters stay, so signing in doesn't reset the hourly limit.
-    await tx
-      .update(loginCodes)
-      .set({ attempts: MAX_CODE_ATTEMPTS })
-      .where(eq(loginCodes.email, email));
-    return true;
-  });
-  if (!ok) return null;
+  if (!(await redeemCode(db, email, code, at))) return null;
 
   const isSuperAdmin = superAdminEmails.includes(email);
   await db

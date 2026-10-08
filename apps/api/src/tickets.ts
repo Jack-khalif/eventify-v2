@@ -1,5 +1,5 @@
 import { signTicketQr, toEatIso, type TicketView } from '@eventify/shared';
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq, sql, type SQL } from 'drizzle-orm';
 import type { Db } from './db/client';
 import { events, orders, tickets } from './db/schema';
 import { publishedEvent } from './events';
@@ -42,17 +42,15 @@ const withOrders = (db: Db) =>
 export const ticketView = async (db: Db, signingKey: CryptoKey, id: string) =>
   (await toViews(db, signingKey, await withOrders(db).where(eq(tickets.id, id))))[0];
 
-/** Every ticket bought with this email address (lower case), soonest event first. */
-export const ticketViewsForEmail = async (db: Db, signingKey: CryptoKey, email: string) =>
-  (
-    await toViews(
-      db,
-      signingKey,
-      await withOrders(db).where(eq(sql`lower(${orders.buyerEmail})`, email)),
-    )
-  ).sort(
+/** Every ticket whose order matches, soonest event first. */
+export const ticketViewsWhere = async (db: Db, signingKey: CryptoKey, where: SQL) =>
+  (await toViews(db, signingKey, await withOrders(db).where(where))).sort(
     (a, b) => Date.parse(a.event.startsAt) - Date.parse(b.event.startsAt) || a.index - b.index,
   );
+
+/** Every ticket bought with this email address (lower case). */
+export const ticketViewsForEmail = (db: Db, signingKey: CryptoKey, email: string) =>
+  ticketViewsWhere(db, signingKey, eq(sql`lower(${orders.buyerEmail})`, email));
 
 /** An order's tickets, in order. */
 export const orderTicketViews = async (db: Db, signingKey: CryptoKey, orderId: string) =>

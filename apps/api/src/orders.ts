@@ -8,10 +8,11 @@ import {
   validateCheckout,
   type CheckoutRequest,
   type OrderView,
+  type PaymentFailure,
 } from '@eventify/shared';
-import { and, asc, eq, gt, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from './db/client';
-import { events, orders, organizers, tickets, tiers } from './db/schema';
+import { events, orders, organizers, paymentAttempts, tickets, tiers } from './db/schema';
 import { publishedEvent } from './events';
 import type { PaymentProvider } from './payments';
 
@@ -55,6 +56,18 @@ async function toOrderView(db: Db, o: OrderRow): Promise<OrderView> {
     tickets: issued.map((t) => ({ id: t.id, code: t.code, holderName: t.holderName })),
   };
 }
+
+/** Note that a payment prompt went out, so the admin overview can count attempts and outcomes. */
+const recordAttempt = (tx: Db, orderId: string, at: number) =>
+  tx
+    .insert(paymentAttempts)
+    .values({ id: `pay_${randomToken(12)}`, orderId, requestedAt: new Date(at) });
+
+const resolveAttempt = (tx: Db, orderId: string, outcome: 'paid' | PaymentFailure, at: number) =>
+  tx
+    .update(paymentAttempts)
+    .set({ outcome, resolvedAt: new Date(at) })
+    .where(and(eq(paymentAttempts.orderId, orderId), isNull(paymentAttempts.outcome)));
 
 /** Mark the order paid, count its tickets as sold and issue them. Call inside a transaction. */
 async function markPaid(tx: Db, o: OrderRow, now: number): Promise<OrderRow> {
@@ -167,7 +180,9 @@ export async function createOrder(
         createdAt: new Date(at),
       })
       .returning();
-    return free ? markPaid(tx, order!, at) : order!;
+    if (free) return markPaid(tx, order!, at);
+    await recordAttempt(tx, order!.id, at);
+    return order!;
   });
   return isFailure(result) ? result : toOrderView(db, result);
 }
@@ -190,6 +205,7 @@ async function withOrder(
       [o] = await tx.update(orders).set({ status: 'expired' }).where(eq(orders.id, id)).returning();
     } else if (o.status === 'awaiting_payment' && o.paymentRequestedAt && payments) {
       const state = payments({ ...o, paymentRequestedAt: o.paymentRequestedAt }, at);
+      if (state) await resolveAttempt(tx, id, state, at);
       if (state === 'paid') o = await markPaid(tx, o, at);
       else if (state) {
         [o] = await tx
@@ -210,6 +226,7 @@ export const getOrder = (deps: OrderDeps, id: string) => withOrder(deps, id);
 export const retryPayment = (deps: OrderDeps, id: string) =>
   withOrder(deps, id, async (tx, o, at) => {
     if (!isOpen(o)) return o;
+    await recordAttempt(tx, o.id, at);
     const [next] = await tx
       .update(orders)
       .set({ status: 'awaiting_payment', failureReason: null, paymentRequestedAt: new Date(at) })

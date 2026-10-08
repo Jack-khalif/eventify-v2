@@ -52,6 +52,7 @@ beforeAll(async () => {
     organizerId: 'org_amani',
     status: 'live',
     rateBps: 300,
+    checkinCode: 'tiny-0123456789ab',
   });
   await database.db.insert(tiers).values([
     {
@@ -82,7 +83,9 @@ function app(payments: PaymentProvider | null = simulatedPayments) {
       sent.push(email);
     },
     payments,
+    sms: null,
     signingKey: keys.privateKey,
+    verifyKey: { kty: 'OKP', crv: 'Ed25519', x: 'unused-here' },
     siteUrl: 'https://tickets.test',
     superAdminEmails: ['boss@example.com'],
     now: () => clock,
