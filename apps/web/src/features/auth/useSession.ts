@@ -1,5 +1,7 @@
 import {
   organizerApplicationRequestSchema,
+  organizerSignUpRequestSchema,
+  passwordSignInSchema,
   sessionSchema,
   sessionUserSchema,
   signInResultSchema,
@@ -11,6 +13,7 @@ import {
   signInStartSchema,
   signInVerifySchema,
   type OrganizerApplicationRequest,
+  type OrganizerSignUpRequest,
   type Session,
   type SessionUser,
 } from '@eventify/shared';
@@ -55,7 +58,32 @@ export function useSession(): SessionState & {
   return { status: query.isError ? 'error' : 'loading', user: null, ...extras };
 }
 
-/** Step 1: email a one-time code to this address. */
+/**
+ * Sign in with a password (organizers). Like the emailed code, an account with two-step sign-in
+ * gets a challenge back, which useCompleteTwoStep() finishes.
+ */
+export function usePasswordSignIn() {
+  const open = useOpenSession();
+  return useMutation({
+    mutationFn: (req: { email: string; password: string }) =>
+      apiPost('/api/auth/login', passwordSignInSchema.parse(req), signInResultSchema),
+    onSuccess: (result) => {
+      if ('token' in result) open(result);
+    },
+  });
+}
+
+/** Create an organizer account and send its application in one step; signed in afterwards. */
+export function useSignUpOrganizer() {
+  const open = useOpenSession();
+  return useMutation({
+    mutationFn: (req: OrganizerSignUpRequest) =>
+      apiPost('/api/organizer/signup', organizerSignUpRequestSchema.parse(req), sessionSchema),
+    onSuccess: open,
+  });
+}
+
+/** The emailed code, step 1: send one to this address. */
 export function useStartSignIn() {
   return useMutation({
     mutationFn: (email: string) =>
@@ -73,7 +101,7 @@ function useOpenSession() {
 }
 
 /**
- * Step 2: exchange the code for a session. Accounts with two-step sign-in get a challenge back
+ * The emailed code, step 2: exchange it for a session. Accounts with two-step sign-in get a challenge back
  * instead, which useCompleteTwoStep() finishes.
  */
 export function useVerifySignIn() {
@@ -87,7 +115,7 @@ export function useVerifySignIn() {
   });
 }
 
-/** Step 3, for accounts with two-step sign-in: the code from the authenticator app. */
+/** For accounts with two-step sign-in: the code from the authenticator app. */
 export function useCompleteTwoStep() {
   const open = useOpenSession();
   return useMutation({

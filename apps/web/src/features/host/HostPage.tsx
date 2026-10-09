@@ -9,7 +9,7 @@ import { loginPath } from '../auth/roles';
 const STEPS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: ClipboardList,
-    title: 'Apply',
+    title: 'Create your account',
     body: 'Tell us who you are and what you host. It takes about two minutes.',
   },
   {
@@ -50,7 +50,8 @@ export function HostPage({ user }: { user: SessionUser | null }) {
     );
   }
 
-  const applyTo = user ? '/organizer/apply' : loginPath('/organizer/apply', 'host');
+  const applyTo = '/organizer/apply';
+  const applyLabel = user ? 'Apply to host' : 'Create an organizer account';
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-10 px-5 pt-8 pb-14">
@@ -73,7 +74,7 @@ export function HostPage({ user }: { user: SessionUser | null }) {
               className: 'text-accent-ink hover:text-accent-ink',
             })}
           >
-            Apply to host
+            {applyLabel}
           </Link>
           {!user && (
             <Link to={loginPath('/organizer')} className="text-sm font-bold">
@@ -118,7 +119,7 @@ export function HostPage({ user }: { user: SessionUser | null }) {
           </span>
         </div>
         <Link to={applyTo} className={buttonClass({ variant: 'outline', className: 'text-fg' })}>
-          Apply to host
+          {applyLabel}
         </Link>
       </Card>
     </div>

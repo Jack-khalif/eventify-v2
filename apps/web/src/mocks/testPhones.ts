@@ -14,11 +14,17 @@ export const TEST_LOOKUP_CODE = '123456';
 /** Mock API only: a phone that already has a ticket, so "Find my tickets" works before buying. */
 export const DEMO_TICKET_PHONE = '+254712345678';
 
-/** Mock API only: the sample accounts in the shared fixtures, one per kind of user. */
+/** Mock API only: the password every sample organizer signs in with. */
+export const TEST_PASSWORD = 'eventify-demo';
+
+/**
+ * Mock API only: the sample accounts in the shared fixtures, one per kind of user. Staff sign in
+ * with the emailed code, as they do on the real API.
+ */
 export const TEST_SIGN_INS = [
-  { label: 'Organizer (approved)', email: 'organizer@eventify.test' },
-  { label: 'Organizer (waiting for approval)', email: 'pending@eventify.test' },
-  { label: 'Organizer (suspended)', email: 'suspended@eventify.test' },
-  { label: 'Agent', email: 'agent@eventify.test' },
-  { label: 'Super Admin', email: 'admin@eventify.test' },
+  { label: 'Organizer (approved)', email: 'organizer@eventify.test', staff: false },
+  { label: 'Organizer (waiting for approval)', email: 'pending@eventify.test', staff: false },
+  { label: 'Organizer (suspended)', email: 'suspended@eventify.test', staff: false },
+  { label: 'Agent', email: 'agent@eventify.test', staff: true },
+  { label: 'Super Admin', email: 'admin@eventify.test', staff: true },
 ] as const;

@@ -7,6 +7,8 @@ import {
   markPaidRequestSchema,
   ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
+  organizerSignUpRequestSchema,
+  passwordSignInSchema,
   PRIVACY_NOTICE_VERSION,
   organizerStatusChangeSchema,
   overviewQuerySchema,
@@ -53,6 +55,7 @@ import {
   sessionUserFor,
   setTotpEnabled,
   startSignIn,
+  signInWithPassword,
   verifySignIn,
   type AccountRow,
   type OpenedSession,
@@ -68,6 +71,7 @@ import { startLookup, verifyLookup } from './lookup';
 import { cancelOrder, createOrder, getOrder, isFailure, retryPayment } from './orders';
 import {
   applyToHost,
+  signUpOrganizer,
   createEvent,
   eventDashboard,
   isFailure as isEventFailure,
@@ -231,7 +235,8 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return ticket ? c.json(ticket) : notFound(c);
   });
 
-  // Sign-in: a one-time code sent by email. No passwords and no SMS.
+  // Sign-in. Organizers use a password; staff, and anyone proving an address is theirs, use a
+  // one-time code sent by email.
   app.post('/auth/start', async (c) => {
     const stop = limited(c, 'codes', 20, 10 * MINUTE);
     if (stop) return stop;
@@ -283,6 +288,29 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
       );
     }
     // With two-step sign-in the emailed code only earns a challenge; the app's code finishes it.
+    return 'totpRequired' in outcome ? c.json(outcome) : signedIn(c, outcome);
+  });
+
+  app.post('/auth/login', async (c) => {
+    const stop = limited(c, 'guesses', 40, 10 * MINUTE);
+    if (stop) return stop;
+    const body = passwordSignInSchema.safeParse(await c.req.json().catch(() => null));
+    // Guessing one account's password from many addresses is stopped here, per email.
+    if (body.success && !withinLimit(`login:${body.data.email}`, 10, 15 * MINUTE)) {
+      return c.json(
+        { error: 'rate_limited', message: 'Too many tries. Wait a few minutes and try again.' },
+        429,
+      );
+    }
+    const outcome = body.success
+      ? await signInWithPassword(deps, body.data.email, body.data.password)
+      : null;
+    if (!outcome) {
+      return c.json(
+        { error: 'invalid_credentials', message: "That email or password isn't right." },
+        422,
+      );
+    }
     return 'totpRequired' in outcome ? c.json(outcome) : signedIn(c, outcome);
   });
 
@@ -355,10 +383,12 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     });
   }
 
-  // Tickets bought with the signed-in email: it was verified at sign-in, so no second code.
+  // Tickets bought with the signed-in email, once a code sent to it has shown it is theirs. An
+  // account made with a password hasn't, so it finds its tickets by phone like a guest.
   app.get('/me/tickets', async (c) => {
     const account = await accountOf(c);
     if (!account) return unauthorized(c);
+    if (!account.emailVerifiedAt) return c.json({ tickets: [] });
     return c.json({ tickets: await ticketViewsForEmail(db, deps.signingKey, account.email) });
   });
 
@@ -419,28 +449,53 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return organizer ?? forbidden(c, 'Organizer tools are for organizer accounts.');
   }
 
+  /** An open tab can outlive the wording it shows; only the current documents can be agreed to. */
+  const staleTerms = (c: Context, agreed: { termsVersion: string; privacyVersion: string }) =>
+    agreed.termsVersion === ORGANIZER_TERMS_VERSION &&
+    agreed.privacyVersion === PRIVACY_NOTICE_VERSION
+      ? null
+      : c.json(
+          {
+            error: 'terms_changed',
+            message: 'Our terms have been updated. Refresh the page, read them and apply again.',
+          },
+          409,
+        );
+  const evidenceOf = (c: Context) => ({
+    ip: clientIp(c),
+    userAgent: c.req.header('User-Agent') ?? '',
+  });
+
+  // Signing up as an organizer: the account and the application in one step.
+  app.post('/organizer/signup', async (c) => {
+    const stop = limited(c, 'signups', 10, 60 * MINUTE);
+    if (stop) return stop;
+    const body = organizerSignUpRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return badRequest(c, 'Some details are missing or invalid.');
+    const stale = staleTerms(c, body.data);
+    if (stale) return stale;
+    const opened = await signUpOrganizer(deps, body.data, evidenceOf(c));
+    if (!opened) {
+      return c.json(
+        {
+          error: 'email_taken',
+          message: 'There is already an account with that email. Sign in instead.',
+        },
+        409,
+      );
+    }
+    c.status(201);
+    return signedIn(c, opened);
+  });
+
   app.post('/organizer/apply', async (c) => {
     const account = await accountOf(c);
     if (!account) return unauthorized(c);
     const body = organizerApplicationRequestSchema.safeParse(await c.req.json().catch(() => null));
     if (!body.success) return badRequest(c, 'Some details are missing or invalid.');
-    // An open tab can outlive the wording it shows; only the current documents can be agreed to.
-    if (
-      body.data.termsVersion !== ORGANIZER_TERMS_VERSION ||
-      body.data.privacyVersion !== PRIVACY_NOTICE_VERSION
-    ) {
-      return c.json(
-        {
-          error: 'terms_changed',
-          message: 'Our terms have been updated. Refresh the page, read them and apply again.',
-        },
-        409,
-      );
-    }
-    const user = await applyToHost(deps, account.id, body.data, {
-      ip: clientIp(c),
-      userAgent: c.req.header('User-Agent') ?? '',
-    });
+    const stale = staleTerms(c, body.data);
+    if (stale) return stale;
+    const user = await applyToHost(deps, account.id, body.data, evidenceOf(c));
     return user
       ? c.json(user, 201)
       : c.json(

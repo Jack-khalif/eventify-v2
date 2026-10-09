@@ -5,6 +5,8 @@ import {
   markPaidRequestSchema,
   ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
+  organizerSignUpRequestSchema,
+  passwordSignInSchema,
   PRIVACY_NOTICE_VERSION,
   organizerStatusChangeSchema,
   rateChangeRequestSchema,
@@ -26,6 +28,8 @@ import {
   accountForToken,
   addStaff,
   applyToHost,
+  signInWithPassword,
+  signUpOrganizer,
   endSession,
   hasTwoStep,
   removeStaff,
@@ -111,6 +115,18 @@ function organizerOf(request: Request): Organizer | Response {
 }
 
 const superAdminOnly = (me: AdminMe) => (me.role === 'super_admin' ? null : forbidden());
+
+const staleTerms = (agreed: { termsVersion: string; privacyVersion: string }) =>
+  agreed.termsVersion !== ORGANIZER_TERMS_VERSION ||
+  agreed.privacyVersion !== PRIVACY_NOTICE_VERSION;
+const termsChanged = () =>
+  HttpResponse.json(
+    {
+      error: 'terms_changed',
+      message: 'Our terms have been updated. Refresh the page, read them and apply again.',
+    },
+    { status: 409 },
+  );
 
 const badRequest = (message: string) =>
   HttpResponse.json({ error: 'validation', message }, { status: 400 });
@@ -261,6 +277,18 @@ export const handlers = [
         );
   }),
 
+  http.post('*/api/auth/login', async ({ request }) => {
+    await delay();
+    const body = passwordSignInSchema.safeParse(await request.json());
+    const session = body.success ? signInWithPassword(body.data.email, body.data.password) : null;
+    return session
+      ? HttpResponse.json(session)
+      : HttpResponse.json(
+          { error: 'invalid_credentials', message: "That email or password isn't right." },
+          { status: 422 },
+        );
+  }),
+
   http.get('*/api/auth/me', async ({ request }) => {
     await delay();
     const account = accountOf(request);
@@ -282,24 +310,30 @@ export const handlers = [
     return HttpResponse.json({ tickets: await ticketsForEmail(account.email, allEvents()) });
   }),
 
+  http.post('*/api/organizer/signup', async ({ request }) => {
+    await delay();
+    const body = organizerSignUpRequestSchema.safeParse(await request.json());
+    if (!body.success) return badRequest('Some details are missing or invalid.');
+    if (staleTerms(body.data)) return termsChanged();
+    const session = signUpOrganizer(body.data);
+    return session
+      ? HttpResponse.json(session, { status: 201 })
+      : HttpResponse.json(
+          {
+            error: 'email_taken',
+            message: 'There is already an account with that email. Sign in instead.',
+          },
+          { status: 409 },
+        );
+  }),
+
   http.post('*/api/organizer/apply', async ({ request }) => {
     await delay();
     const account = accountOf(request);
     if (!account) return unauthorized();
     const body = organizerApplicationRequestSchema.safeParse(await request.json());
     if (!body.success) return badRequest('Some details are missing or invalid.');
-    if (
-      body.data.termsVersion !== ORGANIZER_TERMS_VERSION ||
-      body.data.privacyVersion !== PRIVACY_NOTICE_VERSION
-    ) {
-      return HttpResponse.json(
-        {
-          error: 'terms_changed',
-          message: 'Our terms have been updated. Refresh the page, read them and apply again.',
-        },
-        { status: 409 },
-      );
-    }
+    if (staleTerms(body.data)) return termsChanged();
     const user = applyToHost(account, body.data);
     return user
       ? HttpResponse.json(user, { status: 201 })

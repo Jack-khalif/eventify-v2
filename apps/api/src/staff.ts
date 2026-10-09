@@ -4,7 +4,7 @@ import { randomBytes } from 'node:crypto';
 import type { AdminError } from './admin';
 import { endAllSessions } from './auth';
 import type { Db } from './db/client';
-import { accounts, agents, organizers } from './db/schema';
+import { accounts, agents, organizers, sessions } from './db/schema';
 
 /** Who can open the admin portal, and who looks after which organizer. Super Admin only. */
 
@@ -68,7 +68,10 @@ export async function addStaff(
       agentId = `agent_${randomBytes(5).toString('hex')}`;
       await tx.insert(agents).values({ id: agentId, name: req.name });
     }
-    const values = { name: req.name, role: req.role, agentId };
+    // Staff sign in with the emailed code only. If this address already had an account, nobody
+    // has shown it belongs to the person being added, so its password and open sign-ins go.
+    const values = { name: req.name, role: req.role, agentId, passwordHash: null };
+    if (existing) await tx.delete(sessions).where(eq(sessions.accountId, existing.id));
     const accountId = existing?.id ?? `acc_${randomBytes(8).toString('hex')}`;
     await tx
       .insert(accounts)

@@ -17,7 +17,7 @@ const ORGANIZER_BADGE: Record<OrganizerStatus, { label: string; tone: TagTone }>
 };
 
 /** Why someone was sent to sign in, so the page can say so. */
-export type LoginIntent = 'host' | 'create';
+export type LoginIntent = 'create';
 
 /** A link to sign-in that comes back to `next` afterwards. */
 export const loginPath = (next: string, intent?: LoginIntent) =>

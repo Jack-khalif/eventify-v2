@@ -10,13 +10,20 @@ import {
   type CreateEventRequest,
   type EventDashboard,
   type OrganizerApplicationRequest,
+  type OrganizerSignUpRequest,
   type OrganizerHome,
   type PublicEvent,
   type SessionUser,
 } from '@eventify/shared';
 import { and, count, eq, gte, isNotNull, like, ne, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
-import { sessionUserFor, type AccountRow } from './auth';
+import {
+  createPasswordAccount,
+  openSession,
+  sessionUserFor,
+  type AccountRow,
+  type OpenedSession,
+} from './auth';
 import type { Db } from './db/client';
 import {
   accounts,
@@ -137,6 +144,25 @@ export async function applyToHost(
       .returning();
     return sessionUserFor(tx, updated!);
   });
+}
+
+/**
+ * Sign up as an organizer: a new account with a password and its application, together or not at
+ * all, then signed in. Null when the email can't be used for a new account.
+ */
+export async function signUpOrganizer(
+  deps: { db: Db; now: () => number; superAdminEmails: readonly string[] },
+  { email, password, ...application }: OrganizerSignUpRequest,
+  evidence: ConsentEvidence,
+): Promise<OpenedSession | null> {
+  const account = await deps.db.transaction(async (tx) => {
+    const created = await createPasswordAccount(tx, deps.superAdminEmails, email, password);
+    if (!created) return null;
+    await applyToHost({ db: tx, now: deps.now }, created.id, application, evidence);
+    const [applied] = await tx.select().from(accounts).where(eq(accounts.id, created.id));
+    return applied!;
+  });
+  return account && openSession(deps.db, account, deps.now());
 }
 
 /** The organizer this account acts for (whatever their status), if any. */

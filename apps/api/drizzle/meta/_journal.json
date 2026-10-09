@@ -43,6 +43,13 @@
       "when": 1791529982307,
       "tag": "0005_consent_records",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791531615058,
+      "tag": "0006_passwords",
+      "breakpoints": true
     }
   ]
 }

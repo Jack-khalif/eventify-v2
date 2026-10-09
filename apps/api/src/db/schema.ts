@@ -70,6 +70,13 @@ export const accounts = pgTable('accounts', {
   role: text('role').$type<Role>().notNull(),
   organizerId: text('organizer_id').references(() => organizers.id),
   agentId: text('agent_id'),
+  /** Organizers sign in with a password (see passwords.ts). Staff never have one: they use the emailed code. */
+  passwordHash: text('password_hash'),
+  /**
+   * When this person last proved the address is theirs by entering a code we emailed. Null for an
+   * account made with a password: nothing private to the address (its tickets) is shown until then.
+   */
+  emailVerifiedAt: instant('email_verified_at'),
   /** Two-step sign-in: the authenticator app's secret (base32), in use once totpEnabledAt is set. */
   totpSecret: text('totp_secret'),
   totpEnabledAt: instant('totp_enabled_at'),

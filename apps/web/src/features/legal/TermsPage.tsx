@@ -26,9 +26,8 @@ export function TermsPage() {
         <ul>
           <li>You must be 18 or older and allowed to act for the organizer you apply as.</li>
           <li>
-            You sign in with a code sent to your email address. Keep that inbox secure: anyone who
-            can read it can sign in as you, and you are responsible for what is done from your
-            account.
+            You sign in with your email address and a password. Keep the password to yourself and
+            your inbox secure: you are responsible for what is done from your account.
           </li>
           <li>The details you give us must be true, and you must keep them up to date.</li>
         </ul>
