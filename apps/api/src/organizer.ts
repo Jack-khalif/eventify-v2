@@ -20,6 +20,7 @@ import { sessionUserFor, type AccountRow } from './auth';
 import type { Db } from './db/client';
 import {
   accounts,
+  consents,
   eventDoors,
   events,
   eventViews,
@@ -56,15 +57,20 @@ async function uniqueHandle(tx: Db, name: string, ownId: string) {
   return firstFree(base, new Set([...RESERVED_HANDLES, ...used.map((o) => o.handle)]));
 }
 
+/** Where an acceptance came from, kept with it as evidence. */
+export type ConsentEvidence = { ip: string; userAgent: string };
+
 /**
  * Record an application to host: a new organizer, or (for a declined one applying again) the same
- * organizer with the new details. Either way it waits as "pending" for a Super Admin.
+ * organizer with the new details. Either way it waits as "pending" for a Super Admin. The terms
+ * and the data-processing consent the applicant ticked are written down with it.
  * Null when this account can't apply (already an organizer in good standing, or staff).
  */
 export async function applyToHost(
   { db, now }: { db: Db; now: () => number },
   accountId: string,
   req: OrganizerApplicationRequest,
+  evidence: ConsentEvidence,
 ): Promise<SessionUser | null> {
   return db.transaction(async (tx) => {
     // Locked, so sending the form twice can't make two organizers.
@@ -101,6 +107,28 @@ export async function applyToHost(
       .insert(organizerApplications)
       .values({ organizerId: id, ...application })
       .onConflictDoUpdate({ target: organizerApplications.organizerId, set: application });
+
+    const accepted = {
+      accountId: account.id,
+      email: account.email,
+      acceptedAt: application.appliedAt,
+      ip: evidence.ip,
+      userAgent: evidence.userAgent.slice(0, 300),
+    };
+    await tx.insert(consents).values([
+      {
+        ...accepted,
+        id: `cns_${hex(8)}`,
+        document: 'organizer_terms',
+        version: req.termsVersion,
+      },
+      {
+        ...accepted,
+        id: `cns_${hex(8)}`,
+        document: 'privacy_notice',
+        version: req.privacyVersion,
+      },
+    ]);
 
     const [updated] = await tx
       .update(accounts)

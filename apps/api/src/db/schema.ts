@@ -4,6 +4,7 @@ import type {
   CoverTone,
   Currency,
   EventStatus,
+  LegalDocument,
   OrderStatus,
   OrganizerStatus,
   PaymentFailure,
@@ -69,8 +70,36 @@ export const accounts = pgTable('accounts', {
   role: text('role').$type<Role>().notNull(),
   organizerId: text('organizer_id').references(() => organizers.id),
   agentId: text('agent_id'),
+  /** Two-step sign-in: the authenticator app's secret (base32), in use once totpEnabledAt is set. */
+  totpSecret: text('totp_secret'),
+  totpEnabledAt: instant('totp_enabled_at'),
+  /** The 30-second step of the last code accepted, so a code can't be used twice. */
+  totpLastStep: integer('totp_last_step'),
   createdAt: instant('created_at').notNull().defaultNow(),
 });
+
+/**
+ * Proof that someone agreed to a document: who, which version, when and from where. The Data
+ * Protection Act puts the burden of showing consent on us. Rows are never changed; agreeing to a
+ * newer version adds a row.
+ */
+export const consents = pgTable(
+  'consents',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id),
+    /** The email as it was then. */
+    email: text('email').notNull(),
+    document: text('document').$type<LegalDocument>().notNull(),
+    version: text('version').notNull(),
+    acceptedAt: instant('accepted_at').notNull(),
+    ip: text('ip').notNull(),
+    userAgent: text('user_agent').notNull(),
+  },
+  (t) => [index('consents_account_idx').on(t.accountId)],
+);
 
 /** Open sign-ins. Only a hash of the token is kept, so a copy of this table can't be used to sign in. */
 export const sessions = pgTable(
@@ -82,6 +111,10 @@ export const sessions = pgTable(
       .references(() => accounts.id),
     expiresAt: instant('expires_at').notNull(),
     createdAt: instant('created_at').notNull(),
+    /** The emailed code was right but the authenticator code is still owed; not a sign-in yet. */
+    pendingTotp: boolean('pending_totp').notNull().default(false),
+    /** Wrong authenticator codes so far; the pending sign-in is dropped after a few. */
+    totpAttempts: integer('totp_attempts').notNull().default(0),
   },
   (t) => [index('sessions_account_idx').on(t.accountId)],
 );

@@ -3,11 +3,16 @@ import {
   createEventRequestSchema,
   doorSyncRequestSchema,
   markPaidRequestSchema,
+  ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
+  PRIVACY_NOTICE_VERSION,
   organizerStatusChangeSchema,
   rateChangeRequestSchema,
+  addStaffRequestSchema,
+  assignAgentRequestSchema,
   signInStartSchema,
   signInVerifySchema,
+  totpCodeRequestSchema,
   type AdminMe,
   type Organizer,
   eventQuerySchema,
@@ -17,8 +22,19 @@ import {
   type OrderView,
 } from '@eventify/shared';
 import { organizerProfiles } from '@eventify/shared/fixtures';
-import { accountForToken, applyToHost, endSession, sessionUser, verifySignIn } from './auth';
-import { allOrganizers, findOrganizer } from './organizers';
+import {
+  accountForToken,
+  addStaff,
+  applyToHost,
+  endSession,
+  hasTwoStep,
+  removeStaff,
+  sessionUser,
+  setTwoStep,
+  staffRows,
+  verifySignIn,
+} from './auth';
+import { allOrganizers, findOrganizer, setOrganizerAgent } from './organizers';
 import { delay, http, HttpResponse, type JsonBodyType } from 'msw';
 import {
   cancelOrder,
@@ -272,6 +288,18 @@ export const handlers = [
     if (!account) return unauthorized();
     const body = organizerApplicationRequestSchema.safeParse(await request.json());
     if (!body.success) return badRequest('Some details are missing or invalid.');
+    if (
+      body.data.termsVersion !== ORGANIZER_TERMS_VERSION ||
+      body.data.privacyVersion !== PRIVACY_NOTICE_VERSION
+    ) {
+      return HttpResponse.json(
+        {
+          error: 'terms_changed',
+          message: 'Our terms have been updated. Refresh the page, read them and apply again.',
+        },
+        { status: 409 },
+      );
+    }
     const user = applyToHost(account, body.data);
     return user
       ? HttpResponse.json(user, { status: 201 })
@@ -438,4 +466,93 @@ export const handlers = [
     if (!body.success) return badRequest(body.error.issues[0]?.message ?? 'Enter the reference.');
     return adminReply(markPaid(me, String(params.id), body.data.reference));
   }),
+
+  // Two-step sign-in. The mock lets it be switched on and off (the code is the test code), but
+  // never asks for the second code at sign-in; the real API does.
+  http.get('*/api/auth/totp', async ({ request }) => {
+    await delay();
+    const account = accountOf(request);
+    return account ? HttpResponse.json({ enabled: hasTwoStep(account.id) }) : unauthorized();
+  }),
+
+  http.post('*/api/auth/totp/setup', async ({ request }) => {
+    await delay();
+    if (!accountOf(request)) return unauthorized();
+    return HttpResponse.json({ secret: 'MOCKSECRETMOCKSECRETMOCKSECRET22', qrDataUrl: MOCK_QR });
+  }),
+
+  http.post('*/api/auth/totp/:change', async ({ params, request }) => {
+    await delay();
+    const account = accountOf(request);
+    if (!account) return unauthorized();
+    const body = totpCodeRequestSchema.safeParse(await request.json());
+    if (!body.success || body.data.code !== TEST_LOOKUP_CODE) {
+      return HttpResponse.json(
+        { error: 'invalid_code', message: "That code isn't right." },
+        { status: 422 },
+      );
+    }
+    setTwoStep(account.id, params.change === 'enable');
+    return HttpResponse.json({ enabled: params.change === 'enable' });
+  }),
+
+  http.get('*/api/admin/staff', async ({ request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    return superAdminOnly(me) ?? HttpResponse.json(staffRows());
+  }),
+
+  http.post('*/api/admin/staff', async ({ request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    const denied = superAdminOnly(me);
+    if (denied) return denied;
+    const body = addStaffRequestSchema.safeParse(await request.json());
+    if (!body.success) return badRequest(body.error.issues[0]?.message ?? 'Check the details.');
+    const row = addStaff(body.data);
+    if (typeof row !== 'string') return HttpResponse.json(row, { status: 201 });
+    return adminError({
+      status: 409,
+      error: row,
+      message:
+        row === 'is_organizer'
+          ? 'That email belongs to an organizer. Staff need a separate email address.'
+          : 'That person already has staff access.',
+    });
+  }),
+
+  http.post('*/api/admin/staff/:id/remove', async ({ params, request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    const denied = superAdminOnly(me);
+    if (denied) return denied;
+    if (accountOf(request)!.id === params.id) {
+      return adminError({
+        status: 409,
+        error: 'is_you',
+        message: 'You can’t remove your own access.',
+      });
+    }
+    return removeStaff(String(params.id)) ? HttpResponse.json({ ok: true }) : notFound();
+  }),
+
+  http.post('*/api/admin/organizers/:handle/agent', async ({ params, request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    const denied = superAdminOnly(me);
+    if (denied) return denied;
+    const body = assignAgentRequestSchema.safeParse(await request.json());
+    const o = allOrganizers().find((x) => x.handle === params.handle);
+    if (!body.success || !o) return notFound();
+    setOrganizerAgent(o.id, body.data.agentId);
+    return adminReply(organizerDetail(me, o.handle));
+  }),
 ];
+
+/** A 1×1 PNG standing in for the QR the real API draws. */
+const MOCK_QR =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';

@@ -44,7 +44,9 @@ export const RESERVED_HANDLES: readonly string[] = [
   'e',
   'login',
   'organizer',
+  'privacy',
   'saved',
   't',
+  'terms',
   'tickets',
 ];

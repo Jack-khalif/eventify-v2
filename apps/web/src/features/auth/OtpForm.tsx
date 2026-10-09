@@ -1,7 +1,7 @@
 import { normalizeEmail } from '@eventify/shared';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { Button, TextField } from '../../components/ui';
-import { useStartSignIn, useVerifySignIn } from './useSession';
+import { useCompleteTwoStep, useStartSignIn, useVerifySignIn } from './useSession';
 
 /**
  * Email, then the 6-digit code we send to it. There is no password: the email address is the
@@ -22,6 +22,11 @@ export function OtpForm({
   const [resent, setResent] = useState(false);
   const start = useStartSignIn();
   const verify = useVerifySignIn();
+  const twoStep = useCompleteTwoStep();
+  const [appCode, setAppCode] = useState('');
+  /** Set once the emailed code was right for an account that also uses an authenticator app. */
+  const challenge =
+    verify.data && 'totpRequired' in verify.data ? verify.data.challenge : undefined;
 
   const send = (ev: FormEvent) => {
     ev.preventDefault();
@@ -44,8 +49,17 @@ export function OtpForm({
     setCode('');
     setError(undefined);
     setResent(false);
+    setAppCode('');
     start.reset();
     verify.reset();
+    twoStep.reset();
+  };
+
+  const checkApp = (ev: FormEvent) => {
+    ev.preventDefault();
+    if (!challenge) return;
+    if (!/^\d{6}$/.test(appCode)) return setError('Enter the 6-digit code');
+    twoStep.mutate({ challenge, code: appCode });
   };
 
   const fill = (value: string) => {
@@ -79,6 +93,44 @@ export function OtpForm({
           </p>
         )}
         {hint?.(fill)}
+      </form>
+    );
+  }
+
+  if (challenge) {
+    return (
+      <form onSubmit={checkApp} noValidate className="flex flex-col gap-4">
+        <p className="m-0 text-[15px] text-muted">
+          This account uses two-step sign-in. Open your authenticator app and enter the 6-digit code
+          it shows for <strong className="text-fg">Eventify</strong>.
+        </p>
+        <TextField
+          label="Authenticator code"
+          name="app-code"
+          autoComplete="one-time-code"
+          inputMode="numeric"
+          maxLength={6}
+          autoFocus
+          value={appCode}
+          onChange={(ev) => {
+            setAppCode(ev.target.value.replace(/\D/g, ''));
+            setError(undefined);
+            twoStep.reset();
+          }}
+          error={error ?? twoStep.error?.message}
+          className="[&_input]:font-mono [&_input]:tracking-[0.3em]"
+        />
+        <Button type="submit" size="lg" disabled={twoStep.isPending}>
+          {twoStep.isPending ? 'Checking…' : submitLabel}
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-start border-transparent text-muted"
+          onClick={changeEmail}
+        >
+          Start again
+        </Button>
       </form>
     );
   }

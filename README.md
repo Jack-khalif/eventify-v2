@@ -36,26 +36,32 @@ To point the web app at it, put `VITE_API_MOCKS=off` in `apps/web/.env.local` an
 
 With no settings at all it runs on its own: the database is a local file (`apps/api/.data`, delete it to start again) filled with the sample organizers, sign-ins and events, emails and SMS (tickets and one-time codes) are printed in the terminal, and M-Pesa is simulated the same way as in the mock (a phone ending `0000`, `1111`, `2222` or `3333` fails). Sign in with a sample account from the table below and read the code off the terminal. Copy `apps/api/.env.example` to `apps/api/.env` to change that:
 
-| Setting                     | What it does                                                                                                                                 |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RESEND_API_KEY`            | Send ticket emails through [Resend](https://resend.com) instead of printing them                                                             |
-| `EMAIL_FROM`                | Sender address. Needs a domain verified in Resend to reach anyone but your own Resend email                                                  |
-| `DATABASE_URL`              | Use a real Postgres. Run `npm run db:migrate --workspace @eventify/api` after every pull                                                     |
-| `PAYMENTS`                  | `simulated` or `off` (free tickets only). Production defaults to `off`                                                                       |
-| `AT_USERNAME`, `AT_API_KEY` | [Africa's Talking](https://africastalking.com) account that texts the "Find my tickets" code. Without one, production turns phone lookup off |
-| `QR_PRIVATE_KEY`            | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`                                                     |
-| `SITE_URL`                  | Where the web app lives, for the ticket links in emails                                                                                      |
-| `SUPER_ADMIN_EMAILS`        | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in)                                                 |
-| `TRUST_PROXY`               | `1` when hosted behind the host's proxy, so rate limits count each visitor rather than the proxy                                             |
+| Setting                     | What it does                                                                                                                                   |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`            | Send ticket emails through [Resend](https://resend.com) instead of printing them                                                               |
+| `EMAIL_FROM`                | Sender address. Needs a domain verified in Resend to reach anyone but your own Resend email                                                    |
+| `DATABASE_URL`              | Use a real Postgres. Run `npm run db:migrate --workspace @eventify/api` after every pull                                                       |
+| `PAYMENTS`                  | `simulated` or `off` (free tickets only). Production defaults to `off`                                                                         |
+| `AT_USERNAME`, `AT_API_KEY` | [Africa's Talking](https://africastalking.com) account that texts the "Find my tickets" code. Without one, production turns phone lookup off   |
+| `QR_PRIVATE_KEY`            | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`                                                       |
+| `SITE_URL`                  | Where the web app lives, for the ticket links in emails                                                                                        |
+| `SUPER_ADMIN_EMAILS`        | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in)                                                   |
+| `TRUST_PROXY`               | Proxies between visitors and the API (`1` behind the host alone, `2` when the web host forwards `/api` too), so rate limits count each visitor |
 
-Protections worth knowing about: sign-in codes and checkouts are rate limited per visitor (and codes per email or phone), one phone number can hold three unpaid orders at a time, agents and Super Admins are signed out after 12 hours (everyone else after 30 days), and every change made in the admin portal is written to the `audit_log` table with who made it.
+Protections worth knowing about:
+
+- **Sessions** are held in two halves: a cookie scripts can't read, and a token the web app sends back. The API needs both, so the web app and the API have to share a site: put the API on a subdomain of the web app's domain, or forward `/api/*` from the web host to the API (a rewrite in `apps/web/vercel.json`) and leave `VITE_API_URL` empty. On two unrelated addresses, browsers won't send the cookie and nobody stays signed in.
+- **Two-step sign-in** (an authenticator app, set up under Admin → Security) is open to all staff. In production a Super Admin can't approve organizers, change rates, record payouts or manage staff until theirs is on (`REQUIRE_TWO_STEP`).
+- **Staff** are added and removed under Admin → Staff, and each organizer's agent is picked on the organizer's page. `SUPER_ADMIN_EMAILS` is only for the first admin.
+- **Rate limits**: sign-in codes and checkouts are limited per visitor (and codes per email or phone), and one phone number can hold three unpaid orders at a time.
+- **Staff sessions** end after 12 hours; everyone else's after 30 days.
+- **Audit log**: every change made in the admin portal is written to the `audit_log` table with who made it.
 
 What the numbers mean on the real API:
 
 - **Posters** are stored in the database and served from `/api/images/{id}` (JPEG, PNG or WebP, 2 MB at most).
 - **Payouts** appear in the admin portal ten minutes after an event ends: one per event, its paid orders less the fee each order was sold at. A Super Admin sends the money by hand and records the reference.
 - **Page views** on the organizer dashboard count requests for the event page.
-- **Agents** have no screen for adding them yet: add a row to `agents`, and set `role = 'agent'` and `agent_id` on the person's account.
 
 After changing `apps/api/src/db/schema.ts`, run `npm run db:generate --workspace @eventify/api` and commit the new file in `apps/api/drizzle`.
 

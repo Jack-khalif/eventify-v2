@@ -109,3 +109,39 @@ export function TextAreaField({
     </FieldShell>
   );
 }
+
+/** A tick box with its sentence beside it. The label may hold links. */
+export function CheckboxField({
+  label,
+  error,
+  className,
+  ...input
+}: {
+  label: ReactNode;
+  error?: string;
+  className?: string;
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'type'>) {
+  const id = useId();
+  return (
+    <div className={cn('flex flex-col gap-1.5', className)}>
+      <div className="flex items-start gap-3">
+        <input
+          id={id}
+          type="checkbox"
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? `${id}-msg` : undefined}
+          className="mt-0.5 size-5 flex-none cursor-pointer accent-accent"
+          {...input}
+        />
+        <label htmlFor={id} className="cursor-pointer text-[15px]">
+          {label}
+        </label>
+      </div>
+      {error && (
+        <span id={`${id}-msg`} className="pl-8 text-xs font-semibold text-danger">
+          {error}
+        </span>
+      )}
+    </div>
+  );
+}

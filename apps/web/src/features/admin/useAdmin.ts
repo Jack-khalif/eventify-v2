@@ -8,6 +8,8 @@ import {
   adminOverviewSchema,
   adminPayoutRowSchema,
   rateChangeResultSchema,
+  staffRowSchema,
+  type AddStaffRequest,
   type OrganizerStatusChange,
   type OverviewQuery,
   type RateChangeRequest,
@@ -138,6 +140,49 @@ export function useMarkPaid() {
         `/api/admin/payouts/${encodeURIComponent(id)}/paid`,
         { reference },
         adminPayoutRowSchema,
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/** Everyone who can open the admin portal. Super Admin only. */
+export function useStaff() {
+  return useQuery({
+    queryKey: [ADMIN, 'staff'],
+    queryFn: () => apiGet('/api/admin/staff', z.array(staffRowSchema)),
+  });
+}
+
+export function useAddStaff() {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: (req: AddStaffRequest) => apiPost('/api/admin/staff', req, staffRowSchema),
+    onSuccess: invalidate,
+  });
+}
+
+export function useRemoveStaff() {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: (id: string) =>
+      apiPost(
+        `/api/admin/staff/${encodeURIComponent(id)}/remove`,
+        {},
+        z.object({ ok: z.literal(true) }),
+      ),
+    onSuccess: invalidate,
+  });
+}
+
+/** Say which agent looks after an organizer (null = nobody). */
+export function useAssignAgent(handle: string) {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: (agentId: string | null) =>
+      apiPost(
+        `/api/admin/organizers/${encodeURIComponent(handle)}/agent`,
+        { agentId },
+        adminOrganizerDetailSchema,
       ),
     onSuccess: invalidate,
   });

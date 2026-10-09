@@ -11,7 +11,9 @@ import {
   eventDashboardSchema,
   importVerifyKey,
   orderViewSchema,
+  ORGANIZER_TERMS_VERSION,
   organizerHomeSchema,
+  PRIVACY_NOTICE_VERSION,
   publicEventSchema,
   sessionSchema,
   sessionUserSchema,
@@ -27,7 +29,7 @@ import { z } from 'zod';
 import { createApp } from './app';
 import { openLocalDatabase, type Database } from './db/client';
 import { seedSamples } from './db/samples';
-import { auditLog, events, tiers } from './db/schema';
+import { auditLog, consents, events, tiers } from './db/schema';
 import type { Email } from './email/mailer';
 import { simulatedPayments } from './payments';
 
@@ -109,7 +111,7 @@ const send = (path: string, token?: string, body?: unknown) =>
   api().request(`/api${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: {
-      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(token && { Authorization: `Bearer ${token}`, Cookie: cookies.get(token) ?? '' }),
       ...(body !== undefined && { 'Content-Type': 'application/json' }),
     },
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -122,6 +124,8 @@ async function get<T>(path: string, schema: z.ZodType<T>, token?: string): Promi
 }
 
 const tokens = new Map<string, string>();
+/** The cookie half of each session, by its token. */
+const cookies = new Map<string, string>();
 
 /** Sign in with the emailed code. One session per address is kept for the whole file. */
 async function signIn(email: string): Promise<string> {
@@ -132,6 +136,7 @@ async function signIn(email: string): Promise<string> {
   const code = /^(\d{6}) /.exec(emails.at(-1)!.subject)![1]!;
   const res = await send('/auth/verify', undefined, { email, code });
   const { token } = sessionSchema.parse(await res.json());
+  cookies.set(token, res.headers.get('Set-Cookie')!.split(';')[0]!);
   tokens.set(email, token);
   return token;
 }
@@ -166,6 +171,10 @@ const application = {
   category: 'Workshops',
   payoutMethod: 'mpesa',
   about: 'We run monthly pottery workshops for beginners in Karen.',
+  acceptTerms: true,
+  consentToDataProcessing: true,
+  termsVersion: ORGANIZER_TERMS_VERSION,
+  privacyVersion: PRIVACY_NOTICE_VERSION,
 };
 
 // A JPEG as far as its first bytes go, which is all the server looks at.
@@ -260,6 +269,29 @@ describe('applying to host', () => {
     });
     const rows = await get('/admin/organizers', z.array(adminOrganizerRowSchema), boss);
     expect(rows.filter((o) => o.name.startsWith('Kiln Club'))).toHaveLength(1);
+  });
+
+  it('needs both ticks and the current wording, and keeps a record of each acceptance', async () => {
+    const token = await signIn('consent@example.com');
+    const apply = (over: object) =>
+      send('/organizer/apply', token, { ...application, organizerName: 'Consent Club', ...over });
+
+    expect((await apply({ acceptTerms: false })).status).toBe(400);
+    expect((await apply({ consentToDataProcessing: false })).status).toBe(400);
+    const stale = await apply({ termsVersion: '2020-01-01' });
+    expect(stale.status).toBe(409);
+    expect(((await stale.json()) as { error: string }).error).toBe('terms_changed');
+    const recorded = async () =>
+      (await database.db.select().from(consents)).filter((r) => r.email === 'consent@example.com');
+    expect(await recorded()).toEqual([]);
+
+    expect((await apply({})).status).toBe(201);
+    const rows = await recorded();
+    expect(rows.map((r) => [r.document, r.version]).sort()).toEqual([
+      ['organizer_terms', ORGANIZER_TERMS_VERSION],
+      ['privacy_notice', PRIVACY_NOTICE_VERSION],
+    ]);
+    expect(rows[0]!.acceptedAt.getTime()).toBe(clock);
   });
 });
 

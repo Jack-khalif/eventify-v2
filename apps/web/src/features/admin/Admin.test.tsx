@@ -224,3 +224,52 @@ describe('Payouts', () => {
     expect(await screen.findByText('Only a Super Admin can see this page.')).toBeInTheDocument();
   });
 });
+
+describe('Staff and security', () => {
+  it('lets a Super Admin give someone agent access and take it away', async () => {
+    const user = userEvent.setup();
+    renderApp('/admin/staff');
+    expect(await screen.findByText('agent@eventify.test · 3 organizers')).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Name'), 'Mary Wambui');
+    await user.type(screen.getByLabelText('Email'), 'Mary@Example.com');
+    await user.click(screen.getByRole('button', { name: 'Give access' }));
+    const mary = (await screen.findByText('mary@example.com · 0 organizers')).closest('li')!;
+    expect(within(mary).getByText('Agent')).toBeInTheDocument();
+    expect(within(mary).getByText('Two-step off')).toBeInTheDocument();
+
+    await user.click(within(mary).getByRole('button', { name: 'Remove' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Remove Mary Wambui?' });
+    await user.click(within(dialog).getByRole('button', { name: 'Remove access' }));
+    await waitFor(() =>
+      expect(screen.queryByText('mary@example.com · 0 organizers')).not.toBeInTheDocument(),
+    );
+  });
+
+  it('keeps the Staff page from agents, who still get Security', async () => {
+    signInAs('agent');
+    renderApp('/admin/staff');
+    expect(await screen.findByText('Only a Super Admin can see this page.')).toBeInTheDocument();
+    const nav = screen.getByRole('navigation', { name: 'Admin' });
+    expect(within(nav).queryByRole('link', { name: 'Staff' })).not.toBeInTheDocument();
+    expect(within(nav).getByRole('link', { name: 'Security' })).toBeInTheDocument();
+  });
+
+  it('turns two-step sign-in on once a code from the app is confirmed', async () => {
+    const user = userEvent.setup();
+    renderApp('/admin/security');
+    expect(await screen.findByText('Off')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Set up two-step sign-in' }));
+    expect(await screen.findByRole('img', { name: /QR code/ })).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText('Code from the app'), '000000');
+    await user.click(screen.getByRole('button', { name: 'Turn on' }));
+    expect(await screen.findByText("That code isn't right.")).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('Code from the app'));
+    await user.type(screen.getByLabelText('Code from the app'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Turn on' }));
+    expect(await screen.findByText('On')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Turn off' })).toBeInTheDocument();
+  });
+});

@@ -56,6 +56,15 @@ export function LoginPage() {
         />
       </Card>
 
+      <p className="m-0 text-xs text-muted">
+        We use your email address to sign you in and to send you messages about your account. See
+        our{' '}
+        <Link to="/privacy" className="font-bold">
+          Privacy Notice
+        </Link>
+        .
+      </p>
+
       <ul className="m-0 flex list-none flex-col gap-2 p-0 text-sm text-muted">
         <li>
           <strong className="text-fg">Just bought a ticket?</strong> You don't need to sign in.{' '}

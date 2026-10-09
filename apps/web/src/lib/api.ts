@@ -41,7 +41,8 @@ async function send(url: URL, init: RequestInit = {}): Promise<Response> {
   const token = getSessionToken();
   const headers = new Headers(init.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  const res = await fetch(url, { ...init, headers });
+  // The session's other half is a cookie the API set; `include` sends it when the API is on its own origin.
+  const res = await fetch(url, { ...init, headers, credentials: 'include' });
   if (res.status === 401 && token && getSessionToken() === token) setSessionToken(null);
   return res;
 }

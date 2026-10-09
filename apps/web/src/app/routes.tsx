@@ -6,6 +6,8 @@ import { OrganizerDetailPage } from '../features/admin/OrganizerDetailPage';
 import { OrganizersPage } from '../features/admin/OrganizersPage';
 import { OverviewPage } from '../features/admin/OverviewPage';
 import { PayoutsPage } from '../features/admin/PayoutsPage';
+import { SecurityPage } from '../features/admin/SecurityPage';
+import { StaffPage } from '../features/admin/StaffPage';
 import { AccountPage } from '../features/auth/AccountPage';
 import { ActiveOrganizerOnly, StaffOnly } from '../features/auth/guards';
 import { LoginPage } from '../features/auth/LoginPage';
@@ -20,6 +22,8 @@ import { OrganizerPage } from '../features/organizer/OrganizerPage';
 import { SavedPage } from '../features/saved/SavedPage';
 import { ApplyPage } from '../features/host/ApplyPage';
 import { OrganizerHome } from '../features/host/OrganizerHome';
+import { PrivacyPage } from '../features/legal/PrivacyPage';
+import { TermsPage } from '../features/legal/TermsPage';
 import { DeliveryPage } from '../features/tickets/DeliveryPage';
 import { FindTicketsPage } from '../features/tickets/FindTicketsPage';
 import { TicketPage } from '../features/tickets/TicketPage';
@@ -46,6 +50,8 @@ export const routes: RouteObject[] = [
       { path: 'approvals', element: <ApprovalsPage /> },
       { path: 'agents', element: <AgentsPage /> },
       { path: 'payouts', element: <PayoutsPage /> },
+      { path: 'staff', element: <StaffPage /> },
+      { path: 'security', element: <SecurityPage /> },
       { path: '*', element: <NotFound /> },
     ],
   },
@@ -89,6 +95,8 @@ export const routes: RouteObject[] = [
       { path: 'tickets', element: <FindTicketsPage /> },
       { path: 'saved', element: <SavedPage /> },
       { path: 'account', element: <AccountPage /> },
+      { path: 'terms', element: <TermsPage /> },
+      { path: 'privacy', element: <PrivacyPage /> },
       ...(import.meta.env.DEV ? [{ path: 'dev/ui', element: <UiKit /> }] : []),
       /* Organizer public profile: eventify.co/{handle}. Kept last so named routes win. */
       { path: ':handle', element: <OrganizerPage /> },

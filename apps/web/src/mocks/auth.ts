@@ -1,12 +1,14 @@
 import {
   canApplyToHost,
   type Account,
+  type AddStaffRequest,
+  type StaffRow,
   type OrganizerApplicationRequest,
   type Session,
   type SessionUser,
 } from '@eventify/shared';
 import { accounts as sampleAccounts } from '@eventify/shared/fixtures';
-import { findOrganizer, submitApplication } from './organizers';
+import { allOrganizers, findOrganizer, setOrganizerAgent, submitApplication } from './organizers';
 import { TEST_LOOKUP_CODE } from './testPhones';
 
 /**
@@ -123,4 +125,64 @@ export function applyToHost(
   };
   store(updated);
   return sessionUser(updated);
+}
+
+// ── Staff (admin portal) ────────────────────────────────────────────────────
+
+/** Accounts that have "turned on" two-step sign-in. The mock never asks for the second code. */
+const twoStep = new Set<string>();
+export const hasTwoStep = (accountId: string) => twoStep.has(accountId);
+export function setTwoStep(accountId: string, enabled: boolean) {
+  if (enabled) twoStep.add(accountId);
+  else twoStep.delete(accountId);
+}
+
+const toStaffRow = (a: Account): StaffRow => ({
+  id: a.id,
+  email: a.email,
+  name: a.name,
+  role: a.role as StaffRow['role'],
+  agentId: a.agentId,
+  twoStep: twoStep.has(a.id),
+  organizers: a.agentId ? allOrganizers().filter((o) => o.agentId === a.agentId).length : 0,
+});
+
+export const staffRows = (): StaffRow[] =>
+  allAccounts()
+    .filter((a) => a.role === 'agent' || a.role === 'super_admin')
+    .sort((a, b) => a.role.localeCompare(b.role) || a.email.localeCompare(b.email))
+    .map(toStaffRow);
+
+/** The new row, or why not. */
+export function addStaff(req: AddStaffRequest): StaffRow | 'is_organizer' | 'already_staff' {
+  const existing = allAccounts().find((a) => a.email === req.email);
+  if (existing?.role === 'organizer') return 'is_organizer';
+  if (existing && existing.role !== 'attendee') return 'already_staff';
+  const id = crypto.randomUUID().replace(/-/g, '').slice(0, 10);
+  const account: Account = {
+    id: existing?.id ?? `acc_${id}`,
+    name: req.name,
+    email: req.email,
+    role: req.role,
+    organizerId: null,
+    agentId: req.role === 'agent' ? `agent_${id}` : null,
+  };
+  store(account);
+  return toStaffRow(account);
+}
+
+export function removeStaff(accountId: string): boolean {
+  const account = allAccounts().find(
+    (a) => a.id === accountId && (a.role === 'agent' || a.role === 'super_admin'),
+  );
+  if (!account) return false;
+  for (const o of allOrganizers()) {
+    if (account.agentId && o.agentId === account.agentId) setOrganizerAgent(o.id, null);
+  }
+  store({ ...account, role: 'attendee', agentId: null });
+  for (const [token, id] of Object.entries(db.sessions)) {
+    if (id === accountId) delete db.sessions[token];
+  }
+  save();
+  return true;
 }

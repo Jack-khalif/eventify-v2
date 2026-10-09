@@ -2,10 +2,16 @@ import {
   organizerApplicationRequestSchema,
   sessionSchema,
   sessionUserSchema,
+  signInResultSchema,
+  totpCodeRequestSchema,
+  totpSetupSchema,
+  totpSignInSchema,
+  totpStatusSchema,
   signInStartResultSchema,
   signInStartSchema,
   signInVerifySchema,
   type OrganizerApplicationRequest,
+  type Session,
   type SessionUser,
 } from '@eventify/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
@@ -57,17 +63,70 @@ export function useStartSignIn() {
   });
 }
 
-/** Step 2: exchange the code for a session. */
-export function useVerifySignIn() {
+function useOpenSession() {
   const queryClient = useQueryClient();
+  return ({ token, user }: Session) => {
+    forgetPersonalData(queryClient);
+    queryClient.setQueryData([SESSION, token], user);
+    setSessionToken(token);
+  };
+}
+
+/**
+ * Step 2: exchange the code for a session. Accounts with two-step sign-in get a challenge back
+ * instead, which useCompleteTwoStep() finishes.
+ */
+export function useVerifySignIn() {
+  const open = useOpenSession();
   return useMutation({
     mutationFn: (req: { email: string; code: string }) =>
-      apiPost('/api/auth/verify', signInVerifySchema.parse(req), sessionSchema),
-    onSuccess: ({ token, user }) => {
-      forgetPersonalData(queryClient);
-      queryClient.setQueryData([SESSION, token], user);
-      setSessionToken(token);
+      apiPost('/api/auth/verify', signInVerifySchema.parse(req), signInResultSchema),
+    onSuccess: (result) => {
+      if ('token' in result) open(result);
     },
+  });
+}
+
+/** Step 3, for accounts with two-step sign-in: the code from the authenticator app. */
+export function useCompleteTwoStep() {
+  const open = useOpenSession();
+  return useMutation({
+    mutationFn: (req: { challenge: string; code: string }) =>
+      apiPost('/api/auth/totp', totpSignInSchema.parse(req), sessionSchema),
+    onSuccess: open,
+  });
+}
+
+const TWO_STEP = 'two-step';
+
+/** Whether the signed-in account uses an authenticator app. */
+export function useTwoStepStatus() {
+  const token = useSessionToken();
+  return useQuery({
+    queryKey: [TWO_STEP, token],
+    queryFn: () => apiGet('/api/auth/totp', totpStatusSchema),
+    enabled: !!token,
+  });
+}
+
+/** Ask for a new secret to scan. Nothing is switched on until a code is confirmed. */
+export function useBeginTwoStep() {
+  return useMutation({
+    mutationFn: () => apiPost('/api/auth/totp/setup', {}, totpSetupSchema),
+  });
+}
+
+/** Switch two-step sign-in on or off; either way needs a code from the app. */
+export function useSetTwoStep(enabled: boolean) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (code: string) =>
+      apiPost(
+        `/api/auth/totp/${enabled ? 'enable' : 'disable'}`,
+        totpCodeRequestSchema.parse({ code }),
+        totpStatusSchema,
+      ),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [TWO_STEP] }),
   });
 }
 

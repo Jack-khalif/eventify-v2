@@ -11,13 +11,19 @@ import {
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { Button, Card, Dialog, Tag } from '../../components/ui';
+import { Button, Card, Dialog, SelectField, Tag } from '../../components/ui';
 import { ApiError } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { ORGANIZER_STATUS, PAYOUT_METHOD, PAYOUT_STATUS } from './format';
 import { QueryView } from './QueryView';
 import { RateDialog } from './RateDialog';
-import { useAdminMe, useAdminOrganizer, useSetOrganizerStatus } from './useAdmin';
+import {
+  useAdminMe,
+  useAdminOrganizer,
+  useAssignAgent,
+  useSetOrganizerStatus,
+  useStaff,
+} from './useAdmin';
 
 export function OrganizerDetailPage() {
   const { handle = '' } = useParams();
@@ -74,6 +80,7 @@ function Detail({ org, me }: { org: AdminOrganizerDetail; me: AdminMe }) {
       )}
 
       {me.role === 'super_admin' && <StatusActions org={org} onDone={setNotice} />}
+      {me.role === 'super_admin' && <AgentPicker org={org} />}
 
       <div className="flex flex-wrap gap-4">
         <Card className="flex flex-[1_1_260px] flex-col gap-2 p-5">
@@ -293,5 +300,40 @@ function StatusActions({
         and payouts owed are not changed.
       </Dialog>
     </Card>
+  );
+}
+
+/** Super Admin only: which agent looks after this organizer (and so can see it). */
+function AgentPicker({ org }: { org: AdminOrganizerDetail }) {
+  const staff = useStaff();
+  const assign = useAssignAgent(org.handle);
+  const agents = (staff.data ?? []).filter((s) => s.agentId);
+  if (!staff.data) return null;
+  return (
+    <div className="flex flex-col gap-1">
+      <SelectField
+        label="Looked after by"
+        value={org.agent?.id ?? ''}
+        disabled={assign.isPending}
+        onChange={(ev) => assign.mutate(ev.target.value || null)}
+        className="max-w-[320px]"
+      >
+        <option value="">Nobody</option>
+        {/* Someone who has since lost access still shows until another agent is picked. */}
+        {org.agent && !agents.some((s) => s.agentId === org.agent!.id) && (
+          <option value={org.agent.id}>{org.agent.name}</option>
+        )}
+        {agents.map((s) => (
+          <option key={s.id} value={s.agentId!}>
+            {s.name || s.email}
+          </option>
+        ))}
+      </SelectField>
+      {assign.error && (
+        <p role="alert" className="m-0 text-sm text-danger">
+          {assign.error.message}
+        </p>
+      )}
+    </div>
   );
 }
