@@ -265,6 +265,7 @@ export function LandingPage() {
           </div>
           <nav aria-label="Footer" className="flex flex-wrap gap-4 text-[13px] [&_a]:no-underline">
             <Link to="/discover">Discover</Link>
+            <Link to="/tickets">Find my tickets</Link>
             <Link to="/organizer">For organizers</Link>
             <Link to="/privacy">Privacy Policy</Link>
             <Link to="/terms">Terms of Service</Link>

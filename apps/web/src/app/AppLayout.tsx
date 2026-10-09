@@ -5,7 +5,7 @@ import { ScrollToTop } from './ScrollToTop';
 
 /** Per-route options, set with `handle` in routes.tsx. */
 export type RouteHandle = {
-  /** Pages with their own sticky bottom bar (event page, checkout) hide the mobile tabs. */
+  /** Pages with their own sticky bottom bar (event page, checkout), and the landing page, hide the mobile tabs. */
   hideTabs?: boolean;
 };
 

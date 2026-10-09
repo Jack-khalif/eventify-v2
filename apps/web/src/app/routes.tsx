@@ -59,7 +59,7 @@ export const routes: RouteObject[] = [
   {
     element: <AppLayout />,
     children: [
-      { index: true, element: <LandingPage /> },
+      { index: true, element: <LandingPage />, handle: { hideTabs: true } satisfies RouteHandle },
       { path: 'discover', element: <DiscoverPage /> },
       { path: 'e/:slug', element: <EventPage />, handle: { hideTabs: true } satisfies RouteHandle },
       {

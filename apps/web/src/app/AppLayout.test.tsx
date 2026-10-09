@@ -33,7 +33,7 @@ describe('app shell', () => {
 
   it('gives an approved organizer the dashboard link and the create button', async () => {
     signInAs('organizer');
-    renderApp('/');
+    renderApp('/discover');
     const nav = screen.getByRole('navigation', { name: 'Main' });
     expect(await within(nav).findByRole('link', { name: 'Dashboard' })).toHaveAttribute(
       'href',

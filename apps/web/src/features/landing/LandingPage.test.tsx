@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '../../test/render';
 import { signInAs } from '../../test/signIn';
@@ -20,6 +20,17 @@ describe('Landing', () => {
     expect(screen.getByRole('link', { name: 'Start for free' })).toHaveAttribute(
       'href',
       '/organizer',
+    );
+  });
+
+  it('has no tab bar, and links to events and tickets from the footer instead', () => {
+    renderApp('/');
+    expect(screen.queryByRole('navigation', { name: 'Tabs' })).not.toBeInTheDocument();
+    const footer = within(screen.getByRole('navigation', { name: 'Footer' }));
+    expect(footer.getByRole('link', { name: 'Discover' })).toHaveAttribute('href', '/discover');
+    expect(footer.getByRole('link', { name: 'Find my tickets' })).toHaveAttribute(
+      'href',
+      '/tickets',
     );
   });
 
