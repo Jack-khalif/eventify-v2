@@ -22,16 +22,26 @@ export function Header() {
     { ...work, end: false },
   ];
   const firstName = (user?.name || user?.organizer?.name || 'Account').split(' ')[0]!;
+  // Hidden while the session loads, so signed-in people don't see "Sign in" flash by.
+  const guest = !user && status !== 'loading';
 
   return (
     <header className="sticky top-0 z-40 border-b-2 border-rule bg-bg">
-      <div className="mx-auto flex max-w-[1240px] items-center gap-5 px-5 py-3.5">
+      <div className="mx-auto flex max-w-[1240px] items-center gap-2.5 px-5 py-3.5 sm:gap-5">
         <Link
           to="/"
           className="mr-auto flex items-center gap-2.5 text-fg no-underline hover:text-fg"
         >
           <img src="/eventify-mark.png" alt="" width={40} height={21} />
-          <span className="text-[15px] font-extrabold tracking-[0.22em]">EVENTIFY</span>
+          {/* Small phones have no room for the name beside a guest's two buttons. */}
+          <span
+            className={cn(
+              'text-[15px] font-extrabold tracking-[0.22em]',
+              guest && 'hidden min-[440px]:inline',
+            )}
+          >
+            EVENTIFY
+          </span>
         </Link>
 
         <nav aria-label="Main" className="hidden gap-6 text-sm font-semibold md:flex">
@@ -75,19 +85,33 @@ export function Header() {
             <span className="max-w-[120px] truncate">{firstName}</span>
           </Link>
         ) : (
-          // Hidden while the session loads, so signed-in people don't see "Sign in" flash by.
-          status !== 'loading' &&
-          pathname !== '/login' && (
-            <Link
-              to={loginPath(pathname === '/' ? '/account' : pathname + search)}
-              className={buttonClass({
-                variant: 'outline',
-                size: 'sm',
-                className: 'text-fg',
-              })}
-            >
-              Sign in
-            </Link>
+          guest && (
+            <>
+              {pathname !== '/login' && (
+                <Link
+                  to={loginPath(pathname === '/' ? '/account' : pathname + search)}
+                  className={buttonClass({
+                    variant: 'outline',
+                    size: 'sm',
+                    className: 'text-fg',
+                  })}
+                >
+                  Sign in
+                </Link>
+              )}
+              {/* Accounts are for organizers, so signing up starts the organizer application. */}
+              {pathname !== '/organizer/apply' && (
+                <Link
+                  to="/organizer/apply"
+                  className={buttonClass({
+                    size: 'sm',
+                    className: 'text-accent-ink hover:text-accent-ink',
+                  })}
+                >
+                  Sign up
+                </Link>
+              )}
+            </>
           )
         )}
 

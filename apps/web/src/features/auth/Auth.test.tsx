@@ -168,16 +168,18 @@ describe('Who can create events', () => {
       "6. Your buyers' personal data",
     );
     expect(screen.queryByLabelText('Your name')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Agree and continue' }));
-    expect(screen.getByText('Agree to the Organizer Terms to continue.')).toBeInTheDocument();
+    // The button only lights up once both boxes are ticked.
+    const agree = screen.getByRole('button', { name: 'Agree and continue' });
+    expect(agree).toBeDisabled();
+    expect(agree).toHaveAccessibleDescription('Tick both boxes above to continue.');
     await user.click(screen.getByRole('checkbox', { name: /agree to the Organizer Terms/ }));
-    await user.click(screen.getByRole('button', { name: 'Agree and continue' }));
-    expect(screen.getByText('We need your consent to process your details.')).toBeInTheDocument();
+    expect(agree).toBeDisabled();
     for (const link of screen.getAllByRole('link', { name: 'Privacy Notice' })) {
       expect(link).toHaveAttribute('href', '/privacy');
     }
     await user.click(screen.getByRole('checkbox', { name: /I consent to Eventify/ }));
-    await user.click(screen.getByRole('button', { name: 'Agree and continue' }));
+    expect(agree).toBeEnabled();
+    await user.click(agree);
 
     expect(screen.getByText(/Step 2 of 2/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Create account and apply' }));

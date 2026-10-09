@@ -7,8 +7,8 @@ export type Agreement = 'acceptTerms' | 'consentToDataProcessing';
 
 /**
  * The first step of becoming an organizer: the terms to read, and the consent the Data Protection
- * Act asks for, each with its own tick. Nothing is ticked for them, and the terms box can only be
- * ticked once the terms have been scrolled to the end.
+ * Act asks for, each with its own tick. Nothing is ticked for them, the terms box can only be
+ * ticked once the terms have been scrolled to the end, and the button stays off until both are.
  */
 export function TermsStep({
   agreed,
@@ -21,7 +21,7 @@ export function TermsStep({
 }) {
   const terms = useRef<HTMLDivElement>(null);
   const [readToEnd, setReadToEnd] = useState(agreed.acceptTerms);
-  const [attempted, setAttempted] = useState(false);
+  const agreedToBoth = agreed.acceptTerms && agreed.consentToDataProcessing;
 
   const checkEnd = () => {
     const box = terms.current;
@@ -32,8 +32,7 @@ export function TermsStep({
 
   const submit = (ev: FormEvent) => {
     ev.preventDefault();
-    setAttempted(true);
-    if (agreed.acceptTerms && agreed.consentToDataProcessing) onContinue();
+    if (agreedToBoth) onContinue();
   };
 
   return (
@@ -59,13 +58,6 @@ export function TermsStep({
           checked={agreed.acceptTerms}
           disabled={!readToEnd}
           onChange={(ev) => onTick('acceptTerms', ev.target.checked)}
-          error={
-            attempted && !agreed.acceptTerms
-              ? readToEnd
-                ? 'Agree to the Organizer Terms to continue.'
-                : 'Read the terms to the end, then tick this box.'
-              : undefined
-          }
           label={
             <>
               I have read and agree to the Organizer Terms, including how I may use my buyers'
@@ -106,11 +98,6 @@ export function TermsStep({
         <CheckboxField
           checked={agreed.consentToDataProcessing}
           onChange={(ev) => onTick('consentToDataProcessing', ev.target.checked)}
-          error={
-            attempted && !agreed.consentToDataProcessing
-              ? 'We need your consent to process your details.'
-              : undefined
-          }
           label={
             <>
               I consent to Eventify collecting, using and storing my personal data, including
@@ -124,9 +111,21 @@ export function TermsStep({
         />
       </Card>
 
-      <Button type="submit" size="lg">
-        Agree and continue
-      </Button>
+      <div className="flex flex-col gap-2">
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!agreedToBoth}
+          aria-describedby={agreedToBoth ? undefined : 'terms-step-hint'}
+        >
+          Agree and continue
+        </Button>
+        {!agreedToBoth && (
+          <p id="terms-step-hint" className="m-0 text-center text-xs text-muted">
+            Tick both boxes above to continue.
+          </p>
+        )}
+      </div>
     </form>
   );
 }
