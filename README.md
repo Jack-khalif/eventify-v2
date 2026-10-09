@@ -36,17 +36,17 @@ To point the web app at it, put `VITE_API_MOCKS=off` in `apps/web/.env.local` an
 
 With no settings at all it runs on its own: the database is a local file (`apps/api/.data`, delete it to start again) filled with the sample organizers, sign-ins and events, emails and SMS (tickets and one-time codes) are printed in the terminal, and M-Pesa is simulated the same way as in the mock (a phone ending `0000`, `1111`, `2222` or `3333` fails). Sign in with a sample account from the table below and read the code off the terminal. Copy `apps/api/.env.example` to `apps/api/.env` to change that:
 
-| Setting                     | What it does                                                                                                                                 |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RESEND_API_KEY`            | Send ticket emails through [Resend](https://resend.com) instead of printing them                                                             |
-| `EMAIL_FROM`                | Sender address. Needs a domain verified in Resend to reach anyone but your own Resend email                                                  |
-| `DATABASE_URL`              | Use a real Postgres. Run `npm run db:migrate --workspace @eventify/api` after every pull                                                     |
-| `PAYMENTS`                  | `simulated` or `off` (free tickets only). Production defaults to `off`                                                                       |
-| `AT_USERNAME`, `AT_API_KEY` | [Africa's Talking](https://africastalking.com) account that texts the "Find my tickets" code. Without one, production turns phone lookup off |
-| `QR_PRIVATE_KEY`            | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`                                                     |
-| `SITE_URL`                  | Where the web app lives, for the ticket links in emails                                                                                      |
-| `SUPER_ADMIN_EMAILS`        | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in)                                                 |
-| `TRUST_PROXY`               | `1` when hosted behind the host's proxy, so rate limits count each visitor rather than the proxy                                             |
+| Setting                     | What it does                                                                                                                                   |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`            | Send ticket emails through [Resend](https://resend.com) instead of printing them                                                               |
+| `EMAIL_FROM`                | Sender address. Needs a domain verified in Resend to reach anyone but your own Resend email                                                    |
+| `DATABASE_URL`              | Use a real Postgres. Run `npm run db:migrate --workspace @eventify/api` after every pull                                                       |
+| `PAYMENTS`                  | `simulated` or `off` (free tickets only). Production defaults to `off`                                                                         |
+| `AT_USERNAME`, `AT_API_KEY` | [Africa's Talking](https://africastalking.com) account that texts the "Find my tickets" code. Without one, production turns phone lookup off   |
+| `QR_PRIVATE_KEY`            | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`                                                       |
+| `SITE_URL`                  | Where the web app lives, for the ticket links in emails                                                                                        |
+| `SUPER_ADMIN_EMAILS`        | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in)                                                   |
+| `TRUST_PROXY`               | Proxies between visitors and the API (`1` behind the host alone, `2` when the web host forwards `/api` too), so rate limits count each visitor |
 
 Protections worth knowing about:
 

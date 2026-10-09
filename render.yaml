@@ -1,0 +1,31 @@
+# Render blueprint for the API (https://render.com/docs/blueprint-spec). The web app is on Vercel
+# and forwards /api/* here (apps/web/vercel.json), so both share one address and sign-in works.
+services:
+  - type: web
+    name: eventify-api
+    runtime: node
+    plan: free
+    region: frankfurt # next to the database
+    buildCommand: npm ci
+    # Bring the tables up to date, then start.
+    startCommand: npm run db:migrate --workspace @eventify/api && npm run start --workspace @eventify/api
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 24
+      # Visitors reach the API through Vercel and then Render's own proxy.
+      - key: TRUST_PROXY
+        value: 2
+      # Secrets and addresses, typed into Render's dashboard (see apps/api/.env.example).
+      - key: DATABASE_URL
+        sync: false
+      - key: QR_PRIVATE_KEY
+        sync: false
+      - key: SITE_URL
+        sync: false
+      - key: SUPER_ADMIN_EMAILS
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false

@@ -14,10 +14,11 @@ export type Config = {
   /** Whoever signs in with one of these emails is a Super Admin (how the first admin gets in). */
   superAdminEmails: string[];
   /**
-   * The host puts the API behind its own proxy (Railway, Render and Fly all do), so the visitor's
-   * address is the last one in X-Forwarded-For. Off, the connection's own address is used.
+   * How many proxies stand between visitors and the API, each adding the address it heard from to
+   * X-Forwarded-For: 1 behind the host's proxy alone (Render, Railway, Fly), 2 when the web host
+   * forwards /api to it as well. The visitor is that many entries from the end. 0 = not hosted.
    */
-  trustProxy: boolean;
+  trustProxy: number;
   /** Super Admins need two-step sign-in before changing anything. On in production unless set to "off". */
   requireTwoStep: boolean;
 };
@@ -45,7 +46,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
         ? { username: env.AT_USERNAME, apiKey: env.AT_API_KEY, senderId: env.AT_SENDER_ID || null }
         : null,
     qrPrivateKey: env.QR_PRIVATE_KEY || null,
-    trustProxy: env.TRUST_PROXY === '1' || env.TRUST_PROXY === 'true',
+    trustProxy: Math.max(0, Math.floor(Number(env.TRUST_PROXY || 0)) || 0),
     requireTwoStep: env.REQUIRE_TWO_STEP ? env.REQUIRE_TWO_STEP !== 'off' : production,
     superAdminEmails: (env.SUPER_ADMIN_EMAILS || '')
       .split(',')
