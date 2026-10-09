@@ -5,7 +5,7 @@ import { renderApp } from '../test/render';
 import { signInAs } from '../test/signIn';
 
 describe('app shell', () => {
-  it('shows guests the brand, main nav, sign-in and theme toggle, but no create button', () => {
+  it('shows guests the brand, main nav, sign-in, sign-up and theme toggle, but no create button', () => {
     renderApp('/');
     expect(screen.getByText('EVENTIFY')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Main' });
@@ -20,6 +20,10 @@ describe('app shell', () => {
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute(
       'href',
       '/login?next=%2Faccount',
+    );
+    expect(screen.getByRole('link', { name: 'Sign up' })).toHaveAttribute(
+      'href',
+      '/organizer/apply',
     );
     expect(screen.queryByRole('link', { name: 'Create event' })).not.toBeInTheDocument();
     expect(
@@ -41,6 +45,7 @@ describe('app shell', () => {
     );
     expect(screen.getByRole('link', { name: 'Profile: Amani Wanjiru' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Sign in' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Sign up' })).not.toBeInTheDocument();
     const tabs = screen.getByRole('navigation', { name: 'Tabs' });
     expect(
       within(tabs)
