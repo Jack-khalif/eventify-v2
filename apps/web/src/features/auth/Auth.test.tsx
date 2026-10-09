@@ -162,6 +162,24 @@ describe('Who can create events', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Create your organizer account' }),
     ).toBeInTheDocument();
+    // The terms come first: no details can be entered until both boxes are ticked.
+    expect(screen.getByText(/Step 1 of 2/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Organizer Terms' })).toHaveTextContent(
+      "6. Your buyers' personal data",
+    );
+    expect(screen.queryByLabelText('Your name')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Agree and continue' }));
+    expect(screen.getByText('Agree to the Organizer Terms to continue.')).toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: /agree to the Organizer Terms/ }));
+    await user.click(screen.getByRole('button', { name: 'Agree and continue' }));
+    expect(screen.getByText('We need your consent to process your details.')).toBeInTheDocument();
+    for (const link of screen.getAllByRole('link', { name: 'Privacy Notice' })) {
+      expect(link).toHaveAttribute('href', '/privacy');
+    }
+    await user.click(screen.getByRole('checkbox', { name: /I consent to Eventify/ }));
+    await user.click(screen.getByRole('button', { name: 'Agree and continue' }));
+
+    expect(screen.getByText(/Step 2 of 2/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Create account and apply' }));
     expect(screen.getByText('Enter your name.')).toBeInTheDocument();
     expect(screen.getByText('Enter a valid email address.')).toBeInTheDocument();
@@ -179,17 +197,6 @@ describe('Who can create events', () => {
       screen.getByLabelText('Tell us about your events'),
       'Monthly rooftop DJ nights in Westlands, about 200 guests each.',
     );
-    // Neither box is ticked for them, and the application won't go without both.
-    await user.click(screen.getByRole('button', { name: 'Create account and apply' }));
-    expect(screen.getByText('Agree to the Organizer Terms to apply.')).toBeInTheDocument();
-    await user.click(screen.getByRole('checkbox', { name: /agree to the Organizer Terms/ }));
-    await user.click(screen.getByRole('button', { name: 'Create account and apply' }));
-    expect(screen.getByText('We need your consent to process your details.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Privacy Notice' })).toHaveAttribute(
-      'href',
-      '/privacy',
-    );
-    await user.click(screen.getByRole('checkbox', { name: /I consent to Eventify/ }));
     await user.click(screen.getByRole('button', { name: 'Create account and apply' }));
     expect(
       await screen.findByRole('heading', { level: 1, name: "We're reviewing Kilele Nights" }),

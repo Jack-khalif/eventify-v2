@@ -22,6 +22,15 @@ export function TermsPage() {
         </>
       }
     >
+      <TermsBody />
+    </LegalPage>
+  );
+}
+
+/** The terms themselves, also shown on the first step of organizer sign-up. */
+export function TermsBody() {
+  return (
+    <>
       <LegalSection title="1. Your account">
         <ul>
           <li>You must be 18 or older and allowed to act for the organizer you apply as.</li>
@@ -109,7 +118,10 @@ export function TermsPage() {
         </ul>
         <p>
           How we handle your own personal data is set out in our{' '}
-          <Link to="/privacy">Privacy Notice</Link>.
+          <Link to="/privacy" target="_blank">
+            Privacy Notice
+          </Link>
+          .
         </p>
       </LegalSection>
 
@@ -146,6 +158,6 @@ export function TermsPage() {
           about them. Questions: <a href={`mailto:${email}`}>{email}</a>.
         </p>
       </LegalSection>
-    </LegalPage>
+    </>
   );
 }

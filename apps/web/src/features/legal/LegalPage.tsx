@@ -37,7 +37,7 @@ export function LegalPage({
 
 export function LegalSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-2.5 text-[15px] [&_li]:mb-1.5 [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-5">
+    <section className="flex flex-col gap-2.5 text-[15px] [&_li]:mb-1.5 [&_p]:m-0 [&_ul]:m-0 [&_ul]:list-disc [&_ul]:pl-5">
       <h2 className="m-0 text-lg">{title}</h2>
       {children}
     </section>
