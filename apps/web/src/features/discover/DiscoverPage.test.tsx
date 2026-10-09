@@ -21,7 +21,7 @@ const cardTitles = (region: HTMLElement) =>
 
 describe('Discover', () => {
   it('shows the weekend rail and every upcoming event', async () => {
-    renderApp('/');
+    renderApp('/discover');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent("What's on in East Africa");
 
     expect(await within(upcoming()).findByText('10 events')).toBeInTheDocument();
@@ -35,7 +35,7 @@ describe('Discover', () => {
   });
 
   it('renders cards like the design: badge, kicker, date, venue and price', async () => {
-    renderApp('/');
+    renderApp('/discover');
     const title = await within(upcoming()).findByRole('link', {
       name: 'Sauti Sessions: Afro-house Listening Night',
     });
@@ -53,7 +53,7 @@ describe('Discover', () => {
   });
 
   it('filters by city and updates the headline and URL', async () => {
-    const { router } = renderApp('/');
+    const { router } = renderApp('/discover');
     await within(upcoming()).findByText('10 events');
 
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'City' }), 'Juba');
@@ -67,7 +67,7 @@ describe('Discover', () => {
   });
 
   it('filters by category chip, including "Free"', async () => {
-    renderApp('/');
+    renderApp('/discover');
     await within(upcoming()).findByText('10 events');
 
     const free = screen.getByRole('button', { name: 'Free' });
@@ -83,7 +83,7 @@ describe('Discover', () => {
   });
 
   it('searches after the user stops typing', async () => {
-    const { router } = renderApp('/');
+    const { router } = renderApp('/discover');
     await within(upcoming()).findByText('10 events');
 
     await userEvent.type(screen.getByRole('searchbox', { name: 'Search events' }), 'arboretum');
@@ -93,20 +93,20 @@ describe('Discover', () => {
   });
 
   it('restores filters from a shared link', async () => {
-    renderApp('/?city=Nairobi&category=Campus');
+    renderApp('/discover?city=Nairobi&category=Campus');
     expect(await within(upcoming()).findByText('2 events')).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'City' })).toHaveValue('Nairobi');
     expect(screen.getByRole('button', { name: 'Campus' })).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('ignores unknown values in the URL instead of breaking', async () => {
-    renderApp('/?city=Atlantis&category=Nope');
+    renderApp('/discover?city=Atlantis&category=Nope');
     expect(await within(upcoming()).findByText('10 events')).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('East Africa');
   });
 
   it('shows an empty state that clears every filter', async () => {
-    const { router } = renderApp('/?city=Juba&category=Campus');
+    const { router } = renderApp('/discover?city=Juba&category=Campus');
     expect(await screen.findByText('No events match yet')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
@@ -118,7 +118,7 @@ describe('Discover', () => {
 
   it('shows a retry option when the API fails', async () => {
     server.use(http.get('*/api/events', () => HttpResponse.json({}, { status: 500 })));
-    renderApp('/');
+    renderApp('/discover');
     const alerts = await screen.findAllByRole('alert');
     expect(alerts[0]).toHaveTextContent("Couldn't load events");
 
@@ -129,12 +129,12 @@ describe('Discover', () => {
 
   it('rejects responses that do not match the shared schema', async () => {
     server.use(http.get('*/api/events', () => HttpResponse.json([{ id: 'broken' }])));
-    renderApp('/');
+    renderApp('/discover');
     expect((await screen.findAllByRole('alert')).length).toBeGreaterThan(0);
   });
 
   it('links the CTA band to hosting, not straight to event creation', async () => {
-    renderApp('/');
+    renderApp('/discover');
     expect(screen.getByRole('link', { name: 'Host an event →' })).toHaveAttribute(
       'href',
       '/organizer',

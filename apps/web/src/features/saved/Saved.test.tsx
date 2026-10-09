@@ -14,7 +14,7 @@ const sauti = 'Sauti Sessions: Afro-house Listening Night';
 
 describe('Saved', () => {
   it('saves an event from Discover and lists it on the Saved page', async () => {
-    const { router } = renderApp('/');
+    const { router } = renderApp('/discover');
     const upcoming = screen.getByRole('region', { name: 'Upcoming' });
     const save = await within(upcoming).findByRole('button', { name: `Save ${sauti}` });
 
@@ -54,7 +54,7 @@ describe('Saved', () => {
   it('shows an empty state with a way back to Discover', () => {
     renderApp('/saved');
     expect(screen.getByText('Nothing saved yet')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Find events' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: 'Find events' })).toHaveAttribute('href', '/discover');
   });
 
   it('picks up changes made in another tab', async () => {
@@ -81,7 +81,7 @@ describe('Saved', () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('blocked');
     });
-    renderApp('/');
+    renderApp('/discover');
     const upcoming = screen.getByRole('region', { name: 'Upcoming' });
     await userEvent.click(await within(upcoming).findByRole('button', { name: `Save ${sauti}` }));
     await waitFor(() =>

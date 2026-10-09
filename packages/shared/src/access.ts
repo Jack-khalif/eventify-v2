@@ -41,6 +41,7 @@ export const RESERVED_HANDLES: readonly string[] = [
   'api',
   'checkin',
   'dev',
+  'discover',
   'e',
   'login',
   'organizer',

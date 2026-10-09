@@ -29,7 +29,7 @@ export function SavedPage() {
             Tap the <Heart size={14} aria-label="heart" /> on any event to keep it here.
           </span>
           <Link
-            to="/"
+            to="/discover"
             className={buttonClass({ variant: 'outline', size: 'sm', className: 'mt-2 text-fg' })}
           >
             Find events

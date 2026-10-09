@@ -45,7 +45,7 @@ function OrganizerDetails({ organizer: o }: { organizer: OrganizerProfile }) {
 
   return (
     <div className="mx-auto flex w-full max-w-[1000px] flex-col px-5 pt-4 pb-10">
-      <BackLink label="Discover" />
+      <BackLink label="Discover" fallback="/discover" />
       <Cover tone={o.bannerTone} className="mt-3.5 h-[180px] rounded-[20px]" />
 
       <div className="flex flex-col gap-6">

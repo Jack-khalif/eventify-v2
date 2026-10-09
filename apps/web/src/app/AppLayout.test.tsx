@@ -9,7 +9,10 @@ describe('app shell', () => {
     renderApp('/');
     expect(screen.getByText('EVENTIFY')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getByRole('link', { name: 'Discover' })).toHaveAttribute('href', '/');
+    expect(within(nav).getByRole('link', { name: 'Discover' })).toHaveAttribute(
+      'href',
+      '/discover',
+    );
     expect(within(nav).getByRole('link', { name: 'Host an event' })).toHaveAttribute(
       'href',
       '/organizer',
@@ -68,7 +71,7 @@ describe('app shell', () => {
   });
 
   it('has the four mobile tabs from the design', () => {
-    renderApp('/');
+    renderApp('/discover');
     const tabs = screen.getByRole('navigation', { name: 'Tabs' });
     expect(
       within(tabs)

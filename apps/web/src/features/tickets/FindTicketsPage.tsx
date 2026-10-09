@@ -209,7 +209,7 @@ function TicketList({
         <div className="flex flex-col items-start gap-3 rounded-2xl border-2 border-hair p-5">
           <span className="font-extrabold">{empty.title}</span>
           <span className="text-sm text-muted">{empty.body}</span>
-          <Link to="/" className="text-sm font-bold">
+          <Link to="/discover" className="text-sm font-bold">
             Find events
           </Link>
         </div>

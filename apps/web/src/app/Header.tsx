@@ -17,7 +17,7 @@ export function Header() {
   const work = workLink(user);
 
   const navItems = [
-    { to: '/', label: 'Discover', end: true },
+    { to: '/discover', label: 'Discover', end: false },
     { to: '/tickets', label: 'Tickets', end: false },
     { ...work, end: false },
   ];

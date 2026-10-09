@@ -21,6 +21,7 @@ import { EventPage } from '../features/event/EventPage';
 import { OrganizerPage } from '../features/organizer/OrganizerPage';
 import { SavedPage } from '../features/saved/SavedPage';
 import { ApplyPage } from '../features/host/ApplyPage';
+import { LandingPage } from '../features/landing/LandingPage';
 import { OrganizerHome } from '../features/host/OrganizerHome';
 import { PrivacyPage } from '../features/legal/PrivacyPage';
 import { TermsPage } from '../features/legal/TermsPage';
@@ -58,7 +59,8 @@ export const routes: RouteObject[] = [
   {
     element: <AppLayout />,
     children: [
-      { index: true, element: <DiscoverPage /> },
+      { index: true, element: <LandingPage /> },
+      { path: 'discover', element: <DiscoverPage /> },
       { path: 'e/:slug', element: <EventPage />, handle: { hideTabs: true } satisfies RouteHandle },
       {
         path: 'e/:slug/checkout',

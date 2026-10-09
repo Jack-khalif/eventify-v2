@@ -203,7 +203,7 @@ describe('Event page', () => {
   });
 
   it('goes back to Discover with filters intact', async () => {
-    const { router } = renderApp('/?city=Juba');
+    const { router } = renderApp('/discover?city=Juba');
     await userEvent.click(
       await screen
         .findAllByRole('link', { name: 'Mizizi: New Work by Five Juba Painters' })
