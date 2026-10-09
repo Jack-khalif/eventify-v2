@@ -15,8 +15,15 @@ export function storedTheme(): Theme | null {
   return null;
 }
 
-/** Stored choice first, otherwise dark. index.html runs the same logic before React loads to avoid a flash. */
-export const initialTheme = (): Theme => storedTheme() ?? 'dark';
+/**
+ * Stored choice first, then the device's own setting, and dark when the device doesn't say.
+ * index.html runs the same logic before React loads to avoid a flash.
+ */
+export function initialTheme(): Theme {
+  const stored = storedTheme();
+  if (stored) return stored;
+  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+}
 
 export type ThemeContextValue = { theme: Theme; toggleTheme: () => void };
 

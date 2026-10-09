@@ -13,20 +13,27 @@ function Probe() {
   );
 }
 
-const mockSystemDark = (dark: boolean) =>
+/** What the device says it prefers; null is a device that doesn't say. */
+const mockDeviceTheme = (theme: 'light' | 'dark' | null) =>
   vi
     .spyOn(window, 'matchMedia')
-    .mockImplementation((query) => ({ matches: dark, media: query }) as MediaQueryList);
+    .mockImplementation(
+      (query) =>
+        ({ matches: theme !== null && query.includes(theme), media: query }) as MediaQueryList,
+    );
 
 describe('theme', () => {
-  it('starts dark when nothing is stored, whatever the OS setting', () => {
-    mockSystemDark(true);
+  it('follows the device when nothing is stored, and is dark when the device does not say', () => {
+    mockDeviceTheme('light');
+    expect(initialTheme()).toBe('light');
+    mockDeviceTheme('dark');
     expect(initialTheme()).toBe('dark');
-    mockSystemDark(false);
+    mockDeviceTheme(null);
     expect(initialTheme()).toBe('dark');
   });
 
-  it('keeps a stored choice', () => {
+  it('prefers a stored choice over the device', () => {
+    mockDeviceTheme('dark');
     localStorage.setItem(THEME_STORAGE_KEY, 'light');
     expect(initialTheme()).toBe('light');
   });

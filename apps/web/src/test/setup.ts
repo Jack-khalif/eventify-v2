@@ -15,7 +15,7 @@ import { resetRates } from '../mocks/rates';
 // findBy*/waitFor give up after 1s by default; debounced search plus mock latency can exceed that on a busy machine.
 configure({ asyncUtilTimeout: 3_000 });
 
-// jsdom has no matchMedia. Default to a light-mode, non-matching query; tests override with vi.spyOn.
+// jsdom has no matchMedia. Default to a query that never matches (a device with no stated theme, so the app is dark); tests override with vi.spyOn.
 window.matchMedia = (query: string) =>
   ({
     matches: false,
