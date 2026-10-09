@@ -22,6 +22,8 @@ import { OrganizerPage } from '../features/organizer/OrganizerPage';
 import { SavedPage } from '../features/saved/SavedPage';
 import { ApplyPage } from '../features/host/ApplyPage';
 import { OrganizerHome } from '../features/host/OrganizerHome';
+import { PrivacyPage } from '../features/legal/PrivacyPage';
+import { TermsPage } from '../features/legal/TermsPage';
 import { DeliveryPage } from '../features/tickets/DeliveryPage';
 import { FindTicketsPage } from '../features/tickets/FindTicketsPage';
 import { TicketPage } from '../features/tickets/TicketPage';
@@ -93,6 +95,8 @@ export const routes: RouteObject[] = [
       { path: 'tickets', element: <FindTicketsPage /> },
       { path: 'saved', element: <SavedPage /> },
       { path: 'account', element: <AccountPage /> },
+      { path: 'terms', element: <TermsPage /> },
+      { path: 'privacy', element: <PrivacyPage /> },
       ...(import.meta.env.DEV ? [{ path: 'dev/ui', element: <UiKit /> }] : []),
       /* Organizer public profile: eventify.co/{handle}. Kept last so named routes win. */
       { path: ':handle', element: <OrganizerPage /> },

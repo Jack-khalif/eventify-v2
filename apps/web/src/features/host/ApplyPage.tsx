@@ -4,22 +4,34 @@ import {
   CATEGORIES,
   CITIES,
   ORGANIZER_TYPES,
+  ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
+  PRIVACY_NOTICE_VERSION,
   slugify,
   type OrganizerApplicationRequest,
   type SessionUser,
 } from '@eventify/shared';
 import { useState, type FormEvent } from 'react';
-import { Navigate } from 'react-router';
+import { Link, Navigate } from 'react-router';
 import { BackLink } from '../../components/BackLink';
-import { Button, Card, SelectField, TextAreaField, TextField } from '../../components/ui';
+import {
+  Button,
+  Card,
+  CheckboxField,
+  SelectField,
+  TextAreaField,
+  TextField,
+} from '../../components/ui';
 import { ApiError } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { SignedIn } from '../auth/guards';
 import { useApplyToHost } from '../auth/useSession';
 
-type Draft = { [K in keyof OrganizerApplicationRequest]: string };
-type Errors = Partial<Record<keyof Draft, string>>;
+type Agreement = 'acceptTerms' | 'consentToDataProcessing';
+type Draft = {
+  [K in Exclude<keyof OrganizerApplicationRequest, Agreement | `${string}Version`>]: string;
+};
+type Errors = Partial<Record<keyof Draft | Agreement, string>>;
 
 const PAYOUT_LABEL = { mpesa: 'M-Pesa', bank: 'Bank transfer' } as const;
 
@@ -47,18 +59,30 @@ function ApplyForm({ user }: { user: SessionUser }) {
     payoutMethod: 'mpesa',
     about: '',
   });
+  // Never ticked for them: consent has to be something the applicant does.
+  const [agreed, setAgreed] = useState<Record<Agreement, boolean>>({
+    acceptTerms: false,
+    consentToDataProcessing: false,
+  });
 
-  const parsed = organizerApplicationRequestSchema.safeParse(draft);
+  const parsed = organizerApplicationRequestSchema.safeParse({
+    ...draft,
+    ...agreed,
+    termsVersion: ORGANIZER_TERMS_VERSION,
+    privacyVersion: PRIVACY_NOTICE_VERSION,
+  });
   const errors: Errors = {};
   if (!parsed.success) {
     for (const issue of parsed.error.issues) {
-      const field = issue.path[0] as keyof Draft;
+      const field = issue.path[0] as keyof Errors;
       errors[field] ??= CHOICE_ERRORS[field] ?? issue.message;
     }
   }
   const shown = attempted ? errors : {};
   const set = (field: keyof Draft) => (ev: { target: { value: string } }) =>
     setDraft((d) => ({ ...d, [field]: ev.target.value }));
+  const tick = (field: Agreement) => (ev: { target: { checked: boolean } }) =>
+    setAgreed((a) => ({ ...a, [field]: ev.target.checked }));
 
   const submit = (ev: FormEvent) => {
     ev.preventDefault();
@@ -155,6 +179,60 @@ function ApplyForm({ user }: { user: SessionUser }) {
             onChange={set('about')}
             error={shown.about}
             hint="This is only for our team. Links to past events or social pages help us approve you faster."
+          />
+        </Card>
+
+        <Card className="flex flex-col gap-4 p-5">
+          <h2 className="m-0 text-base">Terms and your personal data</h2>
+          <div className="flex flex-col gap-2 text-sm text-muted">
+            <p className="m-0">
+              Under Kenya's Data Protection Act, 2019 we need your consent before we use the details
+              on this form. In short:
+            </p>
+            <ul className="m-0 flex flex-col gap-1 pl-5">
+              <li>
+                We use your name, email, organizer details and payout method to review this
+                application, run your organizer account and pay you.
+              </li>
+              <li>
+                Our team sees them, and so do the companies that host our service, send our emails
+                and SMS, and process payments. Buyers see only your public organizer profile.
+              </li>
+              <li>They are stored on servers outside Kenya (in the European Union).</li>
+              <li>
+                You can ask for a copy, have them corrected or deleted, or withdraw this consent at
+                any time. Without it we can't keep your organizer account open.
+              </li>
+            </ul>
+          </div>
+          <CheckboxField
+            checked={agreed.acceptTerms}
+            onChange={tick('acceptTerms')}
+            error={shown.acceptTerms}
+            label={
+              <>
+                I have read and agree to the{' '}
+                <Link to="/terms" target="_blank" className="font-bold">
+                  Organizer Terms
+                </Link>
+                , including how I may use my buyers' personal data.
+              </>
+            }
+          />
+          <CheckboxField
+            checked={agreed.consentToDataProcessing}
+            onChange={tick('consentToDataProcessing')}
+            error={shown.consentToDataProcessing}
+            label={
+              <>
+                I consent to Eventify collecting, using and storing my personal data, including
+                outside Kenya, as described in the{' '}
+                <Link to="/privacy" target="_blank" className="font-bold">
+                  Privacy Notice
+                </Link>
+                .
+              </>
+            }
           />
         </Card>
 

@@ -4,7 +4,7 @@ export { Card } from './Card';
 export { Chip } from './Chip';
 export { Cover } from './Cover';
 export { Dialog } from './Dialog';
-export { SelectField, TextAreaField, TextField } from './Field';
+export { CheckboxField, SelectField, TextAreaField, TextField } from './Field';
 export { Segmented } from './Segmented';
 export { Stepper } from './Stepper';
 export { Tag } from './Tag';

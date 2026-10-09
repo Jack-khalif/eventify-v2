@@ -111,6 +111,12 @@ export const organizerApplicationRequestSchema = z.object({
     .trim()
     .min(ABOUT_MIN_LENGTH, 'Tell us a little more about the events you run.')
     .max(ABOUT_MAX_LENGTH, `Keep it under ${ABOUT_MAX_LENGTH} characters.`),
+  /** Two separate ticks: consent to data processing must not be bundled with the contract. */
+  acceptTerms: z.literal(true, 'Agree to the Organizer Terms to apply.'),
+  consentToDataProcessing: z.literal(true, 'We need your consent to process your details.'),
+  /** The versions that were on screen, so we record what was actually agreed to. */
+  termsVersion: z.string().min(1).max(20),
+  privacyVersion: z.string().min(1).max(20),
 });
 export type OrganizerApplicationRequest = z.infer<typeof organizerApplicationRequestSchema>;
 

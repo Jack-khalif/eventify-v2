@@ -5,7 +5,9 @@ import {
   eventQuerySchema,
   filterEvents,
   markPaidRequestSchema,
+  ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
+  PRIVACY_NOTICE_VERSION,
   organizerStatusChangeSchema,
   overviewQuerySchema,
   rateChangeRequestSchema,
@@ -422,7 +424,23 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     if (!account) return unauthorized(c);
     const body = organizerApplicationRequestSchema.safeParse(await c.req.json().catch(() => null));
     if (!body.success) return badRequest(c, 'Some details are missing or invalid.');
-    const user = await applyToHost(deps, account.id, body.data);
+    // An open tab can outlive the wording it shows; only the current documents can be agreed to.
+    if (
+      body.data.termsVersion !== ORGANIZER_TERMS_VERSION ||
+      body.data.privacyVersion !== PRIVACY_NOTICE_VERSION
+    ) {
+      return c.json(
+        {
+          error: 'terms_changed',
+          message: 'Our terms have been updated. Refresh the page, read them and apply again.',
+        },
+        409,
+      );
+    }
+    const user = await applyToHost(deps, account.id, body.data, {
+      ip: clientIp(c),
+      userAgent: c.req.header('User-Agent') ?? '',
+    });
     return user
       ? c.json(user, 201)
       : c.json(

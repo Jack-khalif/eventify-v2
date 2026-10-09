@@ -11,7 +11,9 @@ import {
   eventDashboardSchema,
   importVerifyKey,
   orderViewSchema,
+  ORGANIZER_TERMS_VERSION,
   organizerHomeSchema,
+  PRIVACY_NOTICE_VERSION,
   publicEventSchema,
   sessionSchema,
   sessionUserSchema,
@@ -27,7 +29,7 @@ import { z } from 'zod';
 import { createApp } from './app';
 import { openLocalDatabase, type Database } from './db/client';
 import { seedSamples } from './db/samples';
-import { auditLog, events, tiers } from './db/schema';
+import { auditLog, consents, events, tiers } from './db/schema';
 import type { Email } from './email/mailer';
 import { simulatedPayments } from './payments';
 
@@ -169,6 +171,10 @@ const application = {
   category: 'Workshops',
   payoutMethod: 'mpesa',
   about: 'We run monthly pottery workshops for beginners in Karen.',
+  acceptTerms: true,
+  consentToDataProcessing: true,
+  termsVersion: ORGANIZER_TERMS_VERSION,
+  privacyVersion: PRIVACY_NOTICE_VERSION,
 };
 
 // A JPEG as far as its first bytes go, which is all the server looks at.
@@ -263,6 +269,29 @@ describe('applying to host', () => {
     });
     const rows = await get('/admin/organizers', z.array(adminOrganizerRowSchema), boss);
     expect(rows.filter((o) => o.name.startsWith('Kiln Club'))).toHaveLength(1);
+  });
+
+  it('needs both ticks and the current wording, and keeps a record of each acceptance', async () => {
+    const token = await signIn('consent@example.com');
+    const apply = (over: object) =>
+      send('/organizer/apply', token, { ...application, organizerName: 'Consent Club', ...over });
+
+    expect((await apply({ acceptTerms: false })).status).toBe(400);
+    expect((await apply({ consentToDataProcessing: false })).status).toBe(400);
+    const stale = await apply({ termsVersion: '2020-01-01' });
+    expect(stale.status).toBe(409);
+    expect(((await stale.json()) as { error: string }).error).toBe('terms_changed');
+    const recorded = async () =>
+      (await database.db.select().from(consents)).filter((r) => r.email === 'consent@example.com');
+    expect(await recorded()).toEqual([]);
+
+    expect((await apply({})).status).toBe(201);
+    const rows = await recorded();
+    expect(rows.map((r) => [r.document, r.version]).sort()).toEqual([
+      ['organizer_terms', ORGANIZER_TERMS_VERSION],
+      ['privacy_notice', PRIVACY_NOTICE_VERSION],
+    ]);
+    expect(rows[0]!.acceptedAt.getTime()).toBe(clock);
   });
 });
 

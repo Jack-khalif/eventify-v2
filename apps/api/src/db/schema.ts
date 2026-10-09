@@ -4,6 +4,7 @@ import type {
   CoverTone,
   Currency,
   EventStatus,
+  LegalDocument,
   OrderStatus,
   OrganizerStatus,
   PaymentFailure,
@@ -76,6 +77,29 @@ export const accounts = pgTable('accounts', {
   totpLastStep: integer('totp_last_step'),
   createdAt: instant('created_at').notNull().defaultNow(),
 });
+
+/**
+ * Proof that someone agreed to a document: who, which version, when and from where. The Data
+ * Protection Act puts the burden of showing consent on us. Rows are never changed; agreeing to a
+ * newer version adds a row.
+ */
+export const consents = pgTable(
+  'consents',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id),
+    /** The email as it was then. */
+    email: text('email').notNull(),
+    document: text('document').$type<LegalDocument>().notNull(),
+    version: text('version').notNull(),
+    acceptedAt: instant('accepted_at').notNull(),
+    ip: text('ip').notNull(),
+    userAgent: text('user_agent').notNull(),
+  },
+  (t) => [index('consents_account_idx').on(t.accountId)],
+);
 
 /** Open sign-ins. Only a hash of the token is kept, so a copy of this table can't be used to sign in. */
 export const sessions = pgTable(

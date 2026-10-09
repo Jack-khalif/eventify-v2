@@ -143,6 +143,17 @@ describe('Who can create events', () => {
       screen.getByLabelText('Tell us about your events'),
       'Monthly rooftop DJ nights in Westlands, about 200 guests each.',
     );
+    // Neither box is ticked for them, and the application won't go without both.
+    await user.click(screen.getByRole('button', { name: 'Send application' }));
+    expect(screen.getByText('Agree to the Organizer Terms to apply.')).toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: /agree to the Organizer Terms/ }));
+    await user.click(screen.getByRole('button', { name: 'Send application' }));
+    expect(screen.getByText('We need your consent to process your details.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Privacy Notice' })).toHaveAttribute(
+      'href',
+      '/privacy',
+    );
+    await user.click(screen.getByRole('checkbox', { name: /I consent to Eventify/ }));
     await user.click(screen.getByRole('button', { name: 'Send application' }));
     expect(
       await screen.findByRole('heading', { level: 1, name: "We're reviewing Kilele Nights" }),

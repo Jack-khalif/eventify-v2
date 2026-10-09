@@ -3,7 +3,9 @@ import {
   createEventRequestSchema,
   doorSyncRequestSchema,
   markPaidRequestSchema,
+  ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
+  PRIVACY_NOTICE_VERSION,
   organizerStatusChangeSchema,
   rateChangeRequestSchema,
   addStaffRequestSchema,
@@ -286,6 +288,18 @@ export const handlers = [
     if (!account) return unauthorized();
     const body = organizerApplicationRequestSchema.safeParse(await request.json());
     if (!body.success) return badRequest('Some details are missing or invalid.');
+    if (
+      body.data.termsVersion !== ORGANIZER_TERMS_VERSION ||
+      body.data.privacyVersion !== PRIVACY_NOTICE_VERSION
+    ) {
+      return HttpResponse.json(
+        {
+          error: 'terms_changed',
+          message: 'Our terms have been updated. Refresh the page, read them and apply again.',
+        },
+        { status: 409 },
+      );
+    }
     const user = applyToHost(account, body.data);
     return user
       ? HttpResponse.json(user, { status: 201 })
