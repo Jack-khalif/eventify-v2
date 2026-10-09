@@ -1,5 +1,6 @@
 import { canCreateEvents } from '@eventify/shared';
 import { Moon, Sun } from 'lucide-react';
+import { useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 import { Avatar } from '../components/Avatar';
 import { buttonClass } from '../components/ui';
@@ -7,11 +8,13 @@ import { loginPath } from '../features/auth/roles';
 import { useSession } from '../features/auth/useSession';
 import { cn } from '../lib/cn';
 import { workLink } from './nav';
-import { useTheme } from './theme';
+import { storedTheme, useTheme } from './theme';
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
+  // The toggle draws attention to itself until the visitor has picked a theme once.
+  const [themePicked, setThemePicked] = useState(() => storedTheme() !== null);
   const { user, status } = useSession();
   const { pathname, search } = useLocation();
   const work = workLink(user);
@@ -117,9 +120,19 @@ export function Header() {
 
         <button
           type="button"
-          onClick={toggleTheme}
+          onClick={() => {
+            setThemePicked(true);
+            toggleTheme();
+          }}
           aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-          className={buttonClass({ variant: 'ghost', size: 'icon' })}
+          className={buttonClass({
+            variant: 'ghost',
+            size: 'icon',
+            className: cn(
+              'flex-none',
+              !themePicked && 'border-accent-text motion-safe:animate-ev-cta-ring',
+            ),
+          })}
         >
           {isDark ? <Sun size={18} /> : <Moon size={18} />}
         </button>

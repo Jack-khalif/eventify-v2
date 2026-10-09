@@ -105,11 +105,13 @@ describe('app shell', () => {
     ).toBeInTheDocument();
   });
 
-  it('toggles the theme from the header', async () => {
+  it('toggles the theme from the header, highlighting the toggle until it has been used', async () => {
     renderApp('/');
-    const before = document.documentElement.dataset.theme;
-    await userEvent.click(screen.getByRole('button', { name: /switch to/i }));
-    expect(document.documentElement.dataset.theme).not.toBe(before);
+    const toggle = screen.getByRole('button', { name: 'Switch to light theme' });
+    expect(toggle).toHaveClass('motion-safe:animate-ev-cta-ring');
+    await userEvent.click(toggle);
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(toggle).not.toHaveClass('motion-safe:animate-ev-cta-ring');
   });
 });
 

@@ -19,37 +19,34 @@ const mockSystemDark = (dark: boolean) =>
     .mockImplementation((query) => ({ matches: dark, media: query }) as MediaQueryList);
 
 describe('theme', () => {
-  it('follows the OS setting when nothing is stored', () => {
+  it('starts dark when nothing is stored, whatever the OS setting', () => {
     mockSystemDark(true);
     expect(initialTheme()).toBe('dark');
     mockSystemDark(false);
-    expect(initialTheme()).toBe('light');
+    expect(initialTheme()).toBe('dark');
   });
 
-  it('prefers a stored choice over the OS setting', () => {
-    mockSystemDark(true);
+  it('keeps a stored choice', () => {
     localStorage.setItem(THEME_STORAGE_KEY, 'light');
     expect(initialTheme()).toBe('light');
   });
 
   it('toggles, sets data-theme on <html> and remembers the choice', async () => {
-    mockSystemDark(false);
     render(
       <ThemeProvider>
         <Probe />
       </ThemeProvider>,
     );
-    expect(document.documentElement.dataset.theme).toBe('light');
-
-    await userEvent.click(screen.getByRole('button', { name: 'light' }));
-
-    expect(screen.getByRole('button')).toHaveTextContent('dark');
     expect(document.documentElement.dataset.theme).toBe('dark');
-    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
+
+    await userEvent.click(screen.getByRole('button', { name: 'dark' }));
+
+    expect(screen.getByRole('button')).toHaveTextContent('light');
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe('light');
   });
 
   it('still toggles when storage is blocked', async () => {
-    mockSystemDark(false);
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('blocked');
     });
@@ -59,6 +56,6 @@ describe('theme', () => {
       </ThemeProvider>,
     );
     await userEvent.click(screen.getByRole('button'));
-    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('light');
   });
 });
