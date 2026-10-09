@@ -1,5 +1,5 @@
 import { DEFAULT_RATE_BPS, formatRate } from '@eventify/shared';
-import { Search, Smartphone, type LucideIcon } from 'lucide-react';
+import { ArrowDown, Search, Smartphone, type LucideIcon } from 'lucide-react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { hostCta } from '../../app/nav';
 import { buttonClass } from '../../components/ui';
@@ -80,13 +80,13 @@ export function LandingPage() {
   return (
     <>
       <section
-        className={`${inner} flex flex-wrap items-center gap-12 pt-10 pb-12 md:pt-14 md:pb-16`}
+        className={`${inner} grid items-center gap-x-12 gap-y-8 pt-8 pb-10 md:pt-14 md:pb-16 lg:grid-cols-[1.1fr_1fr]`}
       >
-        <div className="flex min-w-0 flex-[1_1_440px] flex-col gap-[22px]">
+        <div className="flex min-w-0 flex-col gap-[22px]">
           <span className="self-start rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-bold text-accent-text">
             Kenya &amp; South Sudan
           </span>
-          <h1 className="m-0 text-[clamp(38px,5vw,64px)] leading-[1.02] tracking-[-0.03em] text-pretty">
+          <h1 className="m-0 text-[clamp(38px,5vw,64px)] leading-[1.02] tracking-[-0.03em] text-balance">
             East Africa's{' '}
             <span className="rounded-lg bg-accent px-2.5 whitespace-nowrap text-accent-ink">
               best way
@@ -98,7 +98,7 @@ export function LandingPage() {
             world-class ticketing to Kenya and South Sudan, built around how people actually pay:
             M-Pesa today, with MTN Mobile Money and card on the way.
           </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-4">
+          <div className="mt-1.5 flex flex-wrap items-end gap-x-4 gap-y-3">
             <Link
               to="/discover"
               className={buttonClass({
@@ -107,15 +107,26 @@ export function LandingPage() {
             >
               Browse what's on
             </Link>
-            <Link
-              to={cta.to}
-              className={buttonClass({
-                variant: 'outline',
-                className: 'px-[22px] py-3 text-fg hover:text-fg',
-              })}
-            >
-              {cta.label} — free to list
-            </Link>
+            {/* The one animated thing on the page: an arrow and a spreading ring point hosts here. */}
+            <div className="flex flex-col items-center gap-1.5">
+              <span
+                aria-hidden
+                className="flex items-center gap-1 text-[13px] font-extrabold text-accent-text"
+              >
+                Hosting? Start here
+                <ArrowDown size={16} strokeWidth={3} className="motion-safe:animate-ev-point" />
+              </span>
+              <Link
+                to={cta.to}
+                className={buttonClass({
+                  variant: 'outline',
+                  className:
+                    'border-accent-text bg-accent-soft px-[22px] py-3 text-fg hover:text-fg motion-safe:animate-ev-cta-ring',
+                })}
+              >
+                {cta.label} — free to list
+              </Link>
+            </div>
           </div>
           <div className="mt-2 flex flex-wrap gap-x-[18px] gap-y-1 text-[13px] font-semibold text-muted">
             <span>No surprise fees</span>
@@ -125,7 +136,7 @@ export function LandingPage() {
             <span>Free events cost nothing</span>
           </div>
         </div>
-        <div className="aspect-[4/5] max-h-[620px] min-w-[280px] flex-[1_1_400px] overflow-hidden rounded-3xl border-2 border-rule bg-surface">
+        <div className="aspect-[3/2] overflow-hidden lg:aspect-[4/5] lg:max-h-[620px] lg:justify-self-end rounded-3xl border-2 border-rule bg-surface">
           <img
             src="/landing/hero.webp"
             alt=""
@@ -139,7 +150,7 @@ export function LandingPage() {
       <section aria-label="Eventify in numbers" className={`${band} py-10`}>
         <dl className={`${inner} m-0 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-6`}>
           {STATS.map(({ figure, label }) => (
-            <div key={label} className="flex flex-col-reverse gap-1.5">
+            <div key={label} className="flex flex-col-reverse justify-end gap-1.5">
               <dt className="text-[13px] font-semibold text-muted">{label}</dt>
               <dd className="m-0 text-4xl leading-tight font-extrabold tracking-[-0.02em] text-accent-text">
                 {figure}
@@ -170,8 +181,8 @@ export function LandingPage() {
       </section>
 
       <section aria-labelledby="landing-hosts" className={`${band} py-12 md:py-16`}>
-        <div className={`${inner} flex flex-wrap items-center gap-x-12 gap-y-8`}>
-          <div className="flex flex-[1_1_380px] flex-col gap-3.5">
+        <div className={`${inner} grid items-center gap-x-12 gap-y-8 lg:grid-cols-2`}>
+          <div className="flex flex-col gap-3.5">
             <span className={eyebrow}>Built for every kind of host</span>
             <h2 id="landing-hosts" className="m-0 text-3xl tracking-[-0.02em]">
               One platform, four kinds of organizer
@@ -184,7 +195,7 @@ export function LandingPage() {
               , and share buttons for WhatsApp, Instagram and X.
             </p>
           </div>
-          <ul className="m-0 grid flex-[1_1_380px] list-none grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3 p-0">
+          <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2">
             {HOSTS.map(({ kind, body }) => (
               <li
                 key={kind}
