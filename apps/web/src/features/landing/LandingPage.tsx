@@ -79,20 +79,23 @@ export function LandingPage() {
 
   return (
     <>
+      {/* The photo sits beside the headline at every width; on phones the rest runs full width below. */}
       <section
-        className={`${inner} grid items-center gap-x-12 gap-y-8 pt-8 pb-10 md:pt-14 md:pb-16 lg:grid-cols-[1.1fr_1fr]`}
+        className={`${inner} grid grid-cols-[1fr_38%] items-center gap-x-3 gap-y-[22px] pt-8 pb-10 sm:gap-x-8 md:pt-14 md:pb-16 lg:grid-cols-[1.1fr_1fr] lg:gap-x-12`}
       >
-        <div className="flex min-w-0 flex-col gap-[22px]">
-          <span className="self-start rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-bold text-accent-text">
+        <div className="flex min-w-0 flex-col gap-3 lg:gap-[22px] lg:self-end">
+          <span className="self-start rounded-full bg-accent-soft px-3 py-1.5 text-xs font-bold whitespace-nowrap text-accent-text sm:text-[13px]">
             Kenya &amp; South Sudan
           </span>
-          <h1 className="m-0 text-[clamp(38px,5vw,64px)] leading-[1.02] tracking-[-0.03em] text-balance">
+          <h1 className="m-0 text-[clamp(26px,7.6vw,46px)] leading-[1.02] tracking-[-0.03em] text-balance lg:text-[clamp(46px,5vw,64px)]">
             East Africa's{' '}
             <span className="rounded-lg bg-accent px-2.5 whitespace-nowrap text-accent-ink">
               best way
             </span>{' '}
             to discover events and sell tickets
           </h1>
+        </div>
+        <div className="col-span-2 flex min-w-0 flex-col gap-[22px] lg:col-span-1 lg:col-start-1 lg:self-start">
           <p className="m-0 max-w-[52ch] text-[17px] leading-[1.6] text-muted">
             From sold-out concerts to campus hackathons and corporate launches — Eventify brings
             world-class ticketing to Kenya and South Sudan, built around how people actually pay:
@@ -136,7 +139,7 @@ export function LandingPage() {
             <span>Free events cost nothing</span>
           </div>
         </div>
-        <div className="aspect-[3/2] overflow-hidden lg:aspect-[4/5] lg:max-h-[620px] lg:justify-self-end rounded-3xl border-2 border-rule bg-surface">
+        <div className="col-start-2 row-start-1 aspect-[4/5] overflow-hidden rounded-2xl border-2 border-rule bg-surface sm:rounded-3xl lg:row-end-3 lg:max-h-[620px] lg:justify-self-end">
           <img
             src="/landing/hero.webp"
             alt=""
