@@ -12,14 +12,18 @@
       rel="stylesheet"
     />
     <script>
-      // Set the theme before first paint so dark-mode users don't see a white flash. Mirrors initialTheme() in src/app/theme.tsx.
+      // Set the theme before first paint so nobody sees a flash: the visitor's own choice, then the device's setting, else dark. Mirrors initialTheme() in src/app/theme.ts.
+      var t = null;
       try {
-        var t = localStorage.getItem('eventify-theme');
-        if (t !== 'light' && t !== 'dark') {
-          t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-        document.documentElement.dataset.theme = t;
+        t = localStorage.getItem('eventify-theme');
       } catch (e) {}
+      if (t !== 'light' && t !== 'dark') {
+        t =
+          window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches
+            ? 'light'
+            : 'dark';
+      }
+      document.documentElement.dataset.theme = t;
     </script>
   </head>
   <body>

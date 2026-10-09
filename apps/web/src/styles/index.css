@@ -61,7 +61,7 @@
     transform: rotate(360deg);
   }
 }
-/* Landing page: the ring that spreads from the "Host an event" button, and the arrow above it. */
+/* The ring that spreads from the landing page's "Host an event" button and from the theme toggle, and the arrow above the button. */
 @keyframes ev-cta-ring {
   0% {
     box-shadow: 0 0 0 0 color-mix(in srgb, var(--ev-accent) 80%, transparent);

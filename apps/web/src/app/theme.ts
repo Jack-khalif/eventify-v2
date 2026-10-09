@@ -4,15 +4,25 @@ export type Theme = 'light' | 'dark';
 
 export const THEME_STORAGE_KEY = 'eventify-theme';
 
-/** Stored choice first, then the OS setting. index.html runs the same logic before React loads to avoid a flash. */
-export function initialTheme(): Theme {
+/** The visitor's own choice, if they have used the toggle on this device. */
+export function storedTheme(): Theme | null {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
   } catch {
-    // Storage can be blocked (private mode); fall through to the OS setting.
+    // Storage can be blocked (private mode); treat it as no choice made.
   }
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  return null;
+}
+
+/**
+ * Stored choice first, then the device's own setting, and dark when the device doesn't say.
+ * index.html runs the same logic before React loads to avoid a flash.
+ */
+export function initialTheme(): Theme {
+  const stored = storedTheme();
+  if (stored) return stored;
+  return window.matchMedia?.('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
 }
 
 export type ThemeContextValue = { theme: Theme; toggleTheme: () => void };
