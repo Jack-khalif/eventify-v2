@@ -28,7 +28,8 @@ export function PrivacyPage() {
             at the door.
           </li>
           <li>
-            <strong>People who sign in</strong>: your email address and a record of your sign-ins.
+            <strong>People who sign in</strong>: your email address, your password (stored only as a
+            scrambled hash that we cannot read) and a record of your sign-ins.
           </li>
           <li>
             <strong>Organizers</strong>: your name and email address, your organizer name, type,
@@ -140,9 +141,9 @@ export function PrivacyPage() {
 
       <LegalSection title="8. Security">
         <p>
-          Connections to {company} are encrypted, sign-in sessions and codes are stored only in
-          hashed form, and staff access is limited and logged. If a breach puts your data at real
-          risk we will tell you and the Data Protection Commissioner as the law requires.
+          Connections to {company} are encrypted, passwords, sign-in sessions and codes are stored
+          only in hashed form, and staff access is limited and logged. If a breach puts your data at
+          real risk we will tell you and the Data Protection Commissioner as the law requires.
         </p>
       </LegalSection>
 

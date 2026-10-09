@@ -51,6 +51,11 @@ export const signInVerifySchema = z.object({
   email: emailInputSchema,
   code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
 });
+/** POST /api/auth/login: email and password, for organizers. Answers like /api/auth/verify. */
+export const passwordSignInSchema = z.object({
+  email: emailInputSchema,
+  password: z.string().min(1, 'Enter your password.').max(200),
+});
 export const sessionSchema = z.object({ token: z.string().min(16), user: sessionUserSchema });
 export type Session = z.infer<typeof sessionSchema>;
 
@@ -119,6 +124,21 @@ export const organizerApplicationRequestSchema = z.object({
   privacyVersion: z.string().min(1).max(20),
 });
 export type OrganizerApplicationRequest = z.infer<typeof organizerApplicationRequestSchema>;
+
+export const PASSWORD_MIN_LENGTH = 8;
+
+/**
+ * POST /api/organizer/signup: create an account and apply to host in one go. The answer is a
+ * session for the new organizer, who waits as "pending" like any other applicant.
+ */
+export const organizerSignUpRequestSchema = organizerApplicationRequestSchema.extend({
+  email: emailInputSchema,
+  password: z
+    .string()
+    .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters.`)
+    .max(200, 'Keep it under 200 characters.'),
+});
+export type OrganizerSignUpRequest = z.infer<typeof organizerSignUpRequestSchema>;
 
 /** What an applicant told us, kept with the organizer for the admin who reviews it. */
 export const organizerApplicationSchema = z.object({

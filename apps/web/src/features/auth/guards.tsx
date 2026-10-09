@@ -28,7 +28,7 @@ export function NoAccess({
       <p className="m-0 text-muted">{children}</p>
       <div className="flex flex-wrap gap-2.5">
         {action}
-        <Link to="/" className={buttonClass({ variant: 'outline', size: 'md' })}>
+        <Link to="/discover" className={buttonClass({ variant: 'outline', size: 'md' })}>
           Back to Discover
         </Link>
       </div>

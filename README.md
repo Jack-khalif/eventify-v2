@@ -79,7 +79,7 @@ Sign-in is an email address and a one-time code sent to it (`/login`); there are
 | Agent                | Admin portal, limited to organizers they onboarded                                  |
 | Super Admin          | Whole admin portal, including approving, declining and suspending organizers        |
 
-With the mock API the code is always `123456`; the real API emails a new code each time. Sample accounts (in the mock, and in the API's local development database): `organizer@eventify.test`, `pending@eventify.test` (organizer waiting for approval), `suspended@eventify.test`, `agent@eventify.test` and `admin@eventify.test` (Super Admin). Any other email signs in as a new attendee.
+Organizers sign up and sign in with an email and password; staff sign in with a code sent to their email. With the mock API the sample organizers' password is `eventify-demo` and the code is always `123456`; the real API emails a new code each time, and its sample accounts have no password, so sign in to them with the code. To reset an organizer's forgotten password: `npm run set-password --workspace @eventify/api -- their@email 'new password'`. Sample accounts (in the mock, and in the API's local development database): `organizer@eventify.test`, `pending@eventify.test` (organizer waiting for approval), `suspended@eventify.test`, `agent@eventify.test` and `admin@eventify.test` (Super Admin). Any other email signs in as a new attendee.
 
 In development, http://localhost:5173/dev/ui shows every UI component. Use the header toggle to check dark mode.
 

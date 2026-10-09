@@ -92,7 +92,10 @@ export function ApplicationStatus({ organizer }: { organizer: Organizer }) {
         <Button variant="outline" disabled={session.isFetching} onClick={() => session.refetch()}>
           {session.isFetching ? 'Checking…' : 'Check again'}
         </Button>
-        <Link to="/" className={buttonClass({ variant: 'ghost', className: 'border-transparent' })}>
+        <Link
+          to="/discover"
+          className={buttonClass({ variant: 'ghost', className: 'border-transparent' })}
+        >
           Browse events
         </Link>
       </div>

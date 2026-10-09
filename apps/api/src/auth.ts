@@ -4,6 +4,7 @@ import { issueCode, redeemCode, sha256 } from './codes';
 import type { Db } from './db/client';
 import { accounts, organizers, sessions } from './db/schema';
 import type { Mailer } from './email/mailer';
+import { hashPassword, verifyPassword } from './passwords';
 import { generateTotpSecret, matchTotp } from './totp';
 
 export type AuthDeps = {
@@ -70,7 +71,7 @@ const publicHalf = (secret: string) => sha256(`public-half:${secret}`);
 const CHALLENGE_LIFETIME_MS = 10 * 60_000;
 const MAX_TOTP_ATTEMPTS = 5;
 
-async function openSession(db: Db, account: AccountRow, at: number): Promise<OpenedSession> {
+export async function openSession(db: Db, account: AccountRow, at: number): Promise<OpenedSession> {
   const lifetime = isStaff(account.role) ? STAFF_SESSION_LIFETIME_MS : SESSION_LIFETIME_MS;
   const secret = randomToken(32);
   await db.insert(sessions).values({
@@ -107,21 +108,70 @@ export async function verifySignIn(
       role: isSuperAdmin ? 'super_admin' : 'attendee',
     })
     .onConflictDoNothing({ target: accounts.email });
-  if (isSuperAdmin) {
-    await db.update(accounts).set({ role: 'super_admin' }).where(eq(accounts.email, email));
-  }
-  const [account] = await db.select().from(accounts).where(eq(accounts.email, email));
-  if (!account!.totpEnabledAt) return openSession(db, account!, at);
+  // Entering the code is the proof that the address is theirs.
+  const [account] = await db
+    .update(accounts)
+    .set({
+      emailVerifiedAt: new Date(at),
+      ...(isSuperAdmin && { role: 'super_admin' as const, passwordHash: null }),
+    })
+    .where(eq(accounts.email, email))
+    .returning();
+  return afterFirstStep(db, account!, at);
+}
+
+/** The first step was right: a session, or the authenticator challenge if the account uses one. */
+async function afterFirstStep(db: Db, account: AccountRow, at: number): Promise<SignInOutcome> {
+  if (!account.totpEnabledAt) return openSession(db, account, at);
 
   const challenge = randomToken(32);
   await db.insert(sessions).values({
     tokenHash: sha256(challenge),
-    accountId: account!.id,
+    accountId: account.id,
     expiresAt: new Date(at + CHALLENGE_LIFETIME_MS),
     createdAt: new Date(at),
     pendingTotp: true,
   });
   return { totpRequired: true, challenge };
+}
+
+/**
+ * Sign in with a password. Null when the email or the password is wrong; the caller says the same
+ * thing for both. Staff can't: their access is worth more than a password, so they use the code.
+ */
+export async function signInWithPassword(
+  { db, now }: Pick<AuthDeps, 'db' | 'now'>,
+  email: string,
+  password: string,
+): Promise<SignInOutcome> {
+  const [account] = await db.select().from(accounts).where(eq(accounts.email, email));
+  const matches = await verifyPassword(account?.passwordHash ?? null, password);
+  if (!account || !matches || isStaff(account.role)) return null;
+  return afterFirstStep(db, account, now());
+}
+
+/**
+ * A new account that signs in with a password. Null when the address already has an account, or
+ * is a Super Admin's: nobody has shown the address is theirs, so it must not open anything that exists.
+ */
+export async function createPasswordAccount(
+  db: Db,
+  superAdminEmails: readonly string[],
+  email: string,
+  password: string,
+): Promise<AccountRow | null> {
+  if (superAdminEmails.includes(email)) return null;
+  const [account] = await db
+    .insert(accounts)
+    .values({
+      id: `acc_${randomToken(8)}`,
+      email,
+      role: 'attendee',
+      passwordHash: await hashPassword(password),
+    })
+    .onConflictDoNothing({ target: accounts.email })
+    .returning();
+  return account ?? null;
 }
 
 /** Accept an authenticator code for this account once. Call inside a transaction. */

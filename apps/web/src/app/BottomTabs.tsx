@@ -27,7 +27,7 @@ export function BottomTabs() {
         ? { to: '/organizer', label: 'Dashboard', icon: LayoutDashboard }
         : { to: '/saved', label: 'Saved', icon: Heart };
   const tabs: Tab[] = [
-    { to: '/', label: 'Discover', icon: Compass, end: true },
+    { to: '/discover', label: 'Discover', icon: Compass },
     { to: '/tickets', label: 'Tickets', icon: Ticket },
     third,
     { to: '/account', label: 'Profile', icon: User },

@@ -314,7 +314,7 @@ function Success({ order }: { order: OrderView }) {
           Preview the SMS &amp; email →
         </Link>
       )}
-      <Link to="/" className="text-[13px] text-muted">
+      <Link to="/discover" className="text-[13px] text-muted">
         Back to Discover
       </Link>
     </section>

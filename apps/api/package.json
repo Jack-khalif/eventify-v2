@@ -11,7 +11,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=.env src/db/migrate.ts",
     "db:seed": "tsx --env-file-if-exists=.env src/db/seed.ts",
-    "keygen": "tsx src/keygen.ts"
+    "keygen": "tsx src/keygen.ts",
+    "set-password": "tsx --env-file-if-exists=.env src/setPassword.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.8",

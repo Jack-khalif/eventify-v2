@@ -198,7 +198,9 @@ function EventNumbers({ d, myEvents }: { d: EventDashboard; myEvents: ReactNode 
         {stats.map((s) => (
           <Card key={s.label} className="flex flex-col gap-1.5 p-4">
             <dt className="text-xs font-semibold text-muted">{s.label}</dt>
-            <dd className="m-0 text-2xl font-extrabold tracking-[-0.02em]">{s.value}</dd>
+            <dd className="m-0 text-[19px] font-extrabold tracking-[-0.02em] whitespace-nowrap sm:text-2xl">
+              {s.value}
+            </dd>
             <dd className="m-0 text-[11px] font-bold text-accent-text">{s.sub}</dd>
           </Card>
         ))}

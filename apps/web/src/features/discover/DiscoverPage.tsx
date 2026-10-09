@@ -19,7 +19,7 @@ import { useEvents } from './useEvents';
 const CHIPS: readonly ('All' | DiscoverCategory)[] = ['All', ...CATEGORIES, 'Free'];
 const SEARCH_DEBOUNCE_MS = 250;
 
-/** Filters live in the URL (?city=Juba&category=Campus&q=jazz) so results can be shared and Back works. */
+/** Filters live in the URL (/discover?city=Juba&category=Campus&q=jazz) so results can be shared and Back works. */
 function useDiscoverFilters() {
   const [params, setParams] = useSearchParams();
   const city = citySchema.safeParse(params.get('city')).data;
@@ -78,7 +78,7 @@ export function DiscoverPage() {
         </h1>
         <p className="m-0 max-w-[560px] text-base text-pretty text-muted">
           Concerts, campus events, conferences and workshops across Kenya and South Sudan. Pay with
-          M-Pesa or MTN MoMo in under a minute.
+          M-Pesa in under a minute.
         </p>
 
         <div className="flex flex-wrap items-stretch gap-2.5">

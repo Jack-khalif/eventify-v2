@@ -79,8 +79,8 @@ function GuestCard() {
     <Card variant="surface" className="flex flex-col items-start gap-3 p-5">
       <span className="text-lg font-extrabold">You're browsing as a guest</span>
       <span className="text-sm text-muted">
-        You can buy tickets and find them again without an account. Sign in if you host events, or
-        to keep your tickets one tap away.
+        You can buy tickets and find them again without an account. Accounts are for people who host
+        events.
       </span>
       <Link
         to={loginPath('/account')}

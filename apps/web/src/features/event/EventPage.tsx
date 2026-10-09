@@ -48,7 +48,7 @@ function EventDetails({ event: e }: { event: PublicEvent }) {
   return (
     <>
       <div className="mx-auto flex w-full max-w-[1240px] flex-col gap-3.5 px-5 pt-4">
-        <BackLink label="All events" />
+        <BackLink label="All events" fallback="/discover" />
         <Cover
           tone={e.coverTone}
           imageUrl={e.coverImageUrl}

@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-aa357391-1cab-4cdb-a7e4-272f6ab07d87/styles.css">
+<script src="_ds/modernist-aa357391-1cab-4cdb-a7e4-272f6ab07d87/_ds_bundle.js"></script>
+<script src="./image-slot.js"></script>
+<style>
+[data-ev-root]{--ev-bg:#ffffff;--ev-surface:#f1f6f6;--ev-surface-2:#e2eded;--ev-text:#0e1a1c;--ev-muted:#56666a;--ev-rule:#0e1a1c;--ev-hair:rgba(14,26,28,.12);--ev-accent:#5ce1e6;--ev-accent-hover:#3fd2d8;--ev-accent-ink:#06292b;--ev-accent-text:#007a81;--ev-accent-soft:#dcf8f9;--ev-card-date:#ffffff;--ev-danger:#c94a3b;--ev-danger-soft:#fbe6e2;--ev-good:#1f9d55;--ev-good-soft:#dff3e5;
+--color-bg:var(--ev-bg);--color-surface:var(--ev-surface);--color-text:var(--ev-text);--color-accent:var(--ev-accent);--color-divider:var(--ev-hair);}
+[data-ev-root][data-ev-theme="dark"]{--ev-bg:#0b1113;--ev-surface:#141d20;--ev-surface-2:#1d292c;--ev-text:#eef5f5;--ev-muted:#9fb1b3;--ev-rule:#eef5f5;--ev-hair:rgba(238,245,245,.14);--ev-accent-text:#5ce1e6;--ev-accent-soft:#0f3437;--ev-card-date:#0b1113;--ev-danger-soft:#3a1f1c;--ev-good-soft:#0f2c1c;}
+[data-ev-root] a{color:var(--ev-accent-text)}
+[data-ev-root] a:hover{color:var(--ev-text)}
+@keyframes ev-pulse{0%{transform:scale(.85);opacity:.55}70%{transform:scale(1.5);opacity:0}100%{transform:scale(1.5);opacity:0}}
+@keyframes ev-spin{to{transform:rotate(360deg)}}
+@keyframes ev-shimmer{0%{background-position:0% 50%}100%{background-position:200% 50%}}
+</style>
+</helmet>
+<div data-ev-root="" data-ev-theme="{{ theme }}" ref="{{ rootRef }}" style="background:var(--ev-bg);color:var(--ev-text);font-family:var(--font-body);min-height:100%;display:flex;flex-direction:column;">
+
+  <header style="display:flex;align-items:center;gap:20px;padding:14px 20px;border-bottom:2px solid var(--ev-rule);background:var(--ev-bg);position:sticky;top:0;z-index:5;">
+    <div onClick="{{ goHome }}" style="display:flex;align-items:center;gap:10px;cursor:pointer;margin-right:auto;">
+      <img src="assets/eventify-mark.png" alt="Eventify" style="width:40px;height:21px;">
+      <span style="font-weight:800;font-size:15px;letter-spacing:.22em;">EVENTIFY</span>
+    </div>
+    <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ false }}">
+      <nav style="display:flex;gap:24px;font-size:14px;font-weight:600;">
+        <span onClick="{{ goHome }}" style="cursor:pointer;color:{{ navHomeColor }};" style-hover="color:var(--ev-accent-text)">Discover</span>
+        <span onClick="{{ goDashboard }}" style="cursor:pointer;color:{{ navDashColor }};" style-hover="color:var(--ev-accent-text)">For organizers</span>
+        <span onClick="{{ goProfileDefault }}" style="cursor:pointer;color:{{ navProfileColor }};" style-hover="color:var(--ev-accent-text)">Profile</span>
+      </nav>
+      <button class="btn" onClick="{{ goCreate }}" style="border:2px solid var(--ev-rule);border-radius:10px;padding:8px 14px;color:var(--ev-text);font-size:14px;" style-hover="background:var(--ev-surface)">Create event</button>
+    </sc-if>
+    <button class="btn btn-icon" onClick="{{ toggleTheme }}" aria-label="Toggle theme" style="border-radius:10px;color:var(--ev-text);border:1px solid var(--ev-hair);" style-hover="background:var(--ev-surface)">
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ false }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+      </sc-if>
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ true }}">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
+      </sc-if>
+    </button>
+  </header>
+
+  <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+    <main style="flex:1;display:flex;flex-direction:column;">
+      <section style="padding:28px 20px 24px;display:flex;flex-direction:column;gap:18px;max-width:1240px;width:100%;margin:0 auto;box-sizing:border-box;">
+        <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ false }}">
+          <h1 style="font-size:76px;line-height:.98;letter-spacing:-.035em;margin:12px 0 0;max-width:900px;text-wrap:pretty;">What's on in <span style="background:var(--ev-accent);color:var(--ev-accent-ink);padding:0 10px;border-radius:12px;">{{ cityLabel }}</span></h1>
+        </sc-if>
+        <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ true }}">
+          <h1 style="font-size:38px;line-height:1.02;letter-spacing:-.03em;margin:0;text-wrap:pretty;">What's on in <span style="background:var(--ev-accent);color:var(--ev-accent-ink);padding:0 6px;border-radius:8px;">{{ cityLabel }}</span></h1>
+        </sc-if>
+        <p style="margin:0;font-size:16px;color:var(--ev-muted);max-width:560px;text-wrap:pretty;">Concerts, campus events, conferences and workshops across Kenya and South Sudan. Pay with M-Pesa or MTN MoMo in under a minute.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;">
+          <label style="flex:1 1 280px;display:flex;align-items:center;gap:10px;padding:0 16px;height:52px;border:2px solid var(--ev-rule);border-radius:14px;background:var(--ev-bg);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+            <input value="{{ q }}" onChange="{{ onSearch }}" placeholder="Search events, artists, venues" style="flex:1;border:0;outline:0;background:transparent;font:inherit;font-size:16px;color:var(--ev-text);min-width:0;">
+          </label>
+          <label style="flex:0 1 200px;display:flex;align-items:center;gap:8px;padding:0 14px;height:52px;border:2px solid var(--ev-rule);border-radius:14px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
+            <select value="{{ city }}" onChange="{{ onCity }}" style="flex:1;border:0;outline:0;background:transparent;font:inherit;font-size:15px;font-weight:600;color:var(--ev-text);cursor:pointer;">
+              <sc-for list="{{ cities }}" as="c" hint-placeholder-count="5"><option value="{{ c }}">{{ c }}</option></sc-for>
+            </select>
+          </label>
+        </div>
+        <div style="display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:0 -20px;padding:0 20px;">
+          <sc-for list="{{ chips }}" as="chip" hint-placeholder-count="6">
+            <button onClick="{{ chip.select }}" style="flex:none;height:40px;padding:0 16px;border-radius:999px;border:2px solid {{ chip.border }};background:{{ chip.bg }};color:{{ chip.fg }};font:inherit;font-size:14px;font-weight:600;cursor:pointer;">{{ chip.label }}</button>
+          </sc-for>
+        </div>
+      </section>
+
+      <section style="border-top:2px solid var(--ev-rule);padding:24px 0 8px;max-width:1240px;width:100%;margin:0 auto;">
+        <div style="display:flex;align-items:baseline;gap:12px;padding:0 20px 16px;">
+          <h2 style="font-size:24px;margin:0;letter-spacing:-.02em;">This weekend</h2>
+          <span style="font-size:13px;color:var(--ev-muted);font-weight:600;">Fri 2 – Sun 4 Oct</span>
+        </div>
+        <sc-if value="{{ hasWeekend }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;gap:16px;overflow-x:auto;scrollbar-width:none;padding:0 20px 16px;">
+            <sc-for list="{{ weekend }}" as="ev" hint-placeholder-count="3">
+              <div onClick="{{ ev.open }}" style="flex:none;width:280px;display:flex;flex-direction:column;gap:10px;cursor:pointer;" style-hover="opacity:.9">
+                <div style="position:relative;height:170px;border-radius:16px;overflow:hidden;background:{{ ev.cover }};">
+                  <div style="position:absolute;left:12px;top:12px;background:var(--ev-card-date);color:var(--ev-text);border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;line-height:1;gap:3px;min-width:44px;">
+                    <span style="font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--ev-accent-text);">{{ ev.dayUp }}</span>
+                    <span style="font-size:22px;font-weight:800;">{{ ev.dnum }}</span>
+                  </div>
+                  <span style="position:absolute;left:12px;bottom:10px;font-family:ui-monospace,monospace;font-size:11px;color:{{ ev.labelColor }};">event photo</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  <span style="font-size:17px;font-weight:800;line-height:1.2;letter-spacing:-.01em;">{{ ev.title }}</span>
+                  <span style="font-size:13px;color:var(--ev-muted);">{{ ev.time }} · {{ ev.venue }}</span>
+                  <span style="font-size:14px;font-weight:800;color:{{ ev.priceColor }};">{{ ev.priceLabel }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noWeekend }}" hint-placeholder-val="{{ false }}">
+          <p style="padding:0 20px 16px;margin:0;color:var(--ev-muted);font-size:14px;">Nothing listed for this weekend yet.</p>
+        </sc-if>
+      </section>
+
+      <section style="border-top:2px solid var(--ev-rule);padding:24px 20px 40px;max-width:1240px;width:100%;margin:0 auto;box-sizing:border-box;">
+        <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:18px;">
+          <h2 style="font-size:24px;margin:0;letter-spacing:-.02em;">Upcoming</h2>
+          <span style="font-size:13px;color:var(--ev-muted);font-weight:600;">{{ countLabel }}</span>
+        </div>
+        <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:28px 20px;">
+            <sc-for list="{{ results }}" as="ev" hint-placeholder-count="6">
+              <div onClick="{{ ev.open }}" style="display:flex;flex-direction:column;gap:12px;cursor:pointer;" style-hover="opacity:.9">
+                <div style="position:relative;aspect-ratio:4/3;border-radius:16px;overflow:hidden;background:{{ ev.cover }};">
+                  <div style="position:absolute;left:12px;top:12px;background:var(--ev-card-date);color:var(--ev-text);border-radius:10px;padding:6px 10px;display:flex;flex-direction:column;line-height:1;gap:3px;min-width:44px;">
+                    <span style="font-size:10px;font-weight:800;letter-spacing:.12em;color:var(--ev-accent-text);">{{ ev.monUp }}</span>
+                    <span style="font-size:22px;font-weight:800;">{{ ev.dnum }}</span>
+                  </div>
+                  <span style="position:absolute;left:12px;bottom:10px;font-family:ui-monospace,monospace;font-size:11px;color:{{ ev.labelColor }};">event photo</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                  <span style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ev-accent-text);">{{ ev.cat }} · {{ ev.city }}</span>
+                  <span style="font-size:18px;font-weight:800;line-height:1.2;letter-spacing:-.01em;text-wrap:pretty;">{{ ev.title }}</span>
+                  <span style="font-size:13px;color:var(--ev-muted);">{{ ev.date }} · {{ ev.venue }}</span>
+                  <span style="font-size:15px;font-weight:800;margin-top:4px;color:{{ ev.priceColor }};">{{ ev.priceLabel }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+          <div style="border:2px dashed var(--ev-hair);border-radius:16px;padding:32px 24px;display:flex;flex-direction:column;gap:8px;align-items:flex-start;">
+            <span style="font-size:18px;font-weight:800;">No events match yet</span>
+            <span style="font-size:14px;color:var(--ev-muted);">Try another city or category — or be the first to host one here.</span>
+            <button onClick="{{ clearFilters }}" class="btn" style="margin-top:8px;border:2px solid var(--ev-rule);border-radius:10px;color:var(--ev-text);" style-hover="background:var(--ev-surface)">Clear filters</button>
+          </div>
+        </sc-if>
+      </section>
+
+      <section style="background:var(--ev-accent);color:var(--ev-accent-ink);">
+        <div style="max-width:1240px;margin:0 auto;padding:36px 20px;display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;justify-content:space-between;">
+          <div style="display:flex;flex-direction:column;gap:8px;max-width:560px;">
+            <span style="font-size:28px;font-weight:800;line-height:1.08;letter-spacing:-.02em;text-wrap:pretty;">Hosting something? Click me.</span>
+            <span style="font-size:15px;">Every event gets a short link, a share card, and queue-free Express Entry at the door.</span>
+          </div>
+          <button class="btn" onClick="{{ goCreate }}" style="background:var(--ev-accent-ink);color:#ffffff;border-radius:12px;padding:14px 20px;font-size:15px;justify-content:flex-start;min-width:200px;" style-hover="opacity:.9">Create an event →</button>
+        </div>
+      </section>
+
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ true }}">
+        <nav style="position:sticky;bottom:0;display:grid;grid-template-columns:repeat(4,1fr);background:var(--ev-bg);border-top:2px solid var(--ev-rule);padding:8px 8px 14px;">
+          <div onClick="{{ goHome }}" style="display:flex;flex-direction:column;align-items:flex-start;padding:6px 10px;gap:4px;color:var(--ev-text);font-size:11px;font-weight:800;cursor:pointer;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="var(--ev-accent)" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="var(--ev-bg)"></polygon></svg>Discover</div>
+          <div onClick="{{ goDashboard }}" style="display:flex;flex-direction:column;align-items:flex-start;padding:6px 10px;gap:4px;color:var(--ev-muted);font-size:11px;font-weight:600;cursor:pointer;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"></path><path d="M13 5v2M13 17v2M13 11v2"></path></svg>Tickets</div>
+          <div style="display:flex;flex-direction:column;align-items:flex-start;padding:6px 10px;gap:4px;color:var(--ev-muted);font-size:11px;font-weight:600;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"></path></svg>Saved</div>
+          <div onClick="{{ goProfileDefault }}" style="display:flex;flex-direction:column;align-items:flex-start;padding:6px 10px;gap:4px;color:var(--ev-muted);font-size:11px;font-weight:600;cursor:pointer;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>Profile</div>
+        </nav>
+      </sc-if>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isEvent }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;display:flex;flex-direction:column;">
+      <div style="max-width:1240px;width:100%;margin:0 auto;padding:16px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;">
+        <button onClick="{{ goHome }}" class="btn" style="align-self:flex-start;padding:6px 10px 6px 4px;color:var(--ev-text);border-radius:10px;font-size:14px;" style-hover="background:var(--ev-surface)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>All events
+        </button>
+        <div style="position:relative;aspect-ratio:16/7;min-height:200px;border-radius:20px;overflow:hidden;background:{{ ev.cover }};">
+          <span style="position:absolute;left:16px;bottom:14px;font-family:ui-monospace,monospace;font-size:12px;color:{{ ev.labelColor }};">cover photo · 1600 × 700</span>
+        </div>
+      </div>
+
+      <div style="max-width:1240px;width:100%;margin:0 auto;padding:24px 20px 48px;box-sizing:border-box;display:flex;flex-wrap:wrap;gap:40px;align-items:flex-start;">
+        <article style="flex:1 1 520px;min-width:0;display:flex;flex-direction:column;gap:24px;">
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <span style="font-size:12px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--ev-accent-text);">{{ ev.cat }} · {{ ev.city }}</span>
+            <h1 style="margin:0;font-size:40px;line-height:1.02;letter-spacing:-.03em;text-wrap:pretty;">{{ ev.title }}</h1>
+          </div>
+          <div onClick="{{ goOrgProfile }}" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;cursor:pointer;">
+            <div style="width:44px;height:44px;border-radius:999px;background:var(--ev-accent-soft);color:var(--ev-accent-text);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;">{{ ev.orgInitials }}</div>
+            <div style="display:flex;flex-direction:column;gap:2px;margin-right:auto;min-width:0;">
+              <span style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:15px;">{{ ev.org }}
+                <sc-if value="{{ ev.verified }}" hint-placeholder-val="{{ true }}">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--ev-accent)" stroke="var(--ev-accent-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-label="Verified"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                </sc-if>
+              </span>
+              <span style="font-size:13px;color:var(--ev-muted);">{{ ev.orgType }} · eventify.co/{{ ev.orgHandle }}</span>
+            </div>
+            <button onClick="{{ toggleFollow }}" class="btn" style="border-radius:10px;border:2px solid var(--ev-rule);background:{{ followBg }};color:{{ followFg }};padding:8px 16px;">{{ followLabel }}</button>
+          </div>
+
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));border-top:2px solid var(--ev-rule);border-bottom:2px solid var(--ev-rule);">
+            <div style="display:flex;gap:12px;padding:16px 16px 16px 0;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px;"><path d="M8 2v4M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-weight:800;font-size:15px;">{{ ev.date }}</span>
+                <span style="font-size:14px;color:var(--ev-muted);">{{ ev.time }} EAT</span>
+                <a href="#" style="font-size:13px;font-weight:600;margin-top:4px;">Add to calendar</a>
+              </div>
+            </div>
+            <div style="display:flex;gap:12px;padding:16px 16px 16px 0;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:2px;"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-weight:800;font-size:15px;">{{ ev.venue }}</span>
+                <span style="font-size:14px;color:var(--ev-muted);">{{ ev.address }}</span>
+                <a href="#" style="font-size:13px;font-weight:600;margin-top:4px;">Get directions</a>
+              </div>
+            </div>
+          </div>
+
+          <div style="position:relative;height:200px;border-radius:16px;overflow:hidden;background-color:var(--ev-surface);background-image:linear-gradient(var(--ev-hair) 1px,transparent 1px),linear-gradient(90deg,var(--ev-hair) 1px,transparent 1px);background-size:32px 32px;">
+            <div style="position:absolute;left:50%;top:44%;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;">
+              <div style="width:36px;height:36px;border-radius:999px 999px 999px 0;transform:rotate(-45deg);background:var(--ev-accent);border:3px solid var(--ev-rule);"></div>
+            </div>
+            <span style="position:absolute;left:14px;bottom:12px;font-family:ui-monospace,monospace;font-size:11px;color:var(--ev-muted);">map · {{ ev.venue }}</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <h2 style="font-size:22px;margin:0;">About</h2>
+            <sc-for list="{{ ev.desc }}" as="para" hint-placeholder-count="2">
+              <p style="margin:0;font-size:16px;line-height:1.6;max-width:640px;text-wrap:pretty;">{{ para }}</p>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;border-top:2px solid var(--ev-rule);padding-top:20px;">
+            <h2 style="font-size:22px;margin:0;">Share</h2>
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 6px 6px 14px;border:2px solid var(--ev-hair);border-radius:12px;max-width:460px;">
+              <span style="flex:1;min-width:0;font-weight:600;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">eventify.co/e/<span style="color:var(--ev-accent-text);">{{ ev.slug }}</span></span>
+              <button onClick="{{ copyLink }}" class="btn" style="background:var(--ev-text);color:var(--ev-bg);border-radius:8px;flex:none;" style-hover="opacity:.85">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>{{ copyLabel }}
+              </button>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <sc-for list="{{ shareTargets }}" as="s" hint-placeholder-count="3">
+                <button class="btn" style="border:2px solid var(--ev-rule);border-radius:10px;color:var(--ev-text);padding:9px 14px;" style-hover="background:var(--ev-accent);color:var(--ev-accent-ink)">{{ s }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px;border:2px solid var(--ev-hair);border-radius:14px;max-width:340px;margin-top:4px;">
+              <div style="position:relative;flex:none;width:64px;height:64px;border-radius:10px;overflow:hidden;background:{{ ev.cover }};">
+                <img src="assets/eventify-mark.png" alt="" style="position:absolute;right:5px;bottom:5px;width:20px;height:11px;">
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+                <span style="font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ ev.title }}</span>
+                <span style="font-size:12px;color:var(--ev-muted);">{{ ev.date }} · {{ ev.venue }}</span>
+                <span style="font-size:11px;color:var(--ev-muted);font-family:ui-monospace,monospace;">share card preview</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <aside style="flex:1 1 340px;max-width:440px;position:sticky;top:88px;display:flex;flex-direction:column;border:2px solid var(--ev-rule);border-radius:20px;overflow:hidden;background:var(--ev-bg);">
+          <div style="padding:18px 20px;border-bottom:2px solid var(--ev-rule);display:flex;align-items:baseline;justify-content:space-between;gap:12px;">
+            <span style="font-size:20px;font-weight:800;">Tickets</span>
+            <span style="font-size:13px;color:var(--ev-muted);">{{ ev.priceLabel }}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;padding:16px;">
+            <sc-for list="{{ tiers }}" as="t" hint-placeholder-count="3">
+              <button onClick="{{ t.select }}" disabled="{{ t.soldOut }}" style="display:flex;align-items:center;gap:12px;text-align:left;padding:14px;border-radius:14px;border:2px solid {{ t.border }};background:{{ t.bg }};color:var(--ev-text);font:inherit;cursor:pointer;opacity:{{ t.opacity }};">
+                <span style="width:18px;height:18px;flex:none;border-radius:999px;border:2px solid {{ t.dotBorder }};background:{{ t.dotBg }};"></span>
+                <span style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;">
+                  <span style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:15px;">{{ t.name }}
+                    <sc-if value="{{ t.hasBadge }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;background:{{ t.badgeBg }};color:{{ t.badgeFg }};">{{ t.badgeLabel }}</span>
+                    </sc-if>
+                  </span>
+                  <span style="font-size:12px;color:var(--ev-muted);">{{ t.note }}</span>
+                </span>
+                <span style="font-weight:800;font-size:15px;text-align:right;">{{ t.priceLabel }}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:0 20px 16px;">
+            <span style="font-size:14px;font-weight:600;">Quantity</span>
+            <div style="display:flex;align-items:center;border:2px solid var(--ev-rule);border-radius:12px;overflow:hidden;">
+              <button onClick="{{ dec }}" aria-label="Fewer" style="width:40px;height:38px;border:0;background:transparent;color:var(--ev-text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:var(--ev-surface)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"></path></svg></button>
+              <span style="width:36px;text-align:center;font-weight:800;font-size:16px;">{{ qty }}</span>
+              <button onClick="{{ inc }}" aria-label="More" style="width:40px;height:38px;border:0;background:transparent;color:var(--ev-text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:var(--ev-surface)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5v14"></path></svg></button>
+            </div>
+          </div>
+          <div style="margin:0 16px;padding:16px;border-radius:14px;background:var(--ev-surface);display:flex;flex-direction:column;gap:8px;font-size:14px;">
+            <div style="display:flex;justify-content:space-between;gap:12px;font-size:18px;font-weight:800;"><span>{{ lineLabel }}</span><span>{{ totalLabel }}</span></div>
+            <span style="font-size:12px;color:var(--ev-muted);">The price you see is the price you pay.</span>
+          </div>
+          <div style="padding:16px;">
+            <button onClick="{{ goCheckout }}" class="btn" style="width:100%;justify-content:space-between;background:var(--ev-accent);color:var(--ev-accent-ink);border-radius:14px;padding:16px 18px;font-size:16px;" style-hover="background:var(--ev-accent-hover)">
+              <span>{{ ctaLabel }}</span><span>{{ totalLabel }} →</span>
+            </button>
+            <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;">
+              <span style="font-size:11px;font-weight:800;padding:4px 8px;border-radius:6px;background:var(--ev-accent-soft);color:var(--ev-accent-text);">M-PESA</span>
+              <span style="font-size:11px;font-weight:800;padding:4px 8px;border-radius:6px;background:var(--ev-accent-soft);color:var(--ev-accent-text);">MTN MOMO</span>
+              <span style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:6px;border:1px solid var(--ev-hair);color:var(--ev-muted);">Card</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ true }}">
+        <div style="position:sticky;bottom:0;display:flex;align-items:center;gap:12px;padding:12px 16px 18px;background:var(--ev-bg);border-top:2px solid var(--ev-rule);">
+          <div style="display:flex;flex-direction:column;flex:1;min-width:0;">
+            <span style="font-size:12px;color:var(--ev-muted);">{{ lineLabel }}</span>
+            <span style="font-size:18px;font-weight:800;">{{ totalLabel }}</span>
+          </div>
+          <button onClick="{{ goCheckout }}" class="btn" style="background:var(--ev-accent);color:var(--ev-accent-ink);border-radius:14px;padding:15px 20px;font-size:16px;min-width:160px;justify-content:space-between;" style-hover="background:var(--ev-accent-hover)"><span>{{ ctaLabel }}</span><span>→</span></button>
+        </div>
+      </sc-if>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isCheckoutForm }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;display:flex;flex-direction:column;max-width:1000px;width:100%;margin:0 auto;padding:16px 20px 40px;box-sizing:border-box;">
+      <button onClick="{{ goEventBack }}" class="btn" style="align-self:flex-start;padding:6px 10px 6px 4px;color:var(--ev-text);border-radius:10px;font-size:14px;margin-bottom:8px;" style-hover="background:var(--ev-surface)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Back to event
+      </button>
+      <h1 style="font-size:30px;margin:8px 0 20px;letter-spacing:-.02em;">Checkout</h1>
+      <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;">
+        <div style="flex:1 1 460px;min-width:0;display:flex;flex-direction:column;gap:24px;">
+          <div style="display:flex;gap:12px;padding:14px;border:2px solid var(--ev-rule);border-radius:16px;">
+            <div style="flex:none;width:56px;height:56px;border-radius:10px;background:{{ ev.cover }};"></div>
+            <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+              <span style="font-weight:800;font-size:15px;">{{ ev.title }}</span>
+              <span style="font-size:13px;color:var(--ev-muted);">{{ ev.date }} · {{ ev.venue }}</span>
+              <span style="font-size:13px;font-weight:700;color:var(--ev-accent-text);">{{ lineLabel }}</span>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <h2 style="font-size:16px;margin:0;">Ticket &amp; quantity</h2>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ tiers }}" as="t" hint-placeholder-count="3">
+                <button onClick="{{ t.select }}" disabled="{{ t.soldOut }}" style="display:flex;align-items:center;gap:12px;text-align:left;padding:12px;border-radius:14px;border:2px solid {{ t.border }};background:{{ t.bg }};color:var(--ev-text);font:inherit;cursor:pointer;opacity:{{ t.opacity }};">
+                  <span style="width:16px;height:16px;flex:none;border-radius:999px;border:2px solid {{ t.dotBorder }};background:{{ t.dotBg }};"></span>
+                  <span style="flex:1;display:flex;flex-direction:column;gap:2px;min-width:0;">
+                    <span style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:14px;">{{ t.name }}
+                      <sc-if value="{{ t.hasBadge }}" hint-placeholder-val="{{ false }}">
+                        <span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:999px;background:{{ t.badgeBg }};color:{{ t.badgeFg }};">{{ t.badgeLabel }}</span>
+                      </sc-if>
+                    </span>
+                  </span>
+                  <span style="font-weight:800;font-size:14px;">{{ t.priceLabel }}</span>
+                </button>
+              </sc-for>
+              <div style="display:flex;align-items:center;justify-content:space-between;">
+                <span style="font-size:14px;font-weight:600;">Quantity</span>
+                <div style="display:flex;align-items:center;border:2px solid var(--ev-rule);border-radius:12px;overflow:hidden;">
+                  <button onClick="{{ dec }}" aria-label="Fewer" style="width:38px;height:36px;border:0;background:transparent;color:var(--ev-text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:var(--ev-surface)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"></path></svg></button>
+                  <span style="width:34px;text-align:center;font-weight:800;font-size:15px;">{{ qty }}</span>
+                  <button onClick="{{ inc }}" aria-label="More" style="width:38px;height:36px;border:0;background:transparent;color:var(--ev-text);cursor:pointer;display:flex;align-items:center;justify-content:center;" style-hover="background:var(--ev-surface)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14M12 5v14"></path></svg></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <h2 style="font-size:16px;margin:0;">Your details</h2>
+            <label style="display:flex;flex-direction:column;gap:6px;">
+              <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Full name</span>
+              <input value="{{ buyerName }}" onChange="{{ onName }}" placeholder="e.g. Amina Otieno" style="height:48px;border:2px solid var(--ev-rule);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);">
+            </label>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <label style="flex:1 1 200px;display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Phone number</span>
+                <input value="{{ buyerPhone }}" onChange="{{ onPhone }}" placeholder="{{ phonePlaceholder }}" style="height:48px;border:2px solid var(--ev-rule);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);">
+              </label>
+              <label style="flex:1 1 200px;display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Email</span>
+                <input value="{{ buyerEmail }}" onChange="{{ onEmail }}" placeholder="you@example.com" style="height:48px;border:2px solid var(--ev-rule);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);">
+              </label>
+            </div>
+            <span style="font-size:12px;color:var(--ev-muted);">Your ticket and QR code are sent here by SMS and email.</span>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <h2 style="font-size:16px;margin:0;">Payment method</h2>
+            <sc-for list="{{ methods }}" as="m" hint-placeholder-count="3">
+              <button onClick="{{ m.select }}" style="display:flex;align-items:center;gap:12px;text-align:left;padding:14px;border-radius:14px;border:2px solid {{ m.border }};background:{{ m.bg }};color:var(--ev-text);font:inherit;cursor:pointer;">
+                <span style="width:18px;height:18px;flex:none;border-radius:999px;border:2px solid {{ m.dotBorder }};background:{{ m.dotBg }};"></span>
+                <span style="flex:1;display:flex;flex-direction:column;gap:2px;">
+                  <span style="font-weight:800;font-size:15px;">{{ m.name }}</span>
+                  <span style="font-size:12px;color:var(--ev-muted);">{{ m.note }}</span>
+                </span>
+                <span style="font-size:11px;font-weight:800;padding:4px 8px;border-radius:6px;background:{{ m.tagBg }};color:{{ m.tagFg }};">{{ m.tag }}</span>
+              </button>
+            </sc-for>
+          </div>
+
+          <div style="padding:16px;border-radius:14px;background:var(--ev-surface);display:flex;justify-content:space-between;align-items:center;font-size:18px;font-weight:800;">
+            <span>Total</span><span>{{ totalLabel }}</span>
+          </div>
+
+          <button onClick="{{ submitPay }}" class="btn" style="justify-content:space-between;background:var(--ev-accent);color:var(--ev-accent-ink);border-radius:14px;padding:16px 18px;font-size:16px;" style-hover="background:var(--ev-accent-hover)">
+            <span>{{ payCtaLabel }}</span><span>{{ totalLabel }} →</span>
+          </button>
+          <sc-if value="{{ showValidation }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:13px;color:var(--ev-danger);">Enter your name, phone and email to continue.</span>
+          </sc-if>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isCheckoutWaiting }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:24px;text-align:center;">
+      <div style="position:relative;width:120px;height:120px;display:flex;align-items:center;justify-content:center;">
+        <div style="position:absolute;inset:0;border-radius:999px;background:var(--ev-accent-soft);animation:ev-pulse 1.8s ease-out infinite;"></div>
+        <div style="position:relative;width:88px;height:88px;border-radius:999px;background:var(--ev-accent);display:flex;align-items:center;justify-content:center;color:var(--ev-accent-ink);">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2"></rect><path d="M12 18h.01"></path></svg>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;max-width:360px;">
+        <h1 style="font-size:24px;margin:0;letter-spacing:-.02em;">Check your phone to confirm payment</h1>
+        <p style="margin:0;font-size:15px;color:var(--ev-muted);line-height:1.5;">We sent a {{ payMethodLabel }} prompt to <strong style="color:var(--ev-text);">{{ buyerPhone }}</strong>. Enter your PIN to pay {{ totalLabel }}.</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 18px;border:2px solid var(--ev-hair);border-radius:999px;">
+        <span style="width:9px;height:9px;border-radius:999px;background:var(--ev-accent);animation:ev-spin 1s linear infinite;"></span>
+        <span style="font-size:14px;font-weight:700;font-family:ui-monospace,monospace;">{{ waitTimeLabel }}</span>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onClick="{{ resendPrompt }}" class="btn" style="border:2px solid var(--ev-rule);border-radius:10px;color:var(--ev-text);padding:10px 16px;" style-hover="background:var(--ev-surface)">Resend prompt</button>
+        <button onClick="{{ cancelPay }}" class="btn" style="color:var(--ev-muted);padding:10px 16px;">Cancel</button>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isCheckoutSuccess }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;display:flex;flex-direction:column;align-items:center;padding:32px 20px 40px;gap:18px;">
+      <div style="display:flex;flex-direction:column;gap:4px;text-align:center;">
+        <h1 style="font-size:26px;margin:0;letter-spacing:-.02em;">You're going! 🎉</h1>
+        <span style="font-size:13px;color:var(--ev-muted);">Sent by SMS and email to {{ buyerPhone }} and {{ buyerEmail }}</span>
+      </div>
+
+      <div style="width:100%;max-width:360px;border-radius:22px;overflow:hidden;box-shadow:var(--shadow-lg,0 12px 30px rgba(0,0,0,.18));">
+        <div style="padding:16px 18px;display:flex;align-items:center;gap:8px;background:var(--ev-accent-ink);">
+          <img src="assets/eventify-mark.png" alt="" style="width:26px;height:14px;">
+          <span style="font-weight:800;font-size:12px;letter-spacing:.16em;color:#ffffff;">EXPRESS ENTRY · LIVE PASS</span>
+        </div>
+        <div style="padding:22px 20px;display:flex;flex-direction:column;align-items:center;gap:14px;background:{{ passBg }};color:#ffffff;">
+          <span style="font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;opacity:.85;">{{ ev.title }}</span>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;">
+            <span style="font-size:44px;font-weight:800;letter-spacing:.08em;font-family:ui-monospace,monospace;">{{ liveCode }}</span>
+            <span style="font-size:11px;opacity:.85;">refreshes every few seconds — screenshots won't work</span>
+          </div>
+          <div style="display:flex;gap:10px;font-size:12px;font-weight:700;">
+            <span>{{ buyerName }}</span><span style="opacity:.6;">·</span><span>{{ lineLabel }}</span>
+          </div>
+        </div>
+        <div style="padding:20px;display:flex;flex-direction:column;align-items:center;gap:12px;background:var(--ev-bg);color:var(--ev-text);">
+          <div style="display:flex;justify-content:center;padding:12px;background:var(--ev-surface);border-radius:14px;">
+            <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:2px;width:140px;height:140px;">
+              <sc-for list="{{ qrCells }}" as="cell" hint-placeholder-count="81">
+                <span style="background:{{ cell.color }};"></span>
+              </sc-for>
+            </div>
+          </div>
+          <span style="font-size:11px;color:var(--ev-muted);">Backup QR — use if the code above can't be shown</span>
+          <div style="display:flex;justify-content:space-between;width:100%;font-size:12px;color:var(--ev-muted);font-family:ui-monospace,monospace;">
+            <span>{{ ticketId }}</span><span>{{ ev.venue }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;width:100%;max-width:360px;">
+        <a href="#" class="btn" style="flex:1;justify-content:center;border:2px solid var(--ev-rule);border-radius:12px;color:var(--ev-text);padding:12px;" style-hover="background:var(--ev-surface)">Add to calendar</a>
+        <button class="btn" style="flex:1;justify-content:center;background:var(--ev-accent);color:var(--ev-accent-ink);border-radius:12px;padding:12px;" style-hover="background:var(--ev-accent-hover)">Share that you're going</button>
+      </div>
+      <button onClick="{{ goDelivery }}" class="btn" style="color:var(--ev-accent-text);font-size:13px;font-weight:700;">Preview the SMS &amp; email →</button>
+      <button onClick="{{ goHome }}" class="btn" style="color:var(--ev-muted);font-size:13px;">Back to Discover</button>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isDelivery }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;display:flex;flex-direction:column;max-width:1000px;width:100%;margin:0 auto;padding:16px 20px 48px;box-sizing:border-box;gap:24px;">
+      <button onClick="{{ goHome }}" class="btn" style="align-self:flex-start;padding:6px 10px 6px 4px;color:var(--ev-text);border-radius:10px;font-size:14px;" style-hover="background:var(--ev-surface)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Discover
+      </button>
+      <h1 style="font-size:26px;margin:0;letter-spacing:-.02em;">Ticket delivery</h1>
+      <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;">
+
+        <div style="flex:1 1 300px;max-width:340px;display:flex;flex-direction:column;gap:10px;">
+          <span style="font-size:13px;font-weight:700;color:var(--ev-muted);">SMS confirmation</span>
+          <div style="border-radius:20px;border:2px solid var(--ev-rule);padding:16px;display:flex;flex-direction:column;gap:8px;background:var(--ev-surface);">
+            <span style="font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--ev-muted);">EVENTIFY</span>
+            <div style="background:var(--ev-bg);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.55;">
+              Hi {{ buyerName }}, you're confirmed for <strong>{{ ev.title }}</strong> on {{ ev.date }}. Ticket code <strong>{{ ticketId }}</strong>. View your Live Pass: eventify.co/t/{{ ticketId }}
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1 1 380px;max-width:460px;display:flex;flex-direction:column;gap:10px;">
+          <span style="font-size:13px;font-weight:700;color:var(--ev-muted);">Email ticket</span>
+          <div style="border-radius:16px;border:2px solid var(--ev-rule);overflow:hidden;background:var(--ev-bg);">
+            <div style="padding:12px 16px;display:flex;align-items:center;gap:8px;border-bottom:2px solid var(--ev-rule);">
+              <img src="assets/eventify-mark.png" alt="" style="width:24px;height:13px;">
+              <span style="font-weight:800;font-size:12px;letter-spacing:.14em;">EVENTIFY</span>
+            </div>
+            <div style="aspect-ratio:16/8;background:{{ ev.cover }};"></div>
+            <div style="padding:16px;display:flex;flex-direction:column;gap:10px;">
+              <span style="font-weight:800;font-size:16px;">{{ ev.title }}</span>
+              <span style="font-size:13px;color:var(--ev-muted);">{{ ev.date }} · {{ ev.time }}<br><br>{{ ev.venue }} — <a href="#">view map</a></span>
+              <div style="display:flex;gap:14px;align-items:center;padding:12px;background:var(--ev-surface);border-radius:12px;">
+                <div style="display:grid;grid-template-columns:repeat(9,1fr);gap:1.5px;width:70px;height:70px;flex:none;">
+                  <sc-for list="{{ qrCells }}" as="cell" hint-placeholder-count="81"><span style="background:{{ cell.color }};"></span></sc-for>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <span style="font-size:12px;color:var(--ev-muted);">Ticket code</span>
+                  <span style="font-weight:800;font-size:14px;font-family:ui-monospace,monospace;">{{ ticketId }}</span>
+                  <span style="font-size:12px;color:var(--ev-muted);">{{ lineLabel }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;display:flex;flex-direction:column;max-width:1240px;width:100%;margin:0 auto;padding:20px 20px 48px;box-sizing:border-box;gap:24px;">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
+        <div style="display:flex;flex-direction:column;gap:2px;">
+          <h1 style="font-size:28px;margin:0;letter-spacing:-.02em;">Dashboard</h1>
+          <span style="font-size:14px;color:var(--ev-muted);">{{ dashOrgName }}</span>
+        </div>
+        <button onClick="{{ goCreate }}" class="btn" style="background:var(--ev-accent);color:var(--ev-accent-ink);border-radius:12px;padding:12px 18px;font-size:15px;" style-hover="background:var(--ev-accent-hover)">+ Create event</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;">
+        <sc-for list="{{ dashStats }}" as="st" hint-placeholder-count="6">
+          <div style="display:flex;flex-direction:column;gap:6px;padding:16px;border:2px solid var(--ev-rule);border-radius:16px;">
+            <span style="font-size:12px;color:var(--ev-muted);font-weight:600;">{{ st.label }}</span>
+            <span style="font-size:24px;font-weight:800;letter-spacing:-.02em;">{{ st.value }}</span>
+            <span style="font-size:11px;font-weight:700;color:var(--ev-accent-text);">{{ st.sub }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:20px;">
+        <div style="flex:2 1 380px;display:flex;flex-direction:column;gap:14px;padding:20px;border:2px solid var(--ev-rule);border-radius:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;">
+            <h2 style="font-size:16px;margin:0;">Ticket sales, last 14 days</h2>
+            <span style="font-size:13px;color:var(--ev-muted);">{{ chartTotal }}</span>
+          </div>
+          <svg viewBox="0 0 560 160" style="width:100%;height:160px;overflow:visible;">
+            <sc-for list="{{ chartBars }}" as="b" hint-placeholder-count="14">
+              <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" rx="3" fill="{{ b.fill }}"></rect>
+            </sc-for>
+            <line x1="0" y1="140" x2="560" y2="140" stroke="var(--ev-hair)" stroke-width="2"></line>
+          </svg>
+        </div>
+        <div style="flex:1 1 260px;display:flex;flex-direction:column;gap:12px;padding:20px;border:2px solid var(--ev-rule);border-radius:16px;">
+          <h2 style="font-size:16px;margin:0;">Sales by tier</h2>
+          <sc-for list="{{ tierBreakdown }}" as="tb" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div style="display:flex;justify-content:space-between;font-size:13px;"><span style="font-weight:700;">{{ tb.name }}</span><span style="color:var(--ev-muted);">{{ tb.sold }} · {{ tb.revenue }}</span></div>
+              <div style="height:8px;border-radius:4px;background:var(--ev-surface-2);overflow:hidden;"><div style="height:100%;width:{{ tb.pct }};background:var(--ev-accent);"></div></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:20px;">
+        <div style="flex:1 1 320px;display:flex;flex-direction:column;gap:12px;padding:20px;border:2px solid var(--ev-rule);border-radius:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <h2 style="font-size:16px;margin:0;">Live check-ins · {{ ev.title }}</h2>
+            <span style="font-size:13px;font-weight:800;color:var(--ev-accent-text);">{{ checkinTotal }}</span>
+          </div>
+          <sc-for list="{{ doors }}" as="d" hint-placeholder-count="3">
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--ev-hair);">
+              <span style="font-size:14px;font-weight:600;">{{ d.name }}</span>
+              <span style="font-size:14px;font-weight:800;">{{ d.count }}</span>
+            </div>
+          </sc-for>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px;">
+            <button onClick="{{ toggleDoorInvite }}" class="btn" style="border:2px solid var(--ev-rule);border-radius:10px;color:var(--ev-text);padding:10px 14px;font-size:13px;" style-hover="background:var(--ev-surface)">Invite door staff</button>
+            <button onClick="{{ goScanner }}" class="btn" style="background:var(--ev-text);color:var(--ev-bg);border-radius:10px;padding:10px 14px;font-size:13px;" style-hover="opacity:.85">Preview scanner</button>
+          </div>
+          <sc-if value="{{ doorInviteOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 6px 6px 12px;border:2px solid var(--ev-hair);border-radius:10px;">
+              <span style="flex:1;min-width:0;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">eventify.co/checkin/{{ doorCode }}</span>
+              <button onClick="{{ copyDoorLink }}" class="btn" style="background:var(--ev-text);color:var(--ev-bg);border-radius:8px;flex:none;font-size:12px;">{{ doorCopyLabel }}</button>
+            </div>
+          </sc-if>
+        </div>
+        <div style="flex:1 1 320px;display:flex;flex-direction:column;gap:12px;">
+          <h2 style="font-size:18px;margin:0;">My events</h2>
+          <div style="display:flex;flex-direction:column;border-top:2px solid var(--ev-rule);">
+            <sc-for list="{{ myEvents }}" as="m" hint-placeholder-count="4">
+              <div onClick="{{ m.open }}" style="display:flex;align-items:center;gap:14px;padding:12px 4px;border-bottom:2px solid var(--ev-hair);cursor:pointer;" style-hover="background:var(--ev-surface)">
+                <div style="flex:none;width:48px;height:48px;border-radius:10px;background:{{ m.cover }};"></div>
+                <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;">
+                  <span style="font-weight:800;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ m.title }}</span>
+                  <span style="font-size:12px;color:var(--ev-muted);">{{ m.date }}</span>
+                </div>
+                <span style="font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 9px;border-radius:999px;background:{{ m.statusBg }};color:{{ m.statusFg }};flex:none;">{{ m.status }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isScanner }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;display:flex;flex-direction:column;max-width:520px;width:100%;margin:0 auto;padding:16px 20px 48px;box-sizing:border-box;gap:16px;">
+      <button onClick="{{ goDashboard }}" class="btn" style="align-self:flex-start;padding:6px 10px 6px 4px;color:var(--ev-text);border-radius:10px;font-size:14px;" style-hover="background:var(--ev-surface)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Dashboard
+      </button>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <h1 style="font-size:20px;margin:0;">{{ ev.title }}</h1>
+        <span style="font-size:13px;font-weight:800;color:var(--ev-accent-text);">{{ checkinTotal }}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:12px;background:var(--ev-good-soft);color:var(--ev-good);font-size:13px;font-weight:700;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+        Guest list downloaded. Check-in works without internet.
+      </div>
+
+      <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:24px;border:2px dashed var(--ev-hair);border-radius:20px;">
+        <div style="width:180px;height:180px;border-radius:16px;border:3px dashed var(--ev-hair);display:flex;align-items:center;justify-content:center;color:var(--ev-muted);">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"></path><rect x="7" y="7" width="10" height="10" rx="1"></rect></svg>
+        </div>
+        <span style="font-size:13px;color:var(--ev-muted);">Point at a guest's Live Pass or QR</span>
+        <div style="display:flex;gap:10px;">
+          <button onClick="{{ simulateValid }}" class="btn" style="background:var(--ev-good);color:#ffffff;border-radius:10px;padding:9px 14px;font-size:13px;" style-hover="opacity:.9">Simulate valid scan</button>
+          <button onClick="{{ simulateUsed }}" class="btn" style="background:var(--ev-danger);color:#ffffff;border-radius:10px;padding:9px 14px;font-size:13px;" style-hover="opacity:.9">Simulate used scan</button>
+        </div>
+      </div>
+
+      <sc-if value="{{ hasScanResult }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:14px;padding:18px;border-radius:16px;background:{{ resultBg }};color:{{ resultFg }};">
+          <span style="flex:none;">
+            <sc-if value="{{ scanIsValid }}" hint-placeholder-val="{{ true }}">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+            </sc-if>
+            <sc-if value="{{ scanIsUsed }}" hint-placeholder-val="{{ false }}">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+            </sc-if>
+          </span>
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <span style="font-weight:800;font-size:17px;">{{ resultLabel }}</span>
+            <span style="font-size:13px;opacity:.9;">{{ resultSub }}</span>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="height:2px;background:var(--ev-hair);margin:6px 0;"></div>
+      <span style="font-size:13px;font-weight:700;color:var(--ev-muted);">Or find a guest manually</span>
+      <label style="display:flex;align-items:center;gap:10px;padding:0 14px;height:46px;border:2px solid var(--ev-rule);border-radius:12px;">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
+        <input value="{{ scanSearch }}" onChange="{{ onScanSearch }}" placeholder="Search name or phone" style="flex:1;border:0;outline:0;background:transparent;font:inherit;font-size:14px;color:var(--ev-text);min-width:0;">
+      </label>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <sc-for list="{{ guestResults }}" as="g" hint-placeholder-count="3">
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:2px solid var(--ev-hair);border-radius:12px;">
+            <div style="display:flex;flex-direction:column;gap:1px;flex:1;min-width:0;">
+              <span style="font-weight:700;font-size:14px;">{{ g.name }}</span>
+              <span style="font-size:12px;color:var(--ev-muted);">{{ g.phone }} · {{ g.tier }}</span>
+            </div>
+            <button onClick="{{ g.checkin }}" disabled="{{ g.done }}" class="btn" style="border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;background:{{ g.btnBg }};color:{{ g.btnFg }};">{{ g.btnLabel }}</button>
+          </div>
+        </sc-for>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isCreate }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;display:flex;flex-direction:column;max-width:1100px;width:100%;margin:0 auto;padding:20px 20px 48px;box-sizing:border-box;gap:20px;">
+      <button onClick="{{ goDashboard }}" class="btn" style="align-self:flex-start;padding:6px 10px 6px 4px;color:var(--ev-text);border-radius:10px;font-size:14px;" style-hover="background:var(--ev-surface)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Dashboard
+      </button>
+      <h1 style="font-size:28px;margin:0;letter-spacing:-.02em;">Create event</h1>
+
+      <div style="display:flex;gap:6px;">
+        <sc-for list="{{ progressSteps }}" as="p" hint-placeholder-count="3">
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+            <div style="height:6px;border-radius:4px;background:{{ p.bar }};"></div>
+            <span style="font-size:12px;font-weight:700;color:{{ p.color }};">{{ p.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ isPublished }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:40px 20px;text-align:center;">
+          <div style="width:60px;height:60px;border-radius:999px;background:var(--ev-accent);color:var(--ev-accent-ink);display:flex;align-items:center;justify-content:center;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"></path></svg>
+          </div>
+          <h2 style="font-size:24px;margin:0;">Your event is live</h2>
+          <span style="font-size:14px;color:var(--ev-muted);max-width:400px;">Share the link below — it comes with a ready-made card for WhatsApp, Instagram and X, plus Express Entry at the door.</span>
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 6px 6px 14px;border:2px solid var(--ev-rule);border-radius:12px;max-width:420px;width:100%;">
+            <span style="flex:1;min-width:0;font-weight:700;font-size:15px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">eventify.co/e/<span style="color:var(--ev-accent-text);">{{ newSlug }}</span></span>
+            <button onClick="{{ copyNewLink }}" class="btn" style="background:var(--ev-text);color:var(--ev-bg);border-radius:8px;flex:none;" style-hover="opacity:.85">{{ copyNewLabel }}</button>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;">
+            <sc-for list="{{ shareTargets }}" as="s" hint-placeholder-count="3">
+              <button class="btn" style="border:2px solid var(--ev-rule);border-radius:10px;color:var(--ev-text);padding:9px 14px;" style-hover="background:var(--ev-accent);color:var(--ev-accent-ink)">{{ s }}</button>
+            </sc-for>
+          </div>
+          <button onClick="{{ goDashboard }}" class="btn" style="border:2px solid var(--ev-rule);border-radius:10px;color:var(--ev-text);padding:10px 16px;margin-top:6px;" style-hover="background:var(--ev-surface)">Go to dashboard</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isDraftEditing }}" hint-placeholder-val="{{ true }}">
+      <div style="display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start;">
+        <div style="flex:1 1 480px;min-width:0;display:flex;flex-direction:column;gap:20px;">
+
+          <sc-if value="{{ isStep1 }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;flex-direction:column;gap:14px;">
+              <label style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Event title</span>
+                <input value="{{ f.title }}" onChange="{{ setTitle }}" placeholder="e.g. Sunset Rooftop Sessions" style="height:48px;border:2px solid var(--ev-rule);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);">
+              </label>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <label style="flex:1 1 180px;display:flex;flex-direction:column;gap:6px;">
+                  <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Category</span>
+                  <select value="{{ f.cat }}" onChange="{{ setCat }}" style="height:48px;border:2px solid var(--ev-rule);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);">
+                    <sc-for list="{{ catOptions }}" as="c" hint-placeholder-count="4"><option value="{{ c }}">{{ c }}</option></sc-for>
+                  </select>
+                </label>
+                <label style="flex:1 1 140px;display:flex;flex-direction:column;gap:6px;">
+                  <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">City</span>
+                  <select value="{{ f.city }}" onChange="{{ setCity }}" style="height:48px;border:2px solid var(--ev-rule);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);">
+                    <sc-for list="{{ cityOptions }}" as="c" hint-placeholder-count="4"><option value="{{ c }}">{{ c }}</option></sc-for>
+                  </select>
+                </label>
+              </div>
+              <label style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Venue or online link</span>
+                <input value="{{ f.venue }}" onChange="{{ setVenue }}" placeholder="e.g. Nyakuron Cultural Centre, or a meeting link" style="height:48px;border:2px solid var(--ev-rule);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);">
+              </label>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;">
+                <label style="flex:1 1 140px;display:flex;flex-direction:column;gap:6px;">
+                  <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Date</span>
+                  <input value="{{ f.date }}" onChange="{{ setDate }}" placeholder="Sat 24 Oct" style="height:48px;border:2px solid var(--ev-rule);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);">
+                </label>
+                <label style="flex:1 1 140px;display:flex;flex-direction:column;gap:6px;">
+                  <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Time</span>
+                  <input value="{{ f.time }}" onChange="{{ setTime }}" placeholder="6:00 PM" style="height:48px;border:2px solid var(--ev-rule);border-radius:12px;padding:0 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);">
+                </label>
+              </div>
+              <label style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Description</span>
+                <textarea value="{{ f.desc }}" onChange="{{ setDesc }}" placeholder="What should people know before they come?" style="min-height:96px;border:2px solid var(--ev-rule);border-radius:12px;padding:12px 14px;font:inherit;font-size:15px;background:var(--ev-bg);color:var(--ev-text);resize:vertical;"></textarea>
+              </label>
+              <label style="display:flex;flex-direction:column;gap:6px;">
+                <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Event poster</span>
+                <div style="aspect-ratio:3/4;max-width:220px;border-radius:14px;overflow:hidden;">
+                  <image-slot id="event-poster" shape="rounded" radius="14" placeholder="Drag and drop a poster, or click to upload"></image-slot>
+                </div>
+                <span style="font-size:12px;color:var(--ev-muted);">Drop an image to preview and crop it — this becomes your event's cover photo.</span>
+              </label>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep2 }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px;">
+              <div style="display:flex;flex-direction:column;gap:8px;">
+                <span style="font-size:13px;font-weight:600;color:var(--ev-muted);">Toggle on preset tiers, or add your own</span>
+                <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                  <sc-for list="{{ presetChips }}" as="pc" hint-placeholder-count="5">
+                    <button onClick="{{ pc.toggle }}" style="height:36px;padding:0 14px;border-radius:999px;border:2px solid {{ pc.border }};background:{{ pc.bg }};color:{{ pc.fg }};font:inherit;font-size:13px;font-weight:700;cursor:pointer;">{{ pc.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <sc-for list="{{ f.tiers }}" as="t" hint-placeholder-count="2">
+                <div style="display:flex;flex-direction:column;gap:10px;padding:14px;border:2px solid var(--ev-hair);border-radius:14px;">
+                  <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+                    <label style="flex:1 1 140px;display:flex;flex-direction:column;gap:6px;">
+                      <span style="font-size:12px;font-weight:600;color:var(--ev-muted);">Tier name</span>
+                      <input value="{{ t.name }}" onChange="{{ t.setName }}" style="height:42px;border:2px solid var(--ev-rule);border-radius:10px;padding:0 12px;font:inherit;font-size:14px;background:var(--ev-bg);color:var(--ev-text);">
+                    </label>
+                    <label style="flex:1 1 100px;display:flex;flex-direction:column;gap:6px;">
+                      <span style="font-size:12px;font-weight:600;color:var(--ev-muted);">Price ({{ f.city }})</span>
+                      <input value="{{ t.price }}" onChange="{{ t.setPrice }}" placeholder="0" style="height:42px;border:2px solid var(--ev-rule);border-radius:10px;padding:0 12px;font:inherit;font-size:14px;background:var(--ev-bg);color:var(--ev-text);">
+                    </label>
+                    <label style="flex:1 1 80px;display:flex;flex-direction:column;gap:6px;">
+                      <span style="font-size:12px;font-weight:600;color:var(--ev-muted);">Qty</span>
+                      <input value="{{ t.qty }}" onChange="{{ t.setQty }}" placeholder="100" style="height:42px;border:2px solid var(--ev-rule);border-radius:10px;padding:0 12px;font:inherit;font-size:14px;background:var(--ev-bg);color:var(--ev-text);">
+                    </label>
+                    <button onClick="{{ t.remove }}" aria-label="Remove tier" class="btn" style="height:42px;width:42px;border:2px solid var(--ev-hair);border-radius:10px;color:var(--ev-danger);justify-content:center;" style-hover="background:var(--ev-surface)">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m2 0-1 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 6"></path></svg>
+                    </button>
+                  </div>
+                  <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                    <label style="flex:1 1 140px;display:flex;flex-direction:column;gap:6px;">
+                      <span style="font-size:12px;font-weight:600;color:var(--ev-muted);">Sale starts</span>
+                      <input value="{{ t.saleStart }}" onChange="{{ t.setStart }}" placeholder="Now" style="height:38px;border:2px solid var(--ev-rule);border-radius:10px;padding:0 12px;font:inherit;font-size:13px;background:var(--ev-bg);color:var(--ev-text);">
+                    </label>
+                    <label style="flex:1 1 140px;display:flex;flex-direction:column;gap:6px;">
+                      <span style="font-size:12px;font-weight:600;color:var(--ev-muted);">Sale ends</span>
+                      <input value="{{ t.saleEnd }}" onChange="{{ t.setEnd }}" placeholder="{{ t.endPlaceholder }}" style="height:38px;border:2px solid var(--ev-rule);border-radius:10px;padding:0 12px;font:inherit;font-size:13px;background:var(--ev-bg);color:var(--ev-text);">
+                    </label>
+                  </div>
+                  <sc-if value="{{ t.hasPayout }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size:12px;color:var(--ev-muted);">You'll receive <strong style="color:var(--ev-text);">{{ t.payout }}</strong> per ticket · Eventify fee {{ t.feeAmt }}</span>
+                  </sc-if>
+                </div>
+              </sc-for>
+              <button onClick="{{ addTier }}" class="btn" style="align-self:flex-start;border:2px dashed var(--ev-hair);border-radius:10px;color:var(--ev-text);padding:10px 14px;" style-hover="background:var(--ev-surface)">+ Add custom tier</button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep3 }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;flex-direction:column;gap:16px;">
+              <span style="font-size:14px;color:var(--ev-muted);">Review everything before it goes live. You can edit later from the dashboard.</span>
+              <div style="display:flex;flex-direction:column;gap:10px;padding:16px;border:2px solid var(--ev-rule);border-radius:14px;">
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--ev-muted);">Title</span><span style="font-weight:700;">{{ f.title }}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--ev-muted);">Category</span><span style="font-weight:700;">{{ f.cat }}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--ev-muted);">Where</span><span style="font-weight:700;">{{ f.venue }}, {{ f.city }}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--ev-muted);">When</span><span style="font-weight:700;">{{ f.date }} · {{ f.time }}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--ev-muted);">Ticket tiers</span><span style="font-weight:700;">{{ tierCount }}</span></div>
+                <div style="display:flex;justify-content:space-between;"><span style="color:var(--ev-muted);">Your payout</span><span style="font-weight:700;">{{ previewPayoutNote }}</span></div>
+              </div>
+              <button onClick="{{ publish }}" class="btn" style="justify-content:center;background:var(--ev-accent);color:var(--ev-accent-ink);border-radius:14px;padding:16px 18px;font-size:16px;" style-hover="background:var(--ev-accent-hover)">Publish event</button>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;justify-content:space-between;gap:10px;border-top:2px solid var(--ev-hair);padding-top:16px;">
+            <button onClick="{{ prevStep }}" disabled="{{ isStep1 }}" class="btn" style="border:2px solid var(--ev-rule);border-radius:10px;color:var(--ev-text);padding:10px 16px;opacity:{{ prevOpacity }};" style-hover="background:var(--ev-surface)">Back</button>
+            <sc-if value="{{ notStep3 }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ nextStep }}" class="btn" style="background:var(--ev-text);color:var(--ev-bg);border-radius:10px;padding:10px 16px;" style-hover="opacity:.85">Continue</button>
+            </sc-if>
+          </div>
+        </div>
+
+        <aside style="flex:1 1 280px;max-width:320px;display:flex;flex-direction:column;gap:10px;position:sticky;top:88px;">
+          <span style="font-size:13px;font-weight:700;color:var(--ev-muted);">Live preview</span>
+          <div style="display:flex;flex-direction:column;gap:12px;padding:14px;border:2px solid var(--ev-rule);border-radius:16px;">
+            <div style="position:relative;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:{{ previewCover }};">
+              <div style="position:absolute;left:10px;top:10px;background:var(--ev-card-date);color:var(--ev-text);border-radius:8px;padding:5px 8px;display:flex;flex-direction:column;line-height:1;gap:2px;min-width:36px;">
+                <span style="font-size:9px;font-weight:800;letter-spacing:.1em;color:var(--ev-accent-text);">{{ f.city }}</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:3px;">
+              <span style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ev-accent-text);">{{ f.cat }}</span>
+              <span style="font-size:16px;font-weight:800;line-height:1.2;">{{ previewTitle }}</span>
+              <span style="font-size:12px;color:var(--ev-muted);">{{ f.date }} · {{ f.venue }}</span>
+              <span style="font-size:14px;font-weight:800;color:var(--ev-accent-text);margin-top:2px;">{{ previewPrice }}</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+      </sc-if>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;display:flex;flex-direction:column;">
+      <div style="max-width:1000px;width:100%;margin:0 auto;padding:16px 20px 0;box-sizing:border-box;">
+        <button onClick="{{ goHome }}" class="btn" style="align-self:flex-start;padding:6px 10px 6px 4px;color:var(--ev-text);border-radius:10px;font-size:14px;" style-hover="background:var(--ev-surface)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"></path></svg>Discover
+        </button>
+      </div>
+      <div style="max-width:1000px;width:100%;margin:0 auto;padding:14px 20px 0;box-sizing:border-box;">
+        <div style="height:180px;border-radius:20px;background:{{ org.banner }};"></div>
+      </div>
+      <div style="max-width:1000px;width:100%;margin:0 auto;padding:0 20px 40px;box-sizing:border-box;display:flex;flex-direction:column;gap:24px;">
+        <div style="display:flex;align-items:flex-end;gap:16px;margin-top:-40px;flex-wrap:wrap;">
+          <div style="width:88px;height:88px;border-radius:20px;border:4px solid var(--ev-bg);background:var(--ev-accent-soft);color:var(--ev-accent-text);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;flex:none;">{{ org.initials }}</div>
+          <div style="display:flex;flex-direction:column;gap:2px;flex:1;min-width:0;padding-bottom:4px;">
+            <span style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:22px;">{{ org.name }}
+              <sc-if value="{{ org.verified }}" hint-placeholder-val="{{ true }}">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="var(--ev-accent)" stroke="var(--ev-accent-ink)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"></path><path d="m9 12 2 2 4-4"></path></svg>
+              </sc-if>
+            </span>
+            <span style="font-size:13px;color:var(--ev-muted);">{{ org.type }} · eventify.co/{{ org.handle }}</span>
+          </div>
+          <button onClick="{{ toggleFollow }}" class="btn" style="border-radius:10px;border:2px solid var(--ev-rule);background:{{ followBg }};color:{{ followFg }};padding:10px 18px;flex:none;">{{ followLabel }}</button>
+        </div>
+        <p style="margin:0;font-size:15px;line-height:1.6;color:var(--ev-text);max-width:640px;text-wrap:pretty;">{{ org.bio }}</p>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <h2 style="font-size:20px;margin:0;">Upcoming events</h2>
+          <sc-if value="{{ org.hasUpcoming }}" hint-placeholder-val="{{ true }}">
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">
+              <sc-for list="{{ org.upcoming }}" as="ev" hint-placeholder-count="2">
+                <div onClick="{{ ev.open }}" style="display:flex;flex-direction:column;gap:8px;cursor:pointer;" style-hover="opacity:.9">
+                  <div style="position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:{{ ev.cover }};"></div>
+                  <span style="font-size:14px;font-weight:800;line-height:1.2;">{{ ev.title }}</span>
+                  <span style="font-size:12px;color:var(--ev-muted);">{{ ev.date }} · {{ ev.venue }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ org.noUpcoming }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:14px;color:var(--ev-muted);">No upcoming events right now.</span>
+          </sc-if>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;border-top:2px solid var(--ev-rule);padding-top:20px;">
+          <h2 style="font-size:20px;margin:0;">Past events</h2>
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;">
+            <sc-for list="{{ org.past }}" as="p" hint-placeholder-count="3">
+              <div style="display:flex;flex-direction:column;gap:8px;opacity:.75;">
+                <div style="position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:{{ p.cover }};filter:grayscale(.3);"></div>
+                <span style="font-size:14px;font-weight:800;line-height:1.2;">{{ p.title }}</span>
+                <span style="font-size:12px;color:var(--ev-muted);">{{ p.date }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:900},&quot;layout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;mobile&quot;,&quot;desktop&quot;],&quot;default&quot;:&quot;desktop&quot;,&quot;tsType&quot;:&quot;'mobile'|'desktop'&quot;},&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;home&quot;,&quot;event&quot;,&quot;checkout&quot;,&quot;delivery&quot;,&quot;dashboard&quot;,&quot;create&quot;,&quot;profile&quot;,&quot;scanner&quot;],&quot;default&quot;:&quot;home&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light'|'dark'&quot;},&quot;eventId&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;sauti&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;city&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;All cities&quot;,&quot;Nairobi&quot;,&quot;Juba&quot;,&quot;Mombasa&quot;,&quot;Kisumu&quot;],&quot;default&quot;:&quot;All cities&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const COVERS = {
+  music: ['repeating-linear-gradient(135deg,#0a5a5f 0 14px,#0d666b 14px 28px)', 'rgba(255,255,255,.75)'],
+  campus: ['repeating-linear-gradient(135deg,#5ce1e6 0 14px,#6fe7eb 14px 28px)', 'rgba(6,41,43,.7)'],
+  corporate: ['repeating-linear-gradient(135deg,#13272b 0 14px,#182f34 14px 28px)', 'rgba(255,255,255,.7)'],
+  workshop: ['repeating-linear-gradient(135deg,#e6dcc6 0 14px,#ece4d1 14px 28px)', 'rgba(14,26,28,.6)'],
+};
+const EVENTS = [
+  { id:'sauti', slug:'sauti-sessions', title:'Sauti Sessions: Afro-house Listening Night', cat:'Music & Arts', city:'Nairobi', venue:'The Alchemist, Westlands', address:'Parklands Rd, Westlands, Nairobi', day:'Fri', dnum:'02', mon:'Oct', time:'7:00 PM – 1:00 AM', cur:'KSh', tone:'music', weekend:true,
+    org:'Amani Wanjiru', orgHandle:'amaniwanjiru', orgType:'Independent artist', verified:true,
+    tiers:[{name:'Early Bird',note:'First 100 tickets',price:800,soldOut:true},{name:'Regular',note:'General admission',price:1200},{name:'Student',note:'Valid student ID at the door',price:600},{name:'VIP',note:'Lounge seating + one drink',price:3000}],
+    desc:['A front-to-back listening session of Amani Wanjiru\u2019s new record, played loud on a proper system, followed by a three-hour Afro-house set with guests from Nairobi and Kampala.','Doors open at 7. The album plays at 8 sharp, so come early. 18+ only.'] },
+  { id:'hack', slug:'ieee-hackathon', title:'IEEE Strathmore Hackathon 2026', cat:'Campus', city:'Nairobi', venue:'Strathmore University, Madaraka', address:'Ole Sangale Rd, Madaraka, Nairobi', day:'Sat', dnum:'03', mon:'Oct', time:'8:00 AM – 8:00 PM', cur:'KSh', tone:'campus', weekend:true,
+    org:'IEEE Strathmore Student Branch', orgHandle:'ieee-strathmore', orgType:'Student society', verified:true,
+    tiers:[{name:'Free RSVP',note:'Open to students from any university',price:0}],
+    desc:['Twelve hours, teams of up to four, one brief revealed at 8 AM. Build something useful for Nairobi commuters.','Lunch, Wi-Fi and mentors from local startups are on us. Bring your laptop and your student ID.'] },
+  { id:'mizizi', slug:'mizizi', title:'Mizizi: New Work by Five Juba Painters', cat:'Music & Arts', city:'Juba', venue:'Nyakuron Cultural Centre', address:'Nyakuron, Juba', day:'Sat', dnum:'03', mon:'Oct', time:'4:00 PM – 9:00 PM', cur:'SSP', tone:'workshop', weekend:true,
+    org:'Mizizi Art Collective', orgHandle:'mizizi', orgType:'Artist collective', verified:false,
+    tiers:[{name:'Free entry',note:'Opening night, all welcome',price:0}] },
+  { id:'jazz', slug:'arboretum-jazz', title:'Sunday Jazz at the Arboretum', cat:'Music & Arts', city:'Nairobi', venue:'Nairobi Arboretum', address:'Arboretum Dr, Kileleshwa, Nairobi', day:'Sun', dnum:'04', mon:'Oct', time:'3:00 PM – 7:00 PM', cur:'KSh', tone:'music', weekend:true,
+    org:'Arboretum Jazz Collective', orgHandle:'arboretumjazz', orgType:'Independent artists', verified:true,
+    tiers:[{name:'Regular',note:'Bring a blanket',price:800},{name:'Under 12',note:'With a paying adult',price:0}] },
+  { id:'slam', slug:'uon-poetry-slam', title:'Open Mic & Poetry Slam', cat:'Campus', city:'Nairobi', venue:'University of Nairobi, Main Campus', address:'University Way, Nairobi', day:'Fri', dnum:'09', mon:'Oct', time:'5:30 PM – 9:00 PM', cur:'KSh', tone:'campus',
+    org:'UoN Writers Guild', orgHandle:'uon-writers', orgType:'Student society', verified:true, tiers:[{name:'Free RSVP',note:'Sign up to perform at the door',price:0}] },
+  { id:'excel', slug:'excel-bookkeeping-juba', title:'Excel & Bookkeeping for Small Business', cat:'Workshops', city:'Juba', venue:'Kololo Training Centre', address:'Kololo Rd, Juba', day:'Sat', dnum:'10', mon:'Oct', time:'10:00 AM – 3:00 PM', cur:'SSP', tone:'workshop',
+    org:'Deng Training Co.', orgHandle:'dengtraining', orgType:'Workshop host', verified:true, tiers:[{name:'Regular',note:'Laptop required',price:20000},{name:'Student',note:'Valid student ID',price:8000}] },
+  { id:'launch', slug:'paylink-launch', title:'PayLink Kenya: Product Launch & Demo Day', cat:'Corporate', city:'Nairobi', venue:'KICC, City Centre', address:'Harambee Ave, Nairobi', day:'Wed', dnum:'14', mon:'Oct', time:'9:00 AM – 1:00 PM', cur:'KSh', tone:'corporate',
+    org:'PayLink Kenya', orgHandle:'paylink', orgType:'Company', verified:true,
+    tiers:[{name:'Early Bird',note:'Limited seats',price:2000,remaining:8},{name:'Regular',note:'Includes breakfast',price:2500},{name:'Partner',note:'Reserved seating',price:6000}] },
+  { id:'summit', slug:'juba-tech-summit', title:'Juba Tech & Trade Summit', cat:'Corporate', city:'Juba', venue:'Juba Grand Hotel', address:'Airport Rd, Juba', day:'Thu', dnum:'15', mon:'Oct', time:'9:00 AM – 5:00 PM', cur:'SSP', tone:'corporate',
+    org:'South Sudan ICT Chamber', orgHandle:'ssict', orgType:'Industry body', verified:true, tiers:[{name:'Regular',note:'Full-day pass',price:45000},{name:'Student',note:'Valid student ID',price:15000},{name:'VIP',note:'Speaker dinner',price:120000}] },
+  { id:'pwani', slug:'pwani-taarab', title:'Pwani Food & Taarab Evening', cat:'Music & Arts', city:'Mombasa', venue:'Fort Jesus Grounds', address:'Nkrumah Rd, Mombasa', day:'Sat', dnum:'17', mon:'Oct', time:'6:00 PM – 11:00 PM', cur:'KSh', tone:'music',
+    org:'Pwani Culture Trust', orgHandle:'pwaniculture', orgType:'Cultural trust', verified:true, tiers:[{name:'Regular',note:'Food sold separately',price:1500}] },
+  { id:'photo', slug:'mobile-photo-masterclass', title:'Mobile Photography Masterclass', cat:'Workshops', city:'Nairobi', venue:'iHub, Kilimani', address:'Ngong Rd, Kilimani, Nairobi', day:'Sat', dnum:'24', mon:'Oct', time:'10:00 AM – 2:00 PM', cur:'KSh', tone:'workshop',
+    org:'Lens Kenya', orgHandle:'lenskenya', orgType:'Workshop host', verified:false, tiers:[{name:'Regular',note:'Bring your phone',price:2000},{name:'Student',note:'Valid student ID',price:1200}] },
+];
+const ORG_META = {
+  amaniwanjiru: { bio:'Nairobi-based producer and DJ. I run listening sessions and small club nights around Afro-house, amapiano and the sounds in between — usually once a month, always announced here first.', banner: COVERS.music[0],
+    past:[{title:'Rooftop Sessions Vol. 3',date:'Aug 2026',cover:COVERS.music[0]},{title:'Afro-house New Year Warmup',date:'Jan 2026',cover:COVERS.music[0]}] },
+  'ieee-strathmore': { bio:'The IEEE Student Branch at Strathmore University. We run hackathons, tech talks and workshops for students across Nairobi — most of it free.', banner: COVERS.campus[0],
+    past:[{title:'IEEE Strathmore Hackathon 2025',date:'Oct 2025',cover:COVERS.campus[0]},{title:'Intro to Embedded Systems',date:'May 2025',cover:COVERS.campus[0]},{title:'Career Fair 2025',date:'Mar 2025',cover:COVERS.campus[0]}] },
+  dengtraining: { bio:'Practical business skills training in Juba: bookkeeping, Excel and small-business basics. I run one workshop a month at Kololo Training Centre.', banner: COVERS.workshop[0],
+    past:[{title:'Intro to Small Business Accounting',date:'Jul 2026',cover:COVERS.workshop[0]},{title:'Excel Fundamentals',date:'Apr 2026',cover:COVERS.workshop[0]}] },
+  paylink: { bio:'PayLink Kenya builds payment infrastructure for East African merchants. This page covers our product launches, demo days and partner events.', banner: COVERS.corporate[0],
+    past:[{title:'PayLink Series A Announcement',date:'Jun 2026',cover:COVERS.corporate[0]}] },
+};
+const GUESTS = [
+  { id: 'g1', name: 'Amina Otieno', phone: '+254 712 345 678', tier: 'Regular', done: false },
+  { id: 'g2', name: 'Brian Momanyi', phone: '+254 733 221 009', tier: 'VIP', done: true },
+  { id: 'g3', name: 'Nyandeng Deng', phone: '+211 922 456 781', tier: 'Student', done: false },
+];
+const DOORS = [{ name: 'Main Gate', count: 142 }, { name: 'Side Gate', count: 38 }, { name: 'Volunteer — Aisha K.', count: 51 }];
+const CITIES = ['All cities','Nairobi','Juba','Mombasa','Kisumu'];
+const CATS = ['All','Corporate','Campus','Music & Arts','Workshops','Free'];
+const CREATE_CATS = ['Corporate','Campus','Music & Arts','Workshops'];
+const PRESETS = ['Early Bird', 'Regular', 'VIP', 'Student', 'Free / RSVP'];
+const FEE = 0.03;
+const ORG_RATES = { amaniwanjiru: 0.045, 'ieee-strathmore': 0.05, dengtraining: 0.05, paylink: 0.042, mizizi: 0.05, pwaniculture: 0.05, lenskenya: 0.05, ssict: 0.05 };
+const rateFor = handle => ORG_RATES[handle] ?? 0.05;
+const fmt = (cur, n) => cur + ' ' + n.toLocaleString('en-US');
+const isFree = e => e.tiers.every(t => t.price === 0);
+function priceLabel(e) {
+  if (isFree(e)) return 'Free';
+  const paid = e.tiers.filter(t => !t.soldOut && t.price > 0).map(t => t.price);
+  const lo = Math.min(...paid);
+  return (e.tiers.length > 1 ? 'From ' : '') + fmt(e.cur, lo);
+}
+function defaultDesc(e) { return [`${e.title} by ${e.org}. ${e.time} at ${e.venue}.`, 'Tickets are delivered by SMS and email with a QR code and Express Entry Live Pass for quick entry at the door.']; }
+function slugify(s) { return (s || 'my-event').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'my-event'; }
+function genCode() { const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 6; i++) s += c[Math.floor(Math.random() * c.length)]; return s; }
+let tierUid = 0;
+const newTier = (name, price, qty) => ({ uid: 'tr' + (tierUid++), name, price, qty, saleStart: '', saleEnd: '' });
+
+class Component extends DCLogic {
+  state = {
+    screen: this.props.screen ?? 'home', eventId: this.props.eventId ?? 'sauti', theme: this.props.theme ?? 'light',
+    city: this.props.city ?? 'All cities', cat: 'All', q: '', tier: null, qty: 1, following: false, copied: false,
+    checkoutStep: 'form', buyerName: '', buyerPhone: '', buyerEmail: '', payMethod: 'mpesa', touchedPay: false, ticketId: null, waitElapsed: 0,
+    liveCode: genCode(),
+    profileHandle: 'amaniwanjiru',
+    createStep: 1, published: false, copiedNew: false,
+    f: { title: '', cat: 'Music & Arts', city: 'Nairobi', venue: '', date: '', time: '', desc: '', tiers: [newTier('Regular', '', '')] },
+    doorInviteOpen: false, doorCopied: false,
+    scanResult: null, scanSearch: '', guests: GUESTS.map(g => ({ ...g })),
+  };
+  rootRef = React.createRef();
+  waitInterval = null; autoTimer = null; codeInterval = null; mounted = true;
+
+  componentDidUpdate(prev) {
+    const p = this.props;
+    const patch = {};
+    if (p.theme !== prev.theme && p.theme) patch.theme = p.theme;
+    if (p.screen !== prev.screen && p.screen) patch.screen = p.screen;
+    if (p.eventId !== prev.eventId && p.eventId) patch.eventId = p.eventId;
+    if (Object.keys(patch).length) this.setState(patch);
+    const wasSuccess = prev.screen === 'checkout' && this.state.checkoutStep === 'success' && prev.checkoutStep === 'success';
+    const isSuccess = this.state.screen === 'checkout' && this.state.checkoutStep === 'success';
+    if (isSuccess && !this.codeInterval) this.codeInterval = setInterval(() => this.mounted && this.setState({ liveCode: genCode() }), 4000);
+    if (!isSuccess && this.codeInterval) { clearInterval(this.codeInterval); this.codeInterval = null; }
+  }
+  componentWillUnmount() { this.mounted = false; this.clearWaitTimers(); if (this.codeInterval) clearInterval(this.codeInterval); }
+  clearWaitTimers() { if (this.waitInterval) clearInterval(this.waitInterval); if (this.autoTimer) clearTimeout(this.autoTimer); this.waitInterval = null; this.autoTimer = null; }
+  scrollTop() {
+    let el = this.rootRef.current;
+    while (el) { if (el.scrollHeight > el.clientHeight + 2 && getComputedStyle(el).overflowY !== 'visible') { el.scrollTop = 0; break; } el = el.parentElement; }
+  }
+  nav(patch) { this.setState(patch, () => this.scrollTop()); }
+  open(id) { this.nav({ screen: 'event', eventId: id, tier: null, qty: 1, copied: false, following: false }); }
+  card(e) {
+    const [cover, labelColor] = COVERS[e.tone];
+    return { ...e, cover, labelColor, dayUp: e.day.toUpperCase(), monUp: e.mon.toUpperCase(), date: `${e.day} ${+e.dnum} ${e.mon}`, priceLabel: priceLabel(e),
+      priceColor: isFree(e) ? 'var(--ev-accent-text)' : 'var(--ev-text)', open: () => this.open(e.id) };
+  }
+  orgFor(handle) {
+    const evs = EVENTS.filter(e => e.orgHandle === handle);
+    const base = evs[0] || EVENTS[0];
+    const meta = ORG_META[handle] || { bio: `${base.org} hosts events on Eventify.`, banner: COVERS[base.tone][0], past: [] };
+    return { handle, name: base.org, type: base.orgType, verified: base.verified,
+      initials: base.org.split(/\s+/).filter(w => /^[A-Z]/.test(w)).slice(0, 2).map(w => w[0]).join(''),
+      bio: meta.bio, banner: meta.banner, past: meta.past, upcoming: evs.map(e => this.card(e)) };
+  }
+  startWaiting() {
+    this.clearWaitTimers();
+    this.setState({ checkoutStep: 'waiting', waitElapsed: 0 }, () => {
+      this.scrollTop();
+      this.waitInterval = setInterval(() => this.setState(s => ({ waitElapsed: s.waitElapsed + 1 })), 1000);
+      this.autoTimer = setTimeout(() => {
+        this.clearWaitTimers();
+        const e = EVENTS.find(x => x.id === this.state.eventId) || EVENTS[0];
+        const tid = 'EVT-' + e.id.toUpperCase() + '-' + Math.floor(1000 + Math.random() * 9000);
+        this.setState({ checkoutStep: 'success', ticketId: tid }, () => { this.scrollTop(); if (!this.codeInterval) this.codeInterval = setInterval(() => this.mounted && this.setState({ liveCode: genCode() }), 4000); });
+      }, 4500);
+    });
+  }
+  updateTier(uid, patch) { this.setState(st => ({ f: { ...st.f, tiers: st.f.tiers.map(t => t.uid === uid ? { ...t, ...patch } : t) } })); }
+
+  renderVals() {
+    const s = this.state;
+    const layout = this.props.layout ?? 'desktop';
+    const isMobile = layout === 'mobile';
+    const inCity = e => s.city === 'All cities' || e.city === s.city;
+    const q = s.q.trim().toLowerCase();
+    const results = EVENTS.filter(e => inCity(e)
+      && (s.cat === 'All' || (s.cat === 'Free' ? isFree(e) : e.cat === s.cat))
+      && (!q || [e.title, e.venue, e.org, e.city].join(' ').toLowerCase().includes(q))).map(e => this.card(e));
+    const weekend = EVENTS.filter(e => e.weekend && inCity(e)).map(e => this.card(e));
+
+    const e = EVENTS.find(x => x.id === s.eventId) || EVENTS[0];
+    const tierIdx = s.tier ?? e.tiers.findIndex(t => !(t.soldOut || t.remaining === 0));
+    const tier = e.tiers[Math.max(tierIdx, 0)];
+    const total = tier.price * s.qty;
+    const free = total === 0;
+    const tiers = e.tiers.map((t, i) => {
+      const sel = i === tierIdx;
+      const soldOut = t.soldOut || t.remaining === 0;
+      let badge = null;
+      if (soldOut) badge = { label: 'SOLD OUT', bg: 'var(--ev-surface-2)', fg: 'var(--ev-muted)' };
+      else if (t.remaining != null && t.remaining <= 15) badge = { label: `ONLY ${t.remaining} LEFT`, bg: 'var(--ev-danger-soft)', fg: 'var(--ev-danger)' };
+      return { ...t, soldOut, priceLabel: soldOut ? 'Sold out' : (t.price ? fmt(e.cur, t.price) : 'Free'),
+        border: sel ? 'var(--ev-accent)' : 'var(--ev-hair)', bg: sel ? 'var(--ev-accent-soft)' : 'transparent',
+        dotBorder: sel ? 'var(--ev-accent-text)' : 'var(--ev-hair)', dotBg: sel ? 'var(--ev-accent)' : 'transparent', opacity: soldOut ? .45 : 1,
+        hasBadge: !!badge, badgeLabel: badge ? badge.label : '', badgeBg: badge ? badge.bg : '', badgeFg: badge ? badge.fg : '',
+        select: () => !soldOut && this.setState({ tier: i }) };
+    });
+    const evCard = { ...this.card(e), desc: e.desc || defaultDesc(e), orgInitials: e.org.split(/\s+/).filter(w => /^[A-Z]/.test(w)).slice(0, 2).map(w => w[0]).join('') };
+
+    const methods = [
+      { key: 'mpesa', name: 'M-Pesa', note: 'STK push to your phone', tag: 'POPULAR', tagBg: 'var(--ev-accent-soft)', tagFg: 'var(--ev-accent-text)' },
+      { key: 'momo', name: 'MTN Mobile Money', note: 'Prompt sent to your phone', tag: 'MOMO', tagBg: 'var(--ev-accent-soft)', tagFg: 'var(--ev-accent-text)' },
+      { key: 'card', name: 'Card', note: 'Visa or Mastercard', tag: 'SECONDARY', tagBg: 'var(--ev-surface-2)', tagFg: 'var(--ev-muted)' },
+    ].map(m => { const sel = m.key === s.payMethod; return { ...m,
+      border: sel ? 'var(--ev-accent)' : 'var(--ev-hair)', bg: sel ? 'var(--ev-accent-soft)' : 'transparent',
+      dotBorder: sel ? 'var(--ev-accent-text)' : 'var(--ev-hair)', dotBg: sel ? 'var(--ev-accent)' : 'transparent',
+      select: () => this.setState({ payMethod: m.key }) }; });
+    const methodLabelMap = { mpesa: 'M-Pesa', momo: 'MTN MoMo', card: 'card' };
+    const phonePlaceholder = e.city === 'Juba' || e.cur === 'SSP' ? '+211 9XX XXX XXX' : '+254 7XX XXX XXX';
+    const validPay = s.buyerName.trim().length > 1 && s.buyerPhone.trim().length > 6 && s.buyerEmail.trim().includes('@');
+    const buyerName = s.buyerName || 'Amina Otieno', buyerPhone = s.buyerPhone || phonePlaceholder.replace('X', '1').replace(/X/g, '2'), buyerEmail = s.buyerEmail || 'amina@example.com';
+    const ticketId = s.ticketId || ('EVT-' + e.id.toUpperCase() + '-4821');
+
+    const seed = ticketId.split('').reduce((a, c) => a * 31 + c.charCodeAt(0), 7);
+    let rnd = seed;
+    const qrCells = Array.from({ length: 81 }, (_, i) => {
+      const r = Math.floor(i / 9), c = i % 9;
+      const corner = (r < 3 && c < 3) || (r < 3 && c > 5) || (r > 5 && c < 3);
+      rnd = (rnd * 1103515245 + 12345) & 0x7fffffff;
+      return { color: (corner || (rnd % 5) < 2) ? 'var(--ev-text)' : 'transparent' };
+    });
+    const dayHue = (new Date().getDate() * 47) % 360;
+    const passBg = `conic-gradient(from 200deg, hsl(${dayHue},62%,42%), hsl(${(dayHue + 55) % 360},70%,52%), hsl(${dayHue},62%,42%))`;
+
+    const mm = String(Math.floor(s.waitElapsed / 60)).padStart(2, '0'), ss = String(s.waitElapsed % 60).padStart(2, '0');
+
+    // Dashboard mock data
+    const salesSeries = [3, 5, 4, 8, 12, 9, 15, 18, 14, 22, 27, 19, 31, 24];
+    const maxV = Math.max(...salesSeries);
+    const bw = 560 / salesSeries.length;
+    const chartBars = salesSeries.map((v, i) => { const h = (v / maxV) * 118; return { x: (i * bw + bw * 0.18).toFixed(1), y: (140 - h).toFixed(1), w: (bw * 0.64).toFixed(1), h: h.toFixed(1), fill: i === salesSeries.length - 1 ? 'var(--ev-accent-text)' : 'var(--ev-accent)' }; });
+    const orgRate = rateFor(s.profileHandle);
+    const grossKsh = 452600, feesKsh = Math.round(grossKsh * orgRate), netKsh = grossKsh - feesKsh;
+    const dashStats = [
+      { label: 'Tickets sold', value: '602', sub: '+48 this week' },
+      { label: 'Gross sales', value: 'KSh ' + grossKsh.toLocaleString('en-US'), sub: '+12% vs last month' },
+      { label: 'Eventify fees', value: 'KSh ' + feesKsh.toLocaleString('en-US'), sub: (orgRate * 100).toFixed(1).replace(/\.0$/, '') + '% negotiated rate' },
+      { label: 'Net payout', value: 'KSh ' + netKsh.toLocaleString('en-US'), sub: 'Paid out weekly' },
+      { label: 'Check-ins', value: '231', sub: '38% of sold' },
+      { label: 'Page views', value: '4,180', sub: '+320 this week' },
+    ];
+    const tierBreakdown = [
+      { name: 'VIP', sold: 18, rev: 54000 }, { name: 'Regular', sold: 210, rev: 252000 }, { name: 'Student', sold: 84, rev: 50400 },
+    ].map(t => ({ name: t.name, sold: t.sold + ' sold', revenue: 'KSh ' + t.rev.toLocaleString('en-US'), pct: Math.round((t.sold / 210) * 100) + '%' }));
+    const myEventsRaw = [
+      { id: 'sauti', status: 'Live', },
+      { id: 'hack', status: 'Live', },
+      { id: 'jazz', status: 'Ended', },
+      { id: 'draft-1', status: 'Draft', title: 'Untitled listening session', date: 'Not scheduled', tone: 'music' },
+    ];
+    const statusStyle = { Live: ['var(--ev-accent-soft)', 'var(--ev-accent-text)'], Draft: ['var(--ev-surface-2)', 'var(--ev-muted)'], Ended: ['var(--ev-surface-2)', 'var(--ev-muted)'] };
+    const myEvents = myEventsRaw.map(m => {
+      const src = EVENTS.find(x => x.id === m.id);
+      const cover = COVERS[src ? src.tone : m.tone][0];
+      const [bg, fg] = statusStyle[m.status];
+      return { title: src ? src.title : m.title, date: src ? `${src.day} ${+src.dnum} ${src.mon}` : m.date,
+        cover, status: m.status, statusBg: bg, statusFg: fg, open: () => src && this.open(src.id) };
+    });
+    const checkinTotal = DOORS.reduce((a, d) => a + d.count, 0) + ' / 400 checked in';
+
+    // Scanner
+    const guestQ = s.scanSearch.trim().toLowerCase();
+    const guestResults = s.guests.filter(g => !guestQ || (g.name + g.phone).toLowerCase().includes(guestQ)).map(g => ({
+      ...g, btnLabel: g.done ? 'Checked in' : 'Check in', btnBg: g.done ? 'var(--ev-surface-2)' : 'var(--ev-accent)', btnFg: g.done ? 'var(--ev-muted)' : 'var(--ev-accent-ink)',
+      checkin: () => this.setState(st => ({ guests: st.guests.map(x => x.id === g.id ? { ...x, done: true } : x) })),
+    }));
+
+    // Create-event live preview
+    const f = s.f;
+    const previewCat = CREATE_CATS.includes(f.cat) ? f.cat : 'Music & Arts';
+    const previewToneMap = { Corporate: 'corporate', Campus: 'campus', 'Music & Arts': 'music', Workshops: 'workshop' };
+    const previewCover = COVERS[previewToneMap[previewCat]][0];
+    const validTiers = f.tiers.filter(t => t.name.trim());
+    const anyPaid = validTiers.some(t => Number(t.price) > 0);
+    const cur = f.city === 'Juba' ? 'SSP' : 'KSh';
+    const lo = validTiers.length ? Math.min(...validTiers.map(t => Number(t.price) || 0)) : 0;
+    const previewPrice = !anyPaid ? 'Free' : (validTiers.length > 1 ? 'From ' : '') + fmt(cur, lo);
+    const newSlug = slugify(f.title);
+    const avgPayout = validTiers.length ? Math.round(validTiers.reduce((a, t) => a + (Number(t.price) || 0) * (1 - orgRate), 0) / validTiers.length) : 0;
+    const previewPayoutNote = anyPaid ? `~${fmt(cur, avgPayout)} per ticket after your ${(orgRate * 100).toFixed(1).replace(/\.0$/, '')}% rate` : 'Free event — no fees';
+
+    const presetChips = PRESETS.map(name => {
+      const on = f.tiers.some(t => t.name === name);
+      return { label: name, on, border: on ? 'var(--ev-rule)' : 'var(--ev-hair)', bg: on ? 'var(--ev-text)' : 'transparent', fg: on ? 'var(--ev-bg)' : 'var(--ev-text)',
+        toggle: () => this.setState(st => ({ f: { ...st.f, tiers: on ? st.f.tiers.filter(t => t.name !== name) : [...st.f.tiers.filter(t => t.name.trim()), newTierPreset(name)] } })) };
+    });
+    function newTierPreset(name) { const t = newTier(name, name === 'Free / RSVP' ? '0' : '', ''); if (name === 'Early Bird') t.saleEnd = ''; return t; }
+
+    const org = this.orgFor(s.profileHandle);
+
+    return {
+      rootRef: this.rootRef,
+      theme: s.theme, isDark: s.theme === 'dark', isLight: s.theme !== 'dark',
+      toggleTheme: () => this.setState({ theme: s.theme === 'dark' ? 'light' : 'dark' }),
+      isMobile, isDesktop: !isMobile,
+      isHome: s.screen === 'home', isEvent: s.screen === 'event',
+      isCheckoutForm: s.screen === 'checkout' && s.checkoutStep === 'form',
+      isCheckoutWaiting: s.screen === 'checkout' && s.checkoutStep === 'waiting',
+      isCheckoutSuccess: s.screen === 'checkout' && s.checkoutStep === 'success',
+      isDelivery: s.screen === 'delivery',
+      isDashboard: s.screen === 'dashboard', isCreate: s.screen === 'create', isProfile: s.screen === 'profile', isScanner: s.screen === 'scanner',
+      goHome: () => this.nav({ screen: 'home' }),
+      goDashboard: () => this.nav({ screen: 'dashboard' }),
+      goCreate: () => this.nav({ screen: 'create', createStep: 1, published: false, copiedNew: false, f: { title: '', cat: 'Music & Arts', city: 'Nairobi', venue: '', date: '', time: '', desc: '', tiers: [newTier('Regular', '', '')] } }),
+      goCheckout: () => this.nav({ screen: 'checkout', checkoutStep: 'form', touchedPay: false }),
+      goEventBack: () => this.nav({ screen: 'event' }),
+      goOrgProfile: () => this.nav({ screen: 'profile', profileHandle: e.orgHandle }),
+      goProfileDefault: () => this.nav({ screen: 'profile', profileHandle: 'amaniwanjiru' }),
+      goDelivery: () => this.nav({ screen: 'delivery' }),
+      goScanner: () => this.nav({ screen: 'scanner', scanResult: null }),
+      navHomeColor: s.screen === 'home' ? 'var(--ev-text)' : 'var(--ev-muted)',
+      navDashColor: ['dashboard', 'create', 'scanner'].includes(s.screen) ? 'var(--ev-text)' : 'var(--ev-muted)',
+      navProfileColor: s.screen === 'profile' ? 'var(--ev-text)' : 'var(--ev-muted)',
+      cityLabel: s.city === 'All cities' ? 'East Africa' : s.city,
+      cities: CITIES, city: s.city, onCity: ev => this.setState({ city: ev.target.value }),
+      q: s.q, onSearch: ev => this.setState({ q: ev.target.value }),
+      chips: CATS.map(c => { const on = c === s.cat; return { label: c, border: on ? 'var(--ev-rule)' : 'var(--ev-hair)', bg: on ? 'var(--ev-text)' : 'transparent', fg: on ? 'var(--ev-bg)' : 'var(--ev-text)', select: () => this.setState({ cat: c }) }; }),
+      weekend, hasWeekend: weekend.length > 0, noWeekend: weekend.length === 0,
+      results, hasResults: results.length > 0, noResults: results.length === 0,
+      countLabel: results.length + (results.length === 1 ? ' event' : ' events'),
+      clearFilters: () => this.setState({ city: 'All cities', cat: 'All', q: '' }),
+
+      ev: evCard, tiers, qty: s.qty,
+      inc: () => this.setState({ qty: Math.min(10, s.qty + 1) }),
+      dec: () => this.setState({ qty: Math.max(1, s.qty - 1) }),
+      lineLabel: `${s.qty} × ${tier.name}`,
+      totalLabel: free ? 'Free' : fmt(e.cur, total),
+      ctaLabel: free ? 'Reserve spot' : 'Get tickets',
+      followLabel: s.following ? 'Following' : 'Follow',
+      followBg: s.following ? 'var(--ev-text)' : 'transparent', followFg: s.following ? 'var(--ev-bg)' : 'var(--ev-text)',
+      toggleFollow: () => this.setState({ following: !s.following }),
+      copyLabel: s.copied ? 'Copied' : 'Copy',
+      copyLink: () => { try { navigator.clipboard.writeText('https://eventify.co/e/' + e.slug); } catch (_) {} this.setState({ copied: true }); },
+      shareTargets: ['WhatsApp', 'Instagram', 'X'],
+
+      buyerName: s.buyerName, onName: ev => this.setState({ buyerName: ev.target.value }),
+      buyerPhone: s.buyerPhone, onPhone: ev => this.setState({ buyerPhone: ev.target.value }),
+      buyerEmail: s.buyerEmail, onEmail: ev => this.setState({ buyerEmail: ev.target.value }),
+      phonePlaceholder, methods,
+      payMethodLabel: methodLabelMap[s.payMethod],
+      payCtaLabel: s.payMethod === 'card' ? 'Pay with card' : 'Send payment prompt',
+      showValidation: s.touchedPay && !validPay,
+      submitPay: () => { if (!validPay) { this.setState({ touchedPay: true }); return; } this.startWaiting(); },
+      resendPrompt: () => this.startWaiting(),
+      cancelPay: () => { this.clearWaitTimers(); this.setState({ checkoutStep: 'form' }); },
+      waitTimeLabel: `${mm}:${ss} — waiting for confirmation`,
+      ticketId, qrCells, passBg, liveCode: s.liveCode,
+
+      dashOrgName: org.name, dashStats, chartBars, chartTotal: '206 tickets · KSh 178,400', tierBreakdown,
+      myEvents, checkinTotal, doors: DOORS,
+      doorInviteOpen: s.doorInviteOpen, toggleDoorInvite: () => this.setState({ doorInviteOpen: !s.doorInviteOpen }),
+      doorCode: 'sauti-a92f', doorCopyLabel: s.doorCopied ? 'Copied' : 'Copy',
+      copyDoorLink: () => { try { navigator.clipboard.writeText('https://eventify.co/checkin/sauti-a92f'); } catch (_) {} this.setState({ doorCopied: true }); },
+
+      hasScanResult: !!s.scanResult, scanIsValid: s.scanResult === 'valid', scanIsUsed: s.scanResult === 'used',
+      resultBg: s.scanResult === 'valid' ? 'var(--ev-good-soft)' : 'var(--ev-danger-soft)', resultFg: s.scanResult === 'valid' ? 'var(--ev-good)' : 'var(--ev-danger)',
+      resultLabel: s.scanResult === 'valid' ? 'Valid' : 'Already used',
+      resultSub: s.scanResult === 'valid' ? 'Amina Otieno · Regular ticket' : 'Checked in 6 minutes ago at Main Gate',
+      simulateValid: () => this.setState({ scanResult: 'valid' }),
+      simulateUsed: () => this.setState({ scanResult: 'used' }),
+      scanSearch: s.scanSearch, onScanSearch: ev => this.setState({ scanSearch: ev.target.value }),
+      guestResults,
+
+      isStep1: s.createStep === 1, isStep2: s.createStep === 2, isStep3: s.createStep === 3, notStep3: s.createStep !== 3,
+      isPublished: s.published, isDraftEditing: !s.published,
+      progressSteps: ['Details', 'Tickets', 'Publish'].map((label, i) => { const step = i + 1; const done = s.createStep > step || s.published; const active = s.createStep === step && !s.published;
+        return { label, bar: done || active ? 'var(--ev-accent)' : 'var(--ev-hair)', color: done || active ? 'var(--ev-text)' : 'var(--ev-muted)' }; }),
+      f: { ...f, tiers: f.tiers.map(t => {
+        const price = Number(t.price) || 0;
+        const payout = price > 0 ? Math.round(price * (1 - orgRate)) : 0;
+        const feeAmt = price > 0 ? Math.round(price * orgRate) : 0;
+        return { ...t, endPlaceholder: t.name === 'Early Bird' ? 'Limit reached or date' : 'Never',
+          hasPayout: price > 0, payout: fmt(cur, payout), feeAmt: fmt(cur, feeAmt),
+          setName: ev => this.updateTier(t.uid, { name: ev.target.value }),
+          setPrice: ev => this.updateTier(t.uid, { price: ev.target.value.replace(/[^0-9]/g, '') }),
+          setQty: ev => this.updateTier(t.uid, { qty: ev.target.value.replace(/[^0-9]/g, '') }),
+          setStart: ev => this.updateTier(t.uid, { saleStart: ev.target.value }),
+          setEnd: ev => this.updateTier(t.uid, { saleEnd: ev.target.value }),
+          remove: () => this.setState(st => ({ f: { ...st.f, tiers: st.f.tiers.length > 1 ? st.f.tiers.filter(x => x.uid !== t.uid) : st.f.tiers } })) };
+      }) },
+      catOptions: CREATE_CATS, cityOptions: ['Nairobi', 'Juba', 'Mombasa', 'Kisumu'], presetChips,
+      setTitle: ev => this.setState(st => ({ f: { ...st.f, title: ev.target.value } })),
+      setCat: ev => this.setState(st => ({ f: { ...st.f, cat: ev.target.value } })),
+      setCity: ev => this.setState(st => ({ f: { ...st.f, city: ev.target.value } })),
+      setVenue: ev => this.setState(st => ({ f: { ...st.f, venue: ev.target.value } })),
+      setDate: ev => this.setState(st => ({ f: { ...st.f, date: ev.target.value } })),
+      setTime: ev => this.setState(st => ({ f: { ...st.f, time: ev.target.value } })),
+      setDesc: ev => this.setState(st => ({ f: { ...st.f, desc: ev.target.value } })),
+      addTier: () => this.setState(st => ({ f: { ...st.f, tiers: [...st.f.tiers, newTier('', '', '')] } })),
+      prevStep: () => this.setState(st => ({ createStep: Math.max(1, st.createStep - 1) })),
+      nextStep: () => this.setState(st => ({ createStep: Math.min(3, st.createStep + 1) })),
+      prevOpacity: s.createStep === 1 ? .4 : 1,
+      tierCount: validTiers.length || 1, previewPayoutNote,
+      publish: () => this.setState({ published: true }),
+      newSlug, copyNewLabel: s.copiedNew ? 'Copied' : 'Copy',
+      copyNewLink: () => { try { navigator.clipboard.writeText('https://eventify.co/e/' + newSlug); } catch (_) {} this.setState({ copiedNew: true }); },
+      previewCover, previewTitle: f.title || 'Your event title', previewPrice,
+
+      org: { ...org, hasUpcoming: org.upcoming.length > 0, noUpcoming: org.upcoming.length === 0 },
+    };
+  }
+}
+</script>
+</body>
+</html>

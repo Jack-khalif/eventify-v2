@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="_ds/modernist-aa357391-1cab-4cdb-a7e4-272f6ab07d87/styles.css">
+<script src="_ds/modernist-aa357391-1cab-4cdb-a7e4-272f6ab07d87/_ds_bundle.js"></script>
+<style>
+[data-adm-root] a{color:var(--color-accent-700)}
+[data-adm-root] a:hover{color:var(--color-text)}
+[data-adm-root] .table th{white-space:nowrap;}
+[data-adm-root] .rowlink{cursor:pointer;}
+[data-adm-root] .rowlink:hover{background:var(--color-neutral-100);}
+</style>
+</helmet>
+<div data-adm-root="" style="background:var(--color-bg);color:var(--color-text);font-family:var(--font-body);min-height:100%;display:flex;flex-direction:column;">
+
+  <header class="nav" style="display:flex;align-items:center;gap:20px;padding:0 24px;border-bottom:var(--border-width,2px) solid var(--color-divider);height:64px;">
+    <div class="nav-brand" onClick="{{ goOverview }}" style="cursor:pointer;font-weight:700;font-size:15px;letter-spacing:.18em;">EVENTIFY ADMIN</div>
+    <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+      <nav style="display:flex;gap:20px;font-size:13px;font-weight:600;margin-right:auto;">
+        <span onClick="{{ goOverview }}" style="cursor:pointer;color:{{ navColor.overview }};">Overview</span>
+        <span onClick="{{ goOrganizers }}" style="cursor:pointer;color:{{ navColor.organizers }};">Organizers</span>
+        <sc-if value="{{ isSuperAdmin }}" hint-placeholder-val="{{ true }}">
+          <span onClick="{{ goApprovals }}" style="cursor:pointer;color:{{ navColor.approvals }};">Approvals<sc-if value="{{ hasApprovals }}" hint-placeholder-val="{{ false }}"><span style="margin-left:5px;background:var(--color-accent);color:#fff;font-size:10px;padding:1px 6px;">{{ approvalsCount }}</span></sc-if></span>
+          <span onClick="{{ goAgents }}" style="cursor:pointer;color:{{ navColor.agents }};">Agents</span>
+        </sc-if>
+        <span onClick="{{ goPayouts }}" style="cursor:pointer;color:{{ navColor.payouts }};">Payouts</span>
+      </nav>
+    </sc-if>
+    <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}"><span style="margin-right:auto;"></span></sc-if>
+    <div class="seg" style="flex:none;">
+      <span onClick="{{ setRoleSuper }}" class="seg-opt" style="cursor:pointer;background:{{ roleSuperBg }};color:{{ roleSuperFg }};">Super Admin</span>
+      <span onClick="{{ setRoleAgent }}" class="seg-opt" style="cursor:pointer;background:{{ roleAgentBg }};color:{{ roleAgentFg }};">Agent</span>
+    </div>
+  </header>
+
+  <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+    <nav style="display:flex;gap:6px;overflow-x:auto;padding:10px 16px;border-bottom:2px solid var(--color-divider);scrollbar-width:none;">
+      <button onClick="{{ goOverview }}" class="btn btn-secondary" style="flex:none;">Overview</button>
+      <button onClick="{{ goOrganizers }}" class="btn btn-secondary" style="flex:none;">Organizers</button>
+      <sc-if value="{{ isSuperAdmin }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ goApprovals }}" class="btn btn-secondary" style="flex:none;">Approvals</button>
+        <button onClick="{{ goAgents }}" class="btn btn-secondary" style="flex:none;">Agents</button>
+      </sc-if>
+      <button onClick="{{ goPayouts }}" class="btn btn-secondary" style="flex:none;">Payouts</button>
+    </nav>
+  </sc-if>
+
+  <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+    <main style="flex:1;padding:24px;display:flex;flex-direction:column;gap:var(--space-lg,24px);max-width:1400px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
+        <h1 style="font-family:var(--font-heading);font-size:26px;margin:0;">Overview</h1>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <select value="{{ range }}" onChange="{{ onRange }}" class="input" style="height:38px;">
+            <option value="7d">Last 7 days</option><option value="30d">Last 30 days</option><option value="90d">Last 90 days</option>
+          </select>
+          <select value="{{ filterCity }}" onChange="{{ onFilterCity }}" class="input" style="height:38px;">
+            <sc-for list="{{ cityOptions }}" as="c" hint-placeholder-count="5"><option value="{{ c }}">{{ c }}</option></sc-for>
+          </select>
+          <select value="{{ filterCat }}" onChange="{{ onFilterCat }}" class="input" style="height:38px;">
+            <sc-for list="{{ catOptions }}" as="c" hint-placeholder-count="5"><option value="{{ c }}">{{ c }}</option></sc-for>
+          </select>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;">
+        <sc-for list="{{ overviewStats }}" as="st" hint-placeholder-count="5">
+          <div class="card">
+            <div class="card-kicker">{{ st.label }}</div>
+            <div class="card-title" style="font-size:26px;">{{ st.value }}</div>
+            <div class="card-meta">{{ st.sub }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:16px;">
+        <div class="card" style="flex:2 1 480px;">
+          <div class="card-kicker">Revenue over time</div>
+          <svg viewBox="0 0 640 180" style="width:100%;height:180px;overflow:visible;margin-top:8px;">
+            <sc-for list="{{ revBars }}" as="b" hint-placeholder-count="14">
+              <rect x="{{ b.x }}" y="{{ b.y }}" width="{{ b.w }}" height="{{ b.h }}" fill="{{ b.fill }}"></rect>
+            </sc-for>
+            <line x1="0" y1="150" x2="640" y2="150" stroke="var(--color-divider)" stroke-width="2"></line>
+          </svg>
+          <div class="card-meta" style="margin-top:6px;">{{ revTotal }}</div>
+        </div>
+        <div class="card" style="flex:1 1 260px;">
+          <div class="card-kicker">Payment health</div>
+          <div style="display:flex;flex-direction:column;gap:12px;margin-top:8px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>M-Pesa successful</span><span style="font-weight:700;">{{ mpesaOkPct }}</span></div>
+              <div style="height:8px;background:var(--color-neutral-200);"><div style="height:100%;width:{{ mpesaOkPct }};background:var(--color-accent);"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>MoMo successful</span><span style="font-weight:700;">{{ momoOkPct }}</span></div>
+              <div style="height:8px;background:var(--color-neutral-200);"><div style="height:100%;width:{{ momoOkPct }};background:var(--color-accent);"></div></div>
+            </div>
+            <div class="card-meta">{{ failedTxLabel }}</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:16px;">
+        <div class="card" style="flex:1 1 360px;">
+          <div class="card-kicker">Top organizers by revenue</div>
+          <div style="display:flex;flex-direction:column;margin-top:8px;">
+            <sc-for list="{{ topOrganizers }}" as="o" hint-placeholder-count="3">
+              <div onClick="{{ o.open }}" class="rowlink" style="display:flex;justify-content:space-between;padding:10px 4px;border-bottom:1px solid var(--color-divider);">
+                <span style="font-weight:600;">{{ o.name }}</span>
+                <span style="font-weight:700;">{{ o.revenueLabel }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div class="card" style="flex:1 1 220px;">
+          <div class="card-kicker">Average fee rate</div>
+          <div class="card-title" style="font-size:30px;">{{ avgRateLabel }}</div>
+          <div class="card-meta">Across {{ orgCount }} organizers · standard rate is 5%</div>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isOrganizers }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;padding:24px;display:flex;flex-direction:column;gap:16px;max-width:1400px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
+        <h1 style="font-family:var(--font-heading);font-size:26px;margin:0;">Organizers</h1>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <sc-if value="{{ isSuperAdmin }}" hint-placeholder-val="{{ true }}">
+            <select value="{{ filterAgent }}" onChange="{{ onFilterAgent }}" class="input" style="height:38px;">
+              <sc-for list="{{ agentFilterOptions }}" as="a" hint-placeholder-count="3"><option value="{{ a }}">{{ a }}</option></sc-for>
+            </select>
+          </sc-if>
+          <select value="{{ filterRateBand }}" onChange="{{ onFilterRateBand }}" class="input" style="height:38px;">
+            <option value="All rates">All rates</option><option value="Standard (5%)">Standard (5%)</option><option value="Negotiated">Negotiated</option>
+          </select>
+          <select value="{{ filterCity }}" onChange="{{ onFilterCity }}" class="input" style="height:38px;">
+            <sc-for list="{{ cityOptions }}" as="c" hint-placeholder-count="5"><option value="{{ c }}">{{ c }}</option></sc-for>
+          </select>
+        </div>
+      </div>
+
+      <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+        <table class="table">
+          <thead><tr><th>Organizer</th><th>Category</th><th>Agent</th><th>Rate</th><th>Total sales</th><th>Status</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ organizerRows }}" as="o" hint-placeholder-count="6">
+              <tr onClick="{{ o.open }}" class="rowlink">
+                <td style="font-weight:600;">{{ o.name }}</td>
+                <td>{{ o.category }}</td>
+                <td>{{ o.agent }}</td>
+                <td><span class="tag {{ o.rateTagClass }}">{{ o.rateLabel }}</span></td>
+                <td>{{ o.salesLabel }}</td>
+                <td><span class="tag {{ o.statusTagClass }}">{{ o.status }}</span></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </sc-if>
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <sc-for list="{{ organizerRows }}" as="o" hint-placeholder-count="6">
+            <div onClick="{{ o.open }}" class="card rowlink">
+              <div class="card-title" style="font-size:16px;">{{ o.name }}</div>
+              <div class="card-meta">{{ o.category }} · {{ o.agent }}</div>
+              <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+                <span class="tag {{ o.rateTagClass }}">{{ o.rateLabel }}</span>
+                <span class="tag {{ o.statusTagClass }}">{{ o.status }}</span>
+                <span class="tag tag-neutral">{{ o.salesLabel }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isOrganizerDetail }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;padding:24px;display:flex;flex-direction:column;gap:20px;max-width:1200px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <button onClick="{{ goOrganizers }}" class="btn btn-ghost" style="align-self:flex-start;">← All organizers</button>
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:12px;">
+        <div>
+          <h1 style="font-family:var(--font-heading);font-size:26px;margin:0 0 4px;">{{ org.name }}</h1>
+          <div class="card-meta">{{ org.category }} · {{ org.city }} · agent {{ org.agent }} · <span class="tag {{ org.statusTagClass }}">{{ org.status }}</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <span class="card-meta">Total sales</span>
+          <span style="font-size:24px;font-weight:700;font-family:var(--font-heading);">{{ org.salesLabel }}</span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:16px;">
+        <div class="card" style="flex:1 1 260px;">
+          <div class="card-kicker">Fee rate</div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px;">
+            <span style="font-size:30px;font-weight:700;font-family:var(--font-heading);">{{ org.ratePct }}</span>
+            <sc-if value="{{ org.negotiated }}" hint-placeholder-val="{{ false }}"><span class="tag tag-accent">Negotiated</span></sc-if>
+            <sc-if value="{{ org.standard }}" hint-placeholder-val="{{ true }}"><span class="tag tag-neutral">Standard</span></sc-if>
+          </div>
+          <div class="card-meta" style="margin-top:6px;">Standard rate is 5%. Rate changes apply only to future ticket sales.</div>
+          <button onClick="{{ openRateDialog }}" class="btn btn-primary btn-block" style="margin-top:12px;">Change rate</button>
+        </div>
+        <div class="card" style="flex:2 1 380px;">
+          <div class="card-kicker">Events</div>
+          <div style="display:flex;flex-direction:column;margin-top:6px;">
+            <sc-for list="{{ org.events }}" as="e" hint-placeholder-count="2">
+              <div style="display:flex;justify-content:space-between;padding:9px 2px;border-bottom:1px solid var(--color-divider);font-size:14px;">
+                <span style="font-weight:600;">{{ e.title }}</span><span>{{ e.date }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div class="card" style="flex:1 1 260px;">
+          <div class="card-kicker">Payout</div>
+          <div class="card-title" style="font-size:22px;">{{ org.payoutLabel }}</div>
+          <div class="card-meta">Status: {{ org.payoutStatus }}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-kicker">Rate history</div>
+        <div style="display:flex;flex-direction:column;margin-top:8px;">
+          <sc-for list="{{ org.history }}" as="h" hint-placeholder-count="3">
+            <div style="display:flex;justify-content:space-between;gap:12px;padding:12px 2px;border-bottom:1px solid var(--color-divider);flex-wrap:wrap;">
+              <div style="display:flex;flex-direction:column;gap:2px;">
+                <span style="font-weight:700;font-size:14px;">{{ h.old }}% → {{ h.new }}%</span>
+                <span class="card-meta">{{ h.reason }}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:2px;text-align:right;">
+                <span style="font-size:13px;font-weight:600;">{{ h.by }}</span>
+                <span class="card-meta">{{ h.date }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isApprovals }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;padding:24px;display:flex;flex-direction:column;gap:16px;max-width:1100px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <h1 style="font-family:var(--font-heading);font-size:26px;margin:0;">Approvals queue</h1>
+      <p class="card-meta" style="margin:0;">Rate requests below the 3% floor need Super Admin sign-off before they apply.</p>
+      <sc-if value="{{ hasApprovals }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <sc-for list="{{ approvalRows }}" as="a" hint-placeholder-count="2">
+            <div class="card" style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:16px;">
+              <div style="display:flex;flex-direction:column;gap:4px;min-width:220px;">
+                <span style="font-weight:700;font-size:15px;">{{ a.organizer }}</span>
+                <span class="card-meta">Requested by {{ a.agent }} · {{ a.date }}</span>
+                <span style="font-size:13px;">{{ a.reason }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:16px;">
+                <span style="font-size:22px;font-weight:700;font-family:var(--font-heading);color:var(--color-accent-700);">{{ a.rateLabel }}</span>
+                <button onClick="{{ a.approve }}" class="btn btn-primary">Approve</button>
+                <button onClick="{{ a.reject }}" class="btn btn-secondary">Reject</button>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ noApprovals }}" hint-placeholder-val="{{ false }}">
+        <div class="card"><div class="card-body">Nothing pending. Sub-3% requests will show up here.</div></div>
+      </sc-if>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isAgents }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;padding:24px;display:flex;flex-direction:column;gap:16px;max-width:1100px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;">
+        <h1 style="font-family:var(--font-heading);font-size:26px;margin:0;">Agents</h1>
+        <button class="btn btn-primary">Invite agent</button>
+      </div>
+      <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+        <table class="table">
+          <thead><tr><th>Agent</th><th>Organizers onboarded</th><th>Sales generated</th><th>Revenue for Eventify</th><th>Avg. negotiated rate</th></tr></thead>
+          <tbody>
+            <sc-for list="{{ agentRows }}" as="a" hint-placeholder-count="2">
+              <tr><td style="font-weight:600;">{{ a.name }}</td><td>{{ a.organizers }}</td><td>{{ a.salesLabel }}</td><td>{{ a.revenueLabel }}</td><td>{{ a.avgRateLabel }}</td></tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </sc-if>
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <sc-for list="{{ agentRows }}" as="a" hint-placeholder-count="2">
+            <div class="card">
+              <div class="card-title" style="font-size:16px;">{{ a.name }}</div>
+              <div class="card-meta">{{ a.organizers }} organizers · avg {{ a.avgRateLabel }}</div>
+              <div style="display:flex;gap:16px;margin-top:8px;font-size:14px;font-weight:600;"><span>{{ a.salesLabel }}</span><span>{{ a.revenueLabel }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ isPayouts }}" hint-placeholder-val="{{ false }}">
+    <main style="flex:1;padding:24px;display:flex;flex-direction:column;gap:16px;max-width:1200px;width:100%;margin:0 auto;box-sizing:border-box;">
+      <h1 style="font-family:var(--font-heading);font-size:26px;margin:0;">Payouts</h1>
+      <sc-if value="{{ isDesktop }}" hint-placeholder-val="{{ true }}">
+        <table class="table">
+          <thead><tr><th>Organizer</th><th>Amount owed</th><th>Method</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <sc-for list="{{ payoutRows }}" as="p" hint-placeholder-count="4">
+              <tr>
+                <td style="font-weight:600;">{{ p.organizer }}</td>
+                <td>{{ p.amountLabel }}</td>
+                <td>{{ p.method }}</td>
+                <td><span class="tag {{ p.statusTagClass }}">{{ p.status }}</span></td>
+                <td><sc-if value="{{ p.canMark }}" hint-placeholder-val="{{ true }}"><button onClick="{{ p.markPaid }}" class="btn btn-secondary">Mark as paid</button></sc-if></td>
+              </tr>
+            </sc-for>
+          </tbody>
+        </table>
+      </sc-if>
+      <sc-if value="{{ isMobile }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <sc-for list="{{ payoutRows }}" as="p" hint-placeholder-count="4">
+            <div class="card">
+              <div class="card-title" style="font-size:16px;">{{ p.organizer }}</div>
+              <div class="card-meta">{{ p.method }}</div>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                <span style="font-size:18px;font-weight:700;">{{ p.amountLabel }}</span>
+                <span class="tag {{ p.statusTagClass }}">{{ p.status }}</span>
+              </div>
+              <sc-if value="{{ p.canMark }}" hint-placeholder-val="{{ true }}"><button onClick="{{ p.markPaid }}" class="btn btn-secondary btn-block" style="margin-top:10px;">Mark as paid</button></sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </main>
+  </sc-if>
+
+  <sc-if value="{{ rateDialogOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="dialog-backdrop">
+      <div class="dialog">
+        <div class="dialog-title">Change rate — {{ org.name }}</div>
+        <div class="dialog-body" style="display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;"><span>New rate</span><span style="font-weight:700;">{{ rateInputLabel }}</span></div>
+            <input type="range" min="1" max="7" step="0.1" value="{{ rateInput }}" onChange="{{ onRateSlider }}" style="width:100%;"></input>
+          </div>
+          <sc-if value="{{ belowFloor }}" hint-placeholder-val="{{ false }}">
+            <div class="tag tag-accent" style="align-self:flex-start;">Below 3% — requires admin approval</div>
+          </sc-if>
+          <label class="field">
+            <label>Reason for change</label>
+            <textarea value="{{ rateReason }}" onChange="{{ onRateReason }}" class="input" placeholder="e.g. Volume discount for repeat corporate events" style="min-height:70px;resize:vertical;"></textarea>
+          </label>
+          <label class="radio" style="display:flex;align-items:center;gap:8px;font-size:13px;">
+            <input type="checkbox" checked="{{ perEventOverride }}" onChange="{{ onPerEvent }}"></input><span>Apply to a single upcoming event only</span>
+          </label>
+        </div>
+        <div class="dialog-actions">
+          <button onClick="{{ closeRateDialog }}" class="btn btn-ghost">Cancel</button>
+          <button onClick="{{ submitRate }}" class="btn btn-primary">{{ submitRateLabel }}</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1400,&quot;height&quot;:900},&quot;layout&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;desktop&quot;,&quot;mobile&quot;],&quot;default&quot;:&quot;desktop&quot;,&quot;tsType&quot;:&quot;'desktop'|'mobile'&quot;},&quot;role&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;super&quot;,&quot;agent&quot;],&quot;default&quot;:&quot;super&quot;,&quot;tsType&quot;:&quot;'super'|'agent'&quot;},&quot;screen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;overview&quot;,&quot;organizers&quot;,&quot;organizerDetail&quot;,&quot;approvals&quot;,&quot;agents&quot;,&quot;payouts&quot;],&quot;default&quot;:&quot;overview&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;selectedHandle&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;amaniwanjiru&quot;,&quot;tsType&quot;:&quot;string&quot;}}">
+const AGENTS = [
+  { id: 'grace', name: 'Grace Achieng' },
+  { id: 'peter', name: 'Peter Lado' },
+];
+const ORGANIZERS = [
+  { handle: 'amaniwanjiru', name: 'Amani Wanjiru', category: 'Music & Arts', city: 'Nairobi', agent: 'grace', rate: 4.5, sales: 452600, status: 'Active', method: 'M-Pesa',
+    events: [{ title: 'Sauti Sessions: Afro-house Listening Night', date: '02 Oct' }],
+    history: [{ old: 5, new: 4.5, by: 'Grace Achieng', date: '14 Aug 2026', reason: 'Repeat host, high volume — volume discount' }] },
+  { handle: 'ieee-strathmore', name: 'IEEE Strathmore Student Branch', category: 'Campus', city: 'Nairobi', agent: 'grace', rate: 5, sales: 12000, status: 'Active', method: 'M-Pesa',
+    events: [{ title: 'IEEE Strathmore Hackathon 2026', date: '03 Oct' }], history: [] },
+  { handle: 'dengtraining', name: 'Deng Training Co.', category: 'Workshops', city: 'Juba', agent: 'peter', rate: 5, sales: 180000, status: 'Active', method: 'Bank',
+    events: [{ title: 'Excel & Bookkeeping for Small Business', date: '10 Oct' }], history: [] },
+  { handle: 'paylink', name: 'PayLink Kenya', category: 'Corporate', city: 'Nairobi', agent: 'peter', rate: 4.2, sales: 612000, status: 'Active', method: 'Bank',
+    events: [{ title: 'PayLink Kenya: Product Launch & Demo Day', date: '14 Oct' }],
+    history: [{ old: 5, new: 4.2, by: 'Peter Lado', date: '02 Sep 2026', reason: 'Corporate multi-event contract' }] },
+  { handle: 'mizizi', name: 'Mizizi Art Collective', category: 'Music & Arts', city: 'Juba', agent: 'grace', rate: 5, sales: 0, status: 'Pending', method: 'M-Pesa', events: [], history: [] },
+  { handle: 'lenskenya', name: 'Lens Kenya', category: 'Workshops', city: 'Nairobi', agent: 'peter', rate: 5, sales: 64000, status: 'Suspended', method: 'M-Pesa', events: [], history: [] },
+];
+const CITIES = ['All cities', 'Nairobi', 'Juba', 'Mombasa', 'Kisumu'];
+const CATS = ['All categories', 'Corporate', 'Campus', 'Music & Arts', 'Workshops'];
+const fmtKsh = n => 'KSh ' + Math.round(n).toLocaleString('en-US');
+let approvalUid = 0;
+
+class Component extends DCLogic {
+  state = {
+    role: this.props.role ?? 'super', screen: this.props.screen ?? 'overview', selectedHandle: this.props.selectedHandle ?? 'amaniwanjiru',
+    range: '30d', filterCity: 'All cities', filterCat: 'All categories', filterAgent: 'All agents', filterRateBand: 'All rates',
+    organizers: ORGANIZERS.map(o => ({ ...o })),
+    approvals: [{ id: 'ap0', agent: 'Peter Lado', organizer: 'Lens Kenya', requestedRate: 2.4, reason: 'Long-term partner, first year retention deal', date: '26 Sep 2026' }],
+    payouts: [
+      { id: 'po1', organizer: 'Amani Wanjiru', amount: 432234, method: 'M-Pesa', status: 'Pending' },
+      { id: 'po2', organizer: 'PayLink Kenya', amount: 586296, method: 'Bank', status: 'Processing' },
+      { id: 'po3', organizer: 'Deng Training Co.', amount: 171000, method: 'Bank', status: 'Paid' },
+      { id: 'po4', organizer: 'Lens Kenya', amount: 60800, method: 'M-Pesa', status: 'Pending' },
+    ],
+    rateDialogOpen: false, rateInput: 5, rateReason: '', perEventOverride: false,
+  };
+  rootRef = React.createRef();
+  nav(patch) { this.setState(patch); }
+  agentName(id) { return (AGENTS.find(a => a.id === id) || {}).name || id; }
+
+  renderVals() {
+    const s = this.state;
+    const layout = this.props.layout ?? 'desktop';
+    const isMobile = layout === 'mobile';
+    const isSuper = s.role === 'super';
+    const myAgentId = 'grace';
+    const scopeOk = o => isSuper || o.agent === myAgentId;
+
+    const cityOk = o => s.filterCity === 'All cities' || o.city === s.filterCity;
+    const catOk = o => s.filterCat === 'All categories' || o.category === s.filterCat;
+    const agentOk = o => s.filterAgent === 'All agents' || this.agentName(o.agent) === s.filterAgent;
+    const rateOk = o => s.filterRateBand === 'All rates' || (s.filterRateBand === 'Standard (5%)' ? o.rate === 5 : o.rate !== 5);
+    const visibleOrgs = s.organizers.filter(scopeOk);
+
+    const org = s.organizers.find(o => o.handle === s.selectedHandle) || s.organizers[0];
+    const grossAll = visibleOrgs.reduce((a, o) => a + o.sales, 0);
+    const feesAll = visibleOrgs.reduce((a, o) => a + o.sales * (o.rate / 100), 0);
+    const activeCount = visibleOrgs.filter(o => o.status === 'Active').length;
+
+    const series = [180, 220, 260, 300, 340, 260, 400, 460, 380, 520, 610, 470, 690, 640];
+    const maxV = Math.max(...series); const bw = 640 / series.length;
+    const revBars = series.map((v, i) => { const h = (v / maxV) * 130; return { x: (i * bw + bw * 0.16).toFixed(1), y: (150 - h).toFixed(1), w: (bw * 0.68).toFixed(1), h: h.toFixed(1), fill: i === series.length - 1 ? 'var(--color-accent-700)' : 'var(--color-accent)' }; });
+
+    const overviewStats = [
+      { label: 'Total ticket sales (gross)', value: fmtKsh(grossAll * 1000 / 1000 + 2140000), sub: `${s.range === '7d' ? 'Last 7 days' : s.range === '30d' ? 'Last 30 days' : 'Last 90 days'}` },
+      { label: 'Eventify revenue', value: fmtKsh(feesAll + 96000), sub: 'Fees earned' },
+      { label: 'Pending payouts', value: fmtKsh(s.payouts.filter(p => p.status !== 'Paid').reduce((a, p) => a + p.amount, 0)), sub: `${s.payouts.filter(p => p.status !== 'Paid').length} organizers owed` },
+      { label: 'Active events', value: '18', sub: 'Across ' + CITIES.length + ' markets' },
+      { label: 'New organizers', value: '6', sub: 'This month' },
+    ];
+
+    const topOrganizers = [...visibleOrgs].sort((a, b) => b.sales * (b.rate / 100) - a.sales * (a.rate / 100)).slice(0, 4).map(o => ({
+      name: o.name, revenueLabel: fmtKsh(o.sales * (o.rate / 100)), open: () => this.setState({ screen: 'organizerDetail', selectedHandle: o.handle }) }));
+    const avgRate = visibleOrgs.length ? visibleOrgs.reduce((a, o) => a + o.rate, 0) / visibleOrgs.length : 5;
+
+    const organizerRows = visibleOrgs.filter(cityOk).filter(catOk).filter(agentOk).filter(rateOk).map(o => ({
+      name: o.name, category: o.category, agent: this.agentName(o.agent),
+      rateLabel: o.rate + '%', rateTagClass: o.rate === 5 ? 'tag-neutral' : 'tag-accent',
+      salesLabel: fmtKsh(o.sales), status: o.status,
+      statusTagClass: o.status === 'Active' ? 'tag-accent' : o.status === 'Pending' ? 'tag-outline' : 'tag-neutral',
+      open: () => this.setState({ screen: 'organizerDetail', selectedHandle: o.handle }) }));
+
+    const agentRows = AGENTS.map(a => {
+      const mine = s.organizers.filter(o => o.agent === a.id);
+      const sales = mine.reduce((x, o) => x + o.sales, 0);
+      const revenue = mine.reduce((x, o) => x + o.sales * (o.rate / 100), 0);
+      const avg = mine.length ? mine.reduce((x, o) => x + o.rate, 0) / mine.length : 5;
+      return { name: a.name, organizers: mine.length, salesLabel: fmtKsh(sales), revenueLabel: fmtKsh(revenue), avgRateLabel: avg.toFixed(1) + '%' };
+    });
+
+    const payoutRows = s.payouts.map(p => ({ ...p, amountLabel: fmtKsh(p.amount),
+      statusTagClass: p.status === 'Paid' ? 'tag-neutral' : p.status === 'Processing' ? 'tag-outline' : 'tag-accent',
+      canMark: p.status !== 'Paid', markPaid: () => this.setState(st => ({ payouts: st.payouts.map(x => x.id === p.id ? { ...x, status: 'Paid' } : x) })) }));
+
+    const approvalRows = s.approvals.map(a => ({ ...a, rateLabel: a.requestedRate + '%',
+      approve: () => this.setState(st => ({
+        approvals: st.approvals.filter(x => x.id !== a.id),
+        organizers: st.organizers.map(o => o.name === a.organizer ? { ...o, rate: a.requestedRate, history: [{ old: o.rate, new: a.requestedRate, by: a.agent + ' (approved)', date: 'Today', reason: a.reason }, ...o.history] } : o),
+      })),
+      reject: () => this.setState(st => ({ approvals: st.approvals.filter(x => x.id !== a.id) })) }));
+
+    const orgDetail = org ? {
+      ...org, ratePct: org.rate + '%', negotiated: org.rate !== 5, standard: org.rate === 5,
+      statusTagClass: org.status === 'Active' ? 'tag-accent' : org.status === 'Pending' ? 'tag-outline' : 'tag-neutral',
+      salesLabel: fmtKsh(org.sales), payoutLabel: fmtKsh(org.sales * (1 - org.rate / 100)), payoutStatus: (s.payouts.find(p => p.organizer === org.name) || { status: 'Paid' }).status,
+      history: org.history,
+    } : {};
+
+    const rateInputLabel = Number(s.rateInput).toFixed(1) + '%';
+    const belowFloor = Number(s.rateInput) < 3;
+    const submitRate = () => {
+      const val = Number(s.rateInput);
+      if (belowFloor && !isSuper) {
+        approvalUid++;
+        this.setState(st => ({
+          approvals: [...st.approvals, { id: 'ap' + approvalUid, agent: this.agentName(myAgentId), organizer: org.name, requestedRate: val, reason: s.rateReason || '(no reason given)', date: 'Today' }],
+          rateDialogOpen: false, rateReason: '', rateInput: 5,
+        }));
+        return;
+      }
+      this.setState(st => ({
+        organizers: st.organizers.map(o => o.handle === org.handle ? { ...o, rate: val, history: [{ old: o.rate, new: val, by: isSuper ? 'Super Admin' : this.agentName(myAgentId), date: 'Today', reason: s.rateReason || '(no reason given)' }, ...o.history] } : o),
+        rateDialogOpen: false, rateReason: '', rateInput: 5,
+      }));
+    };
+
+    return {
+      isDesktop: !isMobile, isMobile,
+      isSuperAdmin: isSuper,
+      roleSuperBg: isSuper ? 'var(--color-text)' : 'transparent', roleSuperFg: isSuper ? 'var(--color-bg)' : 'var(--color-text)',
+      roleAgentBg: !isSuper ? 'var(--color-text)' : 'transparent', roleAgentFg: !isSuper ? 'var(--color-bg)' : 'var(--color-text)',
+      setRoleSuper: () => this.setState({ role: 'super' }), setRoleAgent: () => this.setState({ role: 'agent', screen: s.screen === 'approvals' || s.screen === 'agents' ? 'overview' : s.screen }),
+      goOverview: () => this.setState({ screen: 'overview' }), goOrganizers: () => this.setState({ screen: 'organizers' }),
+      goApprovals: () => this.setState({ screen: 'approvals' }), goAgents: () => this.setState({ screen: 'agents' }), goPayouts: () => this.setState({ screen: 'payouts' }),
+      navColor: { overview: s.screen === 'overview' ? 'var(--color-text)' : 'var(--color-neutral-600)', organizers: ['organizers', 'organizerDetail'].includes(s.screen) ? 'var(--color-text)' : 'var(--color-neutral-600)',
+        approvals: s.screen === 'approvals' ? 'var(--color-text)' : 'var(--color-neutral-600)', agents: s.screen === 'agents' ? 'var(--color-text)' : 'var(--color-neutral-600)', payouts: s.screen === 'payouts' ? 'var(--color-text)' : 'var(--color-neutral-600)' },
+      isOverview: s.screen === 'overview', isOrganizers: s.screen === 'organizers', isOrganizerDetail: s.screen === 'organizerDetail',
+      isApprovals: s.screen === 'approvals', isAgents: s.screen === 'agents', isPayouts: s.screen === 'payouts',
+      hasApprovals: s.approvals.length > 0, noApprovals: s.approvals.length === 0, approvalsCount: s.approvals.length,
+
+      range: s.range, onRange: ev => this.setState({ range: ev.target.value }),
+      cityOptions: CITIES, catOptions: CATS, filterCity: s.filterCity, onFilterCity: ev => this.setState({ filterCity: ev.target.value }),
+      filterCat: s.filterCat, onFilterCat: ev => this.setState({ filterCat: ev.target.value }),
+      filterAgent: s.filterAgent, onFilterAgent: ev => this.setState({ filterAgent: ev.target.value }),
+      agentFilterOptions: ['All agents', ...AGENTS.map(a => a.name)],
+      filterRateBand: s.filterRateBand, onFilterRateBand: ev => this.setState({ filterRateBand: ev.target.value }),
+
+      overviewStats, revBars, revTotal: fmtKsh(grossAll + 2140000) + ' processed this period',
+      mpesaOkPct: '97%', momoOkPct: '94%', failedTxLabel: '3.1% of transactions failed or timed out — mostly MoMo network delays',
+      topOrganizers, avgRateLabel: avgRate.toFixed(1) + '%', orgCount: visibleOrgs.length,
+
+      organizerRows, agentRows, payoutRows, approvalRows,
+      org: orgDetail,
+      openRateDialog: () => this.setState({ rateDialogOpen: true, rateInput: org.rate, rateReason: '' }),
+      closeRateDialog: () => this.setState({ rateDialogOpen: false }),
+      rateDialogOpen: s.rateDialogOpen, rateInput: s.rateInput, rateInputLabel, belowFloor,
+      onRateSlider: ev => this.setState({ rateInput: ev.target.value }),
+      rateReason: s.rateReason, onRateReason: ev => this.setState({ rateReason: ev.target.value }),
+      perEventOverride: s.perEventOverride, onPerEvent: ev => this.setState({ perEventOverride: ev.target.checked }),
+      submitRateLabel: belowFloor && !isSuper ? 'Send for approval' : 'Apply rate',
+      submitRate,
+    };
+  }
+}
+</script>
+</body>
+</html>

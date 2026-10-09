@@ -4,12 +4,13 @@ import {
   type AddStaffRequest,
   type StaffRow,
   type OrganizerApplicationRequest,
+  type OrganizerSignUpRequest,
   type Session,
   type SessionUser,
 } from '@eventify/shared';
 import { accounts as sampleAccounts } from '@eventify/shared/fixtures';
 import { allOrganizers, findOrganizer, setOrganizerAgent, submitApplication } from './organizers';
-import { TEST_LOOKUP_CODE } from './testPhones';
+import { TEST_LOOKUP_CODE, TEST_PASSWORD } from './testPhones';
 
 /**
  * In-browser stand-in for sign-in until the backend exists. A session is a random token the web
@@ -22,6 +23,8 @@ type Db = {
   accounts: Account[];
   /** token → account id */
   sessions: Record<string, string>;
+  /** account id → password, for accounts signed up in this browser. It's a mock: nothing is hashed. */
+  passwords?: Record<string, string>;
 };
 
 const STORAGE_KEY = 'eventify-mock-accounts';
@@ -98,6 +101,38 @@ export function verifySignIn(email: string, code: string): Session | null {
     store(account);
   }
   return { token: startSession(account.id), user: sessionUser(account) };
+}
+
+/** Null when the email or password is wrong, or the account is staff (they use the code). */
+export function signInWithPassword(email: string, password: string): Session | null {
+  const account = allAccounts().find((a) => a.email === email);
+  if (!account || account.role === 'agent' || account.role === 'super_admin') return null;
+  const expected =
+    db.passwords?.[account.id] ??
+    (sampleAccounts.some((s) => s.id === account.id) && TEST_PASSWORD);
+  if (password !== expected) return null;
+  return { token: startSession(account.id), user: sessionUser(account) };
+}
+
+/** A new account and its application in one go. Null when the email already has an account. */
+export function signUpOrganizer({
+  email,
+  password,
+  ...application
+}: OrganizerSignUpRequest): Session | null {
+  if (allAccounts().some((a) => a.email === email)) return null;
+  const account: Account = {
+    id: `acc_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`,
+    name: '',
+    email,
+    role: 'attendee',
+    organizerId: null,
+    agentId: null,
+  };
+  store(account);
+  db.passwords = { ...db.passwords, [account.id]: password };
+  const user = applyToHost(account, application)!;
+  return { token: startSession(account.id), user };
 }
 
 export function accountForToken(token: string): Account | null {

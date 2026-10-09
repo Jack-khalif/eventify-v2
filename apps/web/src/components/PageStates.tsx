@@ -9,7 +9,7 @@ export function NotFoundState({ title, message }: { title: string; message: stri
       <h1 className="m-0 text-4xl md:text-6xl">{title}</h1>
       <p className="m-0 text-muted">{message}</p>
       <Link
-        to="/"
+        to="/discover"
         className={buttonClass({ size: 'md', className: 'text-accent-ink hover:text-accent-ink' })}
       >
         Find events
