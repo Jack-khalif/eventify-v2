@@ -246,7 +246,7 @@ function DetailsStep({ draft, update, errors }: DetailsProps) {
           value={draft.date}
           onChange={(e) => update({ date: e.target.value })}
           error={errors.date}
-          className="flex-[1_1_160px]"
+          className="flex-[1_1_100%] sm:flex-[1_1_160px]"
         />
         <TextField
           label="Starts"
