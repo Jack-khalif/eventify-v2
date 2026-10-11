@@ -1,6 +1,8 @@
 import {
   organizerApplicationRequestSchema,
   organizerSignUpRequestSchema,
+  passwordResetFinishSchema,
+  passwordResetStartSchema,
   passwordSignInSchema,
   sessionSchema,
   sessionUserSchema,
@@ -14,6 +16,7 @@ import {
   signInVerifySchema,
   type OrganizerApplicationRequest,
   type OrganizerSignUpRequest,
+  type PasswordResetFinishRequest,
   type Session,
   type SessionUser,
 } from '@eventify/shared';
@@ -109,6 +112,30 @@ export function useVerifySignIn() {
   return useMutation({
     mutationFn: (req: { email: string; code: string }) =>
       apiPost('/api/auth/verify', signInVerifySchema.parse(req), signInResultSchema),
+    onSuccess: (result) => {
+      if ('token' in result) open(result);
+    },
+  });
+}
+
+/** A forgotten password, step 1: send a reset code to this address. */
+export function useStartPasswordReset() {
+  return useMutation({
+    mutationFn: (email: string) =>
+      apiPost(
+        '/api/auth/reset/start',
+        passwordResetStartSchema.parse({ email }),
+        signInStartResultSchema,
+      ),
+  });
+}
+
+/** A forgotten password, step 2: the code and the new password. Signed in afterwards. */
+export function useFinishPasswordReset() {
+  const open = useOpenSession();
+  return useMutation({
+    mutationFn: (req: PasswordResetFinishRequest) =>
+      apiPost('/api/auth/reset/finish', passwordResetFinishSchema.parse(req), signInResultSchema),
     onSuccess: (result) => {
       if ('token' in result) open(result);
     },

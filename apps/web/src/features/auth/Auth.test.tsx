@@ -77,6 +77,43 @@ describe('Sign in', () => {
     expect(router.state.location.pathname).toBe('/organizer');
   });
 
+  it('lets an organizer who forgot their password choose a new one', async () => {
+    const user = userEvent.setup();
+    const { router } = renderApp('/login');
+    await user.type(await screen.findByLabelText('Email'), 'organizer@eventify.test');
+    await user.click(screen.getByRole('button', { name: 'Forgot your password?' }));
+    expect(screen.getByRole('heading', { level: 1, name: 'Choose a new password' })).toBeVisible();
+    // The address typed for signing in comes along.
+    expect(screen.getByLabelText('Email')).toHaveValue('organizer@eventify.test');
+    await user.click(screen.getByRole('button', { name: 'Email me a code' }));
+
+    await user.type(await screen.findByLabelText('Code'), '000000');
+    await user.type(screen.getByLabelText('New password'), 'short');
+    await user.click(screen.getByRole('button', { name: 'Save password and sign in' }));
+    expect(screen.getByText('Use at least 8 characters')).toBeInTheDocument();
+    await user.type(screen.getByLabelText('New password'), ' but longer');
+    await user.click(screen.getByRole('button', { name: 'Save password and sign in' }));
+    expect(await screen.findByText(/That code isn't right/)).toBeInTheDocument();
+
+    await user.clear(screen.getByLabelText('Code'));
+    await user.type(screen.getByLabelText('Code'), '123456');
+    await user.click(screen.getByRole('button', { name: 'Save password and sign in' }));
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/organizer');
+
+    // The old password is gone and the new one works.
+    await router.navigate('/account');
+    await user.click(await screen.findByRole('button', { name: 'Sign out' }));
+    expect(await screen.findByText("You're browsing as a guest")).toBeInTheDocument();
+    await router.navigate('/login');
+    await signIn(user, 'organizer@eventify.test');
+    expect(await screen.findByText("That email or password isn't right.")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText('Password'));
+    await user.type(screen.getByLabelText('Password'), 'short but longer');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(router.state.location.pathname).toBe('/organizer'));
+  });
+
   it('takes staff to the admin portal', async () => {
     const user = userEvent.setup();
     const { router } = renderApp('/login');

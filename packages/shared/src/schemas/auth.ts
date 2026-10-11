@@ -126,6 +126,10 @@ export const organizerApplicationRequestSchema = z.object({
 export type OrganizerApplicationRequest = z.infer<typeof organizerApplicationRequestSchema>;
 
 export const PASSWORD_MIN_LENGTH = 8;
+const newPasswordSchema = z
+  .string()
+  .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters.`)
+  .max(200, 'Keep it under 200 characters.');
 
 /**
  * POST /api/organizer/signup: create an account and apply to host in one go. The answer is a
@@ -133,12 +137,21 @@ export const PASSWORD_MIN_LENGTH = 8;
  */
 export const organizerSignUpRequestSchema = organizerApplicationRequestSchema.extend({
   email: emailInputSchema,
-  password: z
-    .string()
-    .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters.`)
-    .max(200, 'Keep it under 200 characters.'),
+  password: newPasswordSchema,
 });
 export type OrganizerSignUpRequest = z.infer<typeof organizerSignUpRequestSchema>;
+
+/**
+ * POST /api/auth/reset/start: email a code for choosing a new password. Always "sent", like
+ * /api/auth/start, whether or not the address has an account.
+ */
+export const passwordResetStartSchema = signInStartSchema;
+/**
+ * POST /api/auth/reset/finish: the emailed code and the new password together. Answers like
+ * /api/auth/verify, so the person is signed in with the password they just chose.
+ */
+export const passwordResetFinishSchema = signInVerifySchema.extend({ password: newPasswordSchema });
+export type PasswordResetFinishRequest = z.infer<typeof passwordResetFinishSchema>;
 
 /** What an applicant told us, kept with the organizer for the admin who reviews it. */
 export const organizerApplicationSchema = z.object({

@@ -6,6 +6,8 @@ import {
   ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
   organizerSignUpRequestSchema,
+  passwordResetFinishSchema,
+  passwordResetStartSchema,
   passwordSignInSchema,
   PRIVACY_NOTICE_VERSION,
   organizerStatusChangeSchema,
@@ -28,6 +30,7 @@ import {
   accountForToken,
   addStaff,
   applyToHost,
+  resetPassword,
   signInWithPassword,
   signUpOrganizer,
   endSession,
@@ -285,6 +288,31 @@ export const handlers = [
       ? HttpResponse.json(session)
       : HttpResponse.json(
           { error: 'invalid_credentials', message: "That email or password isn't right." },
+          { status: 422 },
+        );
+  }),
+
+  // A forgotten password: nothing is emailed here, and the code is the test one.
+  http.post('*/api/auth/reset/start', async ({ request }) => {
+    await delay();
+    const body = passwordResetStartSchema.safeParse(await request.json());
+    return body.success
+      ? HttpResponse.json({ sent: true })
+      : badRequest('Enter a valid email address.');
+  }),
+
+  http.post('*/api/auth/reset/finish', async ({ request }) => {
+    await delay();
+    const body = passwordResetFinishSchema.safeParse(await request.json());
+    if (!body.success) return badRequest('Check the code and the new password.');
+    const session = resetPassword(body.data.email, body.data.code, body.data.password);
+    return session
+      ? HttpResponse.json(session)
+      : HttpResponse.json(
+          {
+            error: 'invalid_code',
+            message: "That code isn't right. Check the email and try again.",
+          },
           { status: 422 },
         );
   }),

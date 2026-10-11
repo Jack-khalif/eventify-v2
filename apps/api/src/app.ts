@@ -8,6 +8,8 @@ import {
   ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
   organizerSignUpRequestSchema,
+  passwordResetFinishSchema,
+  passwordResetStartSchema,
   passwordSignInSchema,
   PRIVACY_NOTICE_VERSION,
   organizerStatusChangeSchema,
@@ -52,8 +54,10 @@ import {
   beginTotpSetup,
   completeTotpSignIn,
   endSession,
+  finishPasswordReset,
   sessionUserFor,
   setTotpEnabled,
+  startPasswordReset,
   startSignIn,
   signInWithPassword,
   verifySignIn,
@@ -235,6 +239,24 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return ticket ? c.json(ticket) : notFound(c);
   });
 
+  const tooManyCodes = (c: Context) =>
+    c.json(
+      {
+        error: 'too_many_codes',
+        message: 'We just sent a code to that address. Wait a little before asking for another.',
+      },
+      429,
+    );
+
+  const wrongEmailedCode = (c: Context) =>
+    c.json(
+      {
+        error: 'invalid_code',
+        message: "That code isn't right or has expired. Check the email, or ask for a new code.",
+      },
+      422,
+    );
+
   // Sign-in. Organizers use a password; staff, and anyone proving an address is theirs, use a
   // one-time code sent by email.
   app.post('/auth/start', async (c) => {
@@ -244,15 +266,7 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     if (!body.success) {
       return c.json({ error: 'validation', message: 'Enter a valid email address.' }, 400);
     }
-    if ((await startSignIn(deps, body.data.email)) === 'too_many') {
-      return c.json(
-        {
-          error: 'too_many_codes',
-          message: 'We just sent a code to that address. Wait a little before asking for another.',
-        },
-        429,
-      );
-    }
+    if ((await startSignIn(deps, body.data.email)) === 'too_many') return tooManyCodes(c);
     return c.json({ sent: true });
   });
 
@@ -278,15 +292,7 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     if (stop) return stop;
     const body = signInVerifySchema.safeParse(await c.req.json().catch(() => null));
     const outcome = body.success ? await verifySignIn(deps, body.data.email, body.data.code) : null;
-    if (!outcome) {
-      return c.json(
-        {
-          error: 'invalid_code',
-          message: "That code isn't right or has expired. Check the email, or ask for a new code.",
-        },
-        422,
-      );
-    }
+    if (!outcome) return wrongEmailedCode(c);
     // With two-step sign-in the emailed code only earns a challenge; the app's code finishes it.
     return 'totpRequired' in outcome ? c.json(outcome) : signedIn(c, outcome);
   });
@@ -311,6 +317,34 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
         422,
       );
     }
+    return 'totpRequired' in outcome ? c.json(outcome) : signedIn(c, outcome);
+  });
+
+  // A forgotten password: a code goes to the address, then the code and a new password come back.
+  app.post('/auth/reset/start', async (c) => {
+    const stop = limited(c, 'codes', 20, 10 * MINUTE);
+    if (stop) return stop;
+    const body = passwordResetStartSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) {
+      return c.json({ error: 'validation', message: 'Enter a valid email address.' }, 400);
+    }
+    if ((await startPasswordReset(deps, body.data.email)) === 'too_many') return tooManyCodes(c);
+    return c.json({ sent: true });
+  });
+
+  app.post('/auth/reset/finish', async (c) => {
+    const stop = limited(c, 'guesses', 40, 10 * MINUTE);
+    if (stop) return stop;
+    const body = passwordResetFinishSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) {
+      return c.json(
+        { error: 'validation', message: body.error.issues[0]?.message ?? 'Check the form.' },
+        400,
+      );
+    }
+    const { email, code, password } = body.data;
+    const outcome = await finishPasswordReset(deps, email, code, password);
+    if (!outcome) return wrongEmailedCode(c);
     return 'totpRequired' in outcome ? c.json(outcome) : signedIn(c, outcome);
   });
 
