@@ -198,3 +198,67 @@ describe('signing in with a password', () => {
     expect((await logIn('wanjiku@example.com', PASSWORD)).status).toBe(200);
   });
 });
+
+describe('resetting a forgotten password', () => {
+  const NEW_PASSWORD = 'glaze and fire';
+  const EMAIL = 'wanjiku@example.com';
+  const start = (email: string) => send('/auth/reset/start', undefined, { email });
+  const finish = (email: string, code: string, password = NEW_PASSWORD) =>
+    send('/auth/reset/finish', undefined, { email, code, password });
+
+  /** Ask for a reset code and read it out of the email that was "sent". */
+  async function resetCode(email: string) {
+    clock += MINUTE;
+    const before = emails.length;
+    expect(await (await start(email)).json()).toEqual({ sent: true });
+    expect(emails).toHaveLength(before + 1);
+    const message = emails.at(-1)!;
+    expect(message.to).toBe(email);
+    return /^(\d{6}) is your Eventify password reset code$/.exec(message.subject)![1]!;
+  }
+
+  it('says "sent" to everyone but only emails accounts that can have a password', async () => {
+    clock += 20 * MINUTE;
+    const before = emails.length;
+    for (const email of ['nobody@example.com', 'boss@example.com', 'agent@eventify.test']) {
+      expect(await (await start(email)).json()).toEqual({ sent: true });
+    }
+    expect(emails).toHaveLength(before);
+    expect((await start('not-an-email')).status).toBe(400);
+  });
+
+  it('sets the new password, signs in with it and signs out everywhere else', async () => {
+    const elsewhere = await opened(await logIn(EMAIL, PASSWORD));
+    const code = await resetCode(EMAIL);
+
+    expect((await finish(EMAIL, code, 'short')).status).toBe(400);
+    const here = await opened(await finish(' Wanjiku@Example.com', code));
+    expect(sessionUserSchema.parse(await (await send('/auth/me', here)).json()).email).toBe(EMAIL);
+    expect((await send('/auth/me', elsewhere)).status).toBe(401);
+
+    expect((await logIn(EMAIL, PASSWORD)).status).toBe(422);
+    expect((await logIn(EMAIL, NEW_PASSWORD)).status).toBe(200);
+    // The code showed the address is theirs, so tickets bought with it are theirs to see.
+    const [account] = await database.db.select().from(accounts).where(eq(accounts.email, EMAIL));
+    expect(account!.emailVerifiedAt).not.toBeNull();
+  });
+
+  it('takes a code once, and never a sign-in code', async () => {
+    const wrong = { status: 422, error: 'invalid_code' };
+    const code = await resetCode(EMAIL);
+    expect((await finish(EMAIL, code, 'kiln number two')).status).toBe(200);
+    expect(await errorOf(await finish(EMAIL, code, 'kiln number three'))).toEqual(wrong);
+
+    clock += MINUTE;
+    await send('/auth/start', undefined, { email: EMAIL });
+    const signInCode = /^(\d{6}) /.exec(emails.at(-1)!.subject)![1]!;
+    expect(await errorOf(await finish(EMAIL, signInCode))).toEqual(wrong);
+    expect((await logIn(EMAIL, 'kiln number two')).status).toBe(200);
+  });
+
+  it('limits how often one address can be sent a code', async () => {
+    clock += 2 * 60 * MINUTE;
+    expect((await start(EMAIL)).status).toBe(200);
+    expect(await errorOf(await start(EMAIL))).toEqual({ status: 429, error: 'too_many_codes' });
+  });
+});

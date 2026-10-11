@@ -150,6 +150,60 @@ export async function signInWithPassword(
   return afterFirstStep(db, account, now());
 }
 
+/** Reset codes are kept apart from sign-in codes, so one can never be used as the other. */
+const resetAddress = (email: string) => `reset:${email}`;
+
+/**
+ * Email a code for choosing a new password. Like startSignIn, the answer is the same whether or
+ * not the address has an account; only an account that can have a password is sent anything.
+ */
+export async function startPasswordReset(
+  { db, mailer, now }: AuthDeps,
+  email: string,
+): Promise<'sent' | 'too_many'> {
+  const code = await issueCode(db, resetAddress(email), now());
+  if (!code) return 'too_many';
+  const [account] = await db.select().from(accounts).where(eq(accounts.email, email));
+  if (!account || isStaff(account.role)) return 'sent';
+
+  await mailer({
+    to: email,
+    subject: `${code} is your Eventify password reset code`,
+    text: `Your Eventify password reset code is ${code}\n\nEnter it on the sign-in page to choose a new password. It works for 10 minutes. If you didn't ask for it, you can ignore this email and your password stays as it is.`,
+    html: `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0e1a1c;max-width:420px">
+  <p style="font-size:15px">Your Eventify password reset code is</p>
+  <p style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:32px;font-weight:800;letter-spacing:0.2em;margin:8px 0 16px">${code}</p>
+  <p style="font-size:13px;color:#56666a">Enter it on the sign-in page to choose a new password. It works for 10 minutes. If you didn't ask for it, you can ignore this email and your password stays as it is.</p>
+</div>`,
+  });
+  return 'sent';
+}
+
+/**
+ * Set the new password and sign in with it, ending every other session. Null when the code is
+ * wrong, used up or old.
+ */
+export async function finishPasswordReset(
+  { db, now }: Pick<AuthDeps, 'db' | 'now'>,
+  email: string,
+  code: string,
+  password: string,
+): Promise<SignInOutcome> {
+  const at = now();
+  if (!(await redeemCode(db, resetAddress(email), code, at))) return null;
+  const [existing] = await db.select().from(accounts).where(eq(accounts.email, email));
+  if (!existing || isStaff(existing.role)) return null;
+
+  // Entering the code is the proof that the address is theirs.
+  const [account] = await db
+    .update(accounts)
+    .set({ passwordHash: await hashPassword(password), emailVerifiedAt: new Date(at) })
+    .where(eq(accounts.id, existing.id))
+    .returning();
+  await endAllSessions(db, existing.id);
+  return afterFirstStep(db, account!, at);
+}
+
 /**
  * A new account that signs in with a password. Null when the address already has an account, or
  * is a Super Admin's: nobody has shown the address is theirs, so it must not open anything that exists.

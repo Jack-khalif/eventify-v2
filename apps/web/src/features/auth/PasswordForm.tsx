@@ -1,4 +1,4 @@
-import { LEGAL_CONTACT, normalizeEmail } from '@eventify/shared';
+import { normalizeEmail } from '@eventify/shared';
 import { useState, type FormEvent } from 'react';
 import { Button, PasswordField, TextField } from '../../components/ui';
 import { TwoStepForm } from './OtpForm';
@@ -8,14 +8,16 @@ import { usePasswordSignIn } from './useSession';
 export function PasswordForm({
   initialEmail = '',
   initialPassword = '',
+  onForgot,
 }: {
   initialEmail?: string;
   initialPassword?: string;
+  /** Asked for a new password; given whatever email is in the box so it needn't be typed again. */
+  onForgot: (email: string) => void;
 }) {
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState(initialPassword);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
-  const [forgot, setForgot] = useState(false);
   const signIn = usePasswordSignIn();
   const challenge =
     signIn.data && 'totpRequired' in signIn.data ? signIn.data.challenge : undefined;
@@ -73,23 +75,13 @@ export function PasswordForm({
       <Button type="submit" size="lg" disabled={signIn.isPending}>
         {signIn.isPending ? 'Signing in…' : 'Sign in'}
       </Button>
-      {forgot ? (
-        <p className="m-0 rounded-lg bg-surface p-3 text-sm text-muted">
-          We can't send reset emails yet. Write to{' '}
-          <a href={`mailto:${LEGAL_CONTACT.email}`} className="font-bold">
-            {LEGAL_CONTACT.email}
-          </a>{' '}
-          from the address on your account and we'll set a new password with you.
-        </p>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setForgot(true)}
-          className="cursor-pointer self-start rounded-md text-sm font-bold text-muted underline hover:text-fg"
-        >
-          Forgot your password?
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => onForgot(email)}
+        className="cursor-pointer self-start rounded-md text-sm font-bold text-muted underline hover:text-fg"
+      >
+        Forgot your password?
+      </button>
     </form>
   );
 }

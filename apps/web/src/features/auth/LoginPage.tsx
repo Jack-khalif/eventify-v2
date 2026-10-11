@@ -7,9 +7,10 @@ import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { TEST_LOOKUP_CODE, TEST_PASSWORD, TEST_SIGN_INS } from '../../mocks/testPhones';
 import { OtpForm } from './OtpForm';
 import { PasswordForm } from './PasswordForm';
+import { ResetPasswordForm } from './ResetPasswordForm';
 import { useSession } from './useSession';
 
-type Way = 'password' | 'code';
+type Way = 'password' | 'code' | 'reset';
 
 /**
  * /login: for organizers (email and password) and Eventify staff (a code sent by email). Buyers
@@ -42,35 +43,53 @@ export function LoginPage() {
   }
 
   const byCode = form.way === 'code';
+  const resetting = form.way === 'reset';
 
   return (
     <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col gap-5 px-5 pt-10 pb-12">
       <div className="flex flex-col gap-1.5">
         <h1 className="m-0 text-[32px] leading-[1.05] tracking-[-0.02em] text-balance">
-          {creating ? 'Sign in to create an event' : 'Sign in'}
+          {resetting
+            ? 'Choose a new password'
+            : creating
+              ? 'Sign in to create an event'
+              : 'Sign in'}
         </h1>
         <p className="m-0 text-[15px] text-muted">
-          {byCode
-            ? "We'll email you a 6-digit code. Eventify staff sign in this way."
-            : creating
-              ? 'Only approved organizers can create events.'
-              : 'For event organizers. Buying a ticket needs no account.'}
+          {resetting
+            ? "We'll email a 6-digit code to the address on your organizer account."
+            : byCode
+              ? "We'll email you a 6-digit code. Eventify staff sign in this way."
+              : creating
+                ? 'Only approved organizers can create events.'
+                : 'For event organizers. Buying a ticket needs no account.'}
         </p>
       </div>
 
       <Card className="flex flex-col gap-4 p-5">
-        {byCode ? (
+        {resetting ? (
+          <ResetPasswordForm key={form.key} initialEmail={form.email} />
+        ) : byCode ? (
           <OtpForm key={form.key} submitLabel="Sign in" initialEmail={form.email} />
         ) : (
-          <PasswordForm key={form.key} initialEmail={form.email} initialPassword={form.password} />
+          <PasswordForm
+            key={form.key}
+            initialEmail={form.email}
+            initialPassword={form.password}
+            onForgot={(email) => show('reset', email)}
+          />
         )}
         <div className="border-t-2 border-hair pt-3.5">
           <button
             type="button"
-            onClick={() => show(byCode ? 'password' : 'code')}
+            onClick={() => show(form.way === 'password' ? 'code' : 'password')}
             className="cursor-pointer rounded-md text-left text-sm font-bold text-muted hover:text-fg"
           >
-            {byCode ? 'Use a password instead' : 'Eventify staff? Sign in with an emailed code'}
+            {resetting
+              ? 'Back to sign in'
+              : byCode
+                ? 'Use a password instead'
+                : 'Eventify staff? Sign in with an emailed code'}
           </button>
         </div>
       </Card>

@@ -114,6 +114,15 @@ export function signInWithPassword(email: string, password: string): Session | n
   return { token: startSession(account.id), user: sessionUser(account) };
 }
 
+/** Null when the code is wrong, or the address has no account that signs in with a password. */
+export function resetPassword(email: string, code: string, password: string): Session | null {
+  if (code !== TEST_LOOKUP_CODE) return null;
+  const account = allAccounts().find((a) => a.email === email);
+  if (!account || account.role === 'agent' || account.role === 'super_admin') return null;
+  db.passwords = { ...db.passwords, [account.id]: password };
+  return { token: startSession(account.id), user: sessionUser(account) };
+}
+
 /** A new account and its application in one go. Null when the email already has an account. */
 export function signUpOrganizer({
   email,

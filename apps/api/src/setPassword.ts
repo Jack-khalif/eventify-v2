@@ -8,7 +8,7 @@ import { hashPassword } from './passwords';
 
 /**
  * `npm run set-password -- someone@example.com 'new password'`: give an organizer a new password
- * and sign them out everywhere. For forgotten passwords until reset emails can be sent.
+ * and sign them out everywhere. For an organizer who can't get the reset code by email.
  */
 const [emailArg, password] = process.argv.slice(2);
 if (!emailArg || !password || password.length < PASSWORD_MIN_LENGTH) {
