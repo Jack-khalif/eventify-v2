@@ -1,83 +1,59 @@
-import { normalizeEmail } from '@eventify/shared';
 import { useState, type FormEvent } from 'react';
-import { Button, PasswordField, TextField } from '../../components/ui';
-import { TwoStepForm } from './OtpForm';
+import { Button, PasswordField } from '../../components/ui';
+import { TwoStepForm } from './CodeForm';
 import { usePasswordSignIn } from './useSession';
 
-/** Email and password: how organizers sign in. */
+/** The password for `email`, which the page has already asked for. */
 export function PasswordForm({
-  initialEmail = '',
+  email,
   initialPassword = '',
   onForgot,
+  onRestart,
 }: {
-  initialEmail?: string;
+  email: string;
   initialPassword?: string;
-  /** Asked for a new password; given whatever email is in the box so it needn't be typed again. */
-  onForgot: (email: string) => void;
+  onForgot: () => void;
+  onRestart: () => void;
 }) {
-  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState(initialPassword);
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [error, setError] = useState<string>();
   const signIn = usePasswordSignIn();
   const challenge =
     signIn.data && 'totpRequired' in signIn.data ? signIn.data.challenge : undefined;
 
   const submit = (ev: FormEvent) => {
     ev.preventDefault();
-    const normalized = normalizeEmail(email);
-    const found = {
-      email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)
-        ? undefined
-        : 'Enter a valid email address',
-      password: password ? undefined : 'Enter your password',
-    };
-    setErrors(found);
-    if (!found.email && !found.password) signIn.mutate({ email: normalized, password });
+    if (!password) return setError('Enter your password');
+    signIn.mutate({ email, password });
   };
 
   if (challenge) {
-    return <TwoStepForm challenge={challenge} submitLabel="Sign in" onRestart={signIn.reset} />;
+    return <TwoStepForm challenge={challenge} submitLabel="Sign in" onRestart={onRestart} />;
   }
 
   return (
     <form onSubmit={submit} noValidate className="flex flex-col gap-4">
-      <TextField
-        label="Email"
-        type="email"
-        name="email"
-        autoComplete="username"
-        inputMode="email"
-        placeholder="you@example.com"
-        value={email}
-        onChange={(ev) => {
-          setEmail(ev.target.value);
-          setErrors((e) => ({ ...e, email: undefined }));
-        }}
-        error={errors.email}
-      />
+      {/* Not shown; tells a password manager which account the password belongs to. */}
+      <input type="email" name="email" autoComplete="username" value={email} readOnly hidden />
       <PasswordField
         label="Password"
         name="password"
         autoComplete="current-password"
+        autoFocus
         value={password}
         onChange={(ev) => {
           setPassword(ev.target.value);
-          setErrors((e) => ({ ...e, password: undefined }));
+          setError(undefined);
           signIn.reset();
         }}
-        error={errors.password}
+        error={error ?? signIn.error?.message}
       />
-      {signIn.error && (
-        <p role="alert" className="m-0 text-sm font-semibold text-danger">
-          {signIn.error.message}
-        </p>
-      )}
       <Button type="submit" size="lg" disabled={signIn.isPending}>
         {signIn.isPending ? 'Signing in…' : 'Sign in'}
       </Button>
       <button
         type="button"
-        onClick={() => onForgot(email)}
+        onClick={onForgot}
         className="cursor-pointer self-start rounded-md text-sm font-bold text-muted underline hover:text-fg"
       >
         Forgot your password?
