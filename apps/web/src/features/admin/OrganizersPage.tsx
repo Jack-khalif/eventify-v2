@@ -148,7 +148,7 @@ function OrganizerTable({ rows }: { rows: AdminOrganizerRow[] }) {
                   {o.name}
                 </Link>
               </td>
-              <td className="px-2 py-3">{o.category}</td>
+              <td className="px-2 py-3">{o.category ?? '—'}</td>
               <td className="px-2 py-3">{o.city}</td>
               <td className="px-2 py-3">{o.agent?.name ?? '—'}</td>
               <td className="px-2 py-3">
@@ -176,7 +176,7 @@ function OrganizerTable({ rows }: { rows: AdminOrganizerRow[] }) {
                 {o.name}
               </Link>
               <span className="text-xs text-muted">
-                {o.category} · {o.city} · {o.agent?.name ?? 'No agent'}
+                {[o.category, o.city, o.agent?.name ?? 'No agent'].filter(Boolean).join(' · ')}
               </span>
               <div className="mt-1.5 flex flex-wrap gap-2">
                 <RateTag bps={o.rateBps} />

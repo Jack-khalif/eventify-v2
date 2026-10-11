@@ -20,6 +20,8 @@ export const CATEGORY_TONE: Record<Category, CoverTone> = {
   'Music & Arts': 'music',
   Workshops: 'workshop',
 };
+/** An organizer's banner when they haven't said what they mostly host. */
+export const DEFAULT_BANNER_TONE: CoverTone = 'music';
 
 export type TierDraft = {
   /** Stable key for React lists and error lookup; not sent. */

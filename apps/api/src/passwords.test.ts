@@ -1,4 +1,5 @@
 import {
+  adminApplicationRowSchema,
   ORGANIZER_TERMS_VERSION,
   PRIVACY_NOTICE_VERSION,
   sessionSchema,
@@ -8,10 +9,11 @@ import {
 } from '@eventify/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { createApp } from './app';
 import { openLocalDatabase, type Database } from './db/client';
 import { seedSamples } from './db/samples';
-import { accounts, consents } from './db/schema';
+import { accounts, consents, organizers } from './db/schema';
 import type { Email } from './email/mailer';
 import { simulatedPayments } from './payments';
 
@@ -135,6 +137,38 @@ describe('signing up as an organizer', () => {
     expect(await errorOf(await signUp({ email: 'organizer@eventify.test' }))).toEqual(taken);
     expect(await errorOf(await signUp({ email: 'boss@example.com' }))).toEqual(taken);
     expect((await logIn('wanjiku@example.com', 'someone else')).status).toBe(422);
+  });
+});
+
+describe('signing up with only the essentials', () => {
+  it('needs no type, category or note, and says so plainly to whoever reviews it', async () => {
+    const res = await signUp({
+      email: 'brief@example.com',
+      organizerName: 'Brief Events',
+      type: undefined,
+      category: undefined,
+      about: undefined,
+    });
+    expect(res.status).toBe(201);
+    const { organizer } = sessionSchema.parse(await res.json()).user;
+
+    const [stored] = await database.db
+      .select()
+      .from(organizers)
+      .where(eq(organizers.id, organizer!.id));
+    expect(stored).toMatchObject({ type: 'Event organizer', category: null, city: 'Nairobi' });
+
+    const waiting = z
+      .array(adminApplicationRowSchema)
+      .parse(await (await send('/admin/applications', await withCode('boss@example.com'))).json());
+    expect(waiting.find((a) => a.organizerId === organizer!.id)).toMatchObject({
+      category: null,
+      about: '',
+    });
+    // The city is what sets their currency, so that one is still asked for.
+    expect((await signUp({ email: 'nowhere@example.com', city: undefined })).status).toBe(400);
+    // Past the limit on sign-ups from one visitor, which the tests after this share.
+    clock += 60 * MINUTE;
   });
 });
 

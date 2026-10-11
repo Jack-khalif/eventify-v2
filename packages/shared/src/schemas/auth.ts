@@ -96,8 +96,9 @@ export const ORGANIZER_TYPES = [
   'Other',
 ] as const;
 
-export const ABOUT_MIN_LENGTH = 20;
 export const ABOUT_MAX_LENGTH = 500;
+/** Shown under an organizer's name when they didn't say what describes them. */
+export const DEFAULT_ORGANIZER_TYPE = 'Event organizer';
 
 /** POST /api/organizer/apply: ask to host. The organizer stays "pending" until a Super Admin approves. */
 export const organizerApplicationRequestSchema = z.object({
@@ -107,15 +108,17 @@ export const organizerApplicationRequestSchema = z.object({
     .trim()
     .min(2, 'Enter the name buyers will see.')
     .max(60, 'Keep it under 60 characters.'),
-  type: z.enum(ORGANIZER_TYPES),
+  /** The city decides the currency their events sell in and they are paid in. */
   city: citySchema,
-  category: categorySchema,
   payoutMethod: payoutMethodSchema,
+  // The rest helps our team review the application, but nobody has to answer.
+  type: z.enum(ORGANIZER_TYPES).optional(),
+  category: categorySchema.optional(),
   about: z
     .string()
     .trim()
-    .min(ABOUT_MIN_LENGTH, 'Tell us a little more about the events you run.')
-    .max(ABOUT_MAX_LENGTH, `Keep it under ${ABOUT_MAX_LENGTH} characters.`),
+    .max(ABOUT_MAX_LENGTH, `Keep it under ${ABOUT_MAX_LENGTH} characters.`)
+    .optional(),
   /** Two separate ticks: consent to data processing must not be bundled with the contract. */
   acceptTerms: z.literal(true, 'Agree to the Organizer Terms to apply.'),
   consentToDataProcessing: z.literal(true, 'We need your consent to process your details.'),

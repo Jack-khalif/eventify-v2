@@ -208,9 +208,9 @@ describe('applying to host', () => {
 
     const token = await signIn('wanjiku@example.com');
     expect((await send('/organizer/me', token)).status).toBe(403);
-    expect((await send('/organizer/apply', token, { ...application, about: 'short' })).status).toBe(
-      400,
-    );
+    expect(
+      (await send('/organizer/apply', token, { ...application, city: 'Atlantis' })).status,
+    ).toBe(400);
 
     const res = await send('/organizer/apply', token, application);
     expect(res.status).toBe(201);

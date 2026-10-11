@@ -173,10 +173,10 @@ function Application({
           <Tag tone="outline">{a.type}</Tag>
         </div>
         <span className="text-xs text-muted">
-          {a.category} · {a.city} · applied {formatDate(a.appliedAt)}
+          {[a.category, a.city, `applied ${formatDate(a.appliedAt)}`].filter(Boolean).join(' · ')}
           {a.agent && ` · onboarded by ${a.agent.name}`}
         </span>
-        <p className="m-0 text-[13px]">{a.about}</p>
+        {a.about && <p className="m-0 text-[13px]">{a.about}</p>}
         <span className="text-xs text-muted">
           {a.contactName} · <a href={`mailto:${a.email}`}>{a.email}</a>
         </span>

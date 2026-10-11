@@ -60,7 +60,9 @@ function Detail({ org, me }: { org: AdminOrganizerDetail; me: AdminMe }) {
           <h1 className="m-0 text-[26px] tracking-[-0.02em]">{org.name}</h1>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted">
             <span>
-              {org.category} · {org.city} · {org.agent ? `agent ${org.agent.name}` : 'no agent'}
+              {[org.category, org.city, org.agent ? `agent ${org.agent.name}` : 'no agent']
+                .filter(Boolean)
+                .join(' · ')}
             </span>
             <Tag tone={status.tone}>{status.label}</Tag>
           </div>

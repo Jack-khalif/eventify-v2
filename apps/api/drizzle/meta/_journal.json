@@ -50,6 +50,13 @@
       "when": 1791531615058,
       "tag": "0006_passwords",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1791754279108,
+      "tag": "0007_slow_luke_cage",
+      "breakpoints": true
     }
   ]
 }

@@ -250,13 +250,8 @@ describe('Who can create events', () => {
     await user.type(screen.getByLabelText('Email'), 'Wambui@Example.com');
     await user.type(screen.getByLabelText('Password'), 'rooftop nights');
     await user.type(screen.getByLabelText('Organizer name'), 'Kilele Nights');
-    await user.selectOptions(screen.getByLabelText('What best describes you?'), 'Company');
-    await user.selectOptions(screen.getByLabelText('Events you mostly host'), 'Music & Arts');
+    // What describes them, what they host and the note to our team can all stay blank.
     await user.selectOptions(screen.getByLabelText('City'), 'Nairobi');
-    await user.type(
-      screen.getByLabelText('Tell us about your events'),
-      'Monthly rooftop DJ nights in Westlands, about 200 guests each.',
-    );
     await user.click(screen.getByRole('button', { name: 'Create account and apply' }));
     expect(
       await screen.findByRole('heading', { level: 1, name: "We're reviewing Kilele Nights" }),
