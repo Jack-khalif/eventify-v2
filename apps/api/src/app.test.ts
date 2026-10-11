@@ -354,6 +354,10 @@ describe('signing in by email', () => {
     const message = sent.at(-1)!;
     const code = /\b\d{6}\b/.exec(message.text)![0];
     expect(message.subject).toBe(`${code} is your Eventify sign-in code`);
+    // The code opens the message too, so a phone's notification shows it.
+    expect(message.text.startsWith(code)).toBe(true);
+    expect(message.html).toContain(`>${code}</div>`);
+    expect(message.html).toContain('src="https://tickets.test/eventify-mark.png"');
     return { code, message };
   }
 

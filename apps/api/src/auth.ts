@@ -3,6 +3,7 @@ import { and, eq, gt } from 'drizzle-orm';
 import { issueCode, redeemCode, sha256 } from './codes';
 import type { Db } from './db/client';
 import { accounts, organizers, sessions } from './db/schema';
+import { codeEmail } from './email/codeEmail';
 import type { Mailer } from './email/mailer';
 import { hashPassword, verifyPassword } from './passwords';
 import { generateTotpSecret, matchTotp } from './totp';
@@ -10,6 +11,8 @@ import { generateTotpSecret, matchTotp } from './totp';
 export type AuthDeps = {
   db: Db;
   mailer: Mailer;
+  /** Web app origin, for the logo and link in emails. */
+  siteUrl: string;
   superAdminEmails: readonly string[];
   now: () => number;
 };
@@ -26,22 +29,23 @@ const STAFF_SESSION_LIFETIME_MS = 12 * HOUR_MS;
  * Returns 'too_many' instead of sending when this address has been sent codes too quickly.
  */
 export async function startSignIn(
-  { db, mailer, now }: AuthDeps,
+  { db, mailer, siteUrl, now }: AuthDeps,
   email: string,
 ): Promise<'sent' | 'too_many'> {
   const code = await issueCode(db, email, now());
   if (!code) return 'too_many';
 
-  await mailer({
-    to: email,
-    subject: `${code} is your Eventify sign-in code`,
-    text: `Your Eventify sign-in code is ${code}\n\nIt works for 10 minutes. If you didn't ask for it, you can ignore this email.`,
-    html: `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0e1a1c;max-width:420px">
-  <p style="font-size:15px">Your Eventify sign-in code is</p>
-  <p style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:32px;font-weight:800;letter-spacing:0.2em;margin:8px 0 16px">${code}</p>
-  <p style="font-size:13px;color:#56666a">It works for 10 minutes. If you didn't ask for it, you can ignore this email.</p>
-</div>`,
-  });
+  await mailer(
+    codeEmail({
+      to: email,
+      siteUrl,
+      code,
+      name: 'sign-in code',
+      instruction: 'Enter this code on the Eventify sign-in page to finish signing in.',
+      ifNotYou:
+        "Didn't ask for it? You can ignore this email. Nobody can sign in without the code.",
+    }),
+  );
   return 'sent';
 }
 
@@ -158,7 +162,7 @@ const resetAddress = (email: string) => `reset:${email}`;
  * not the address has an account; only an account that can have a password is sent anything.
  */
 export async function startPasswordReset(
-  { db, mailer, now }: AuthDeps,
+  { db, mailer, siteUrl, now }: AuthDeps,
   email: string,
 ): Promise<'sent' | 'too_many'> {
   const code = await issueCode(db, resetAddress(email), now());
@@ -166,16 +170,16 @@ export async function startPasswordReset(
   const [account] = await db.select().from(accounts).where(eq(accounts.email, email));
   if (!account || isStaff(account.role)) return 'sent';
 
-  await mailer({
-    to: email,
-    subject: `${code} is your Eventify password reset code`,
-    text: `Your Eventify password reset code is ${code}\n\nEnter it on the sign-in page to choose a new password. It works for 10 minutes. If you didn't ask for it, you can ignore this email and your password stays as it is.`,
-    html: `<div style="font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0e1a1c;max-width:420px">
-  <p style="font-size:15px">Your Eventify password reset code is</p>
-  <p style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:32px;font-weight:800;letter-spacing:0.2em;margin:8px 0 16px">${code}</p>
-  <p style="font-size:13px;color:#56666a">Enter it on the sign-in page to choose a new password. It works for 10 minutes. If you didn't ask for it, you can ignore this email and your password stays as it is.</p>
-</div>`,
-  });
+  await mailer(
+    codeEmail({
+      to: email,
+      siteUrl,
+      code,
+      name: 'password reset code',
+      instruction: 'Enter this code on the Eventify sign-in page to choose a new password.',
+      ifNotYou: "Didn't ask for it? You can ignore this email. Your password stays as it is.",
+    }),
+  );
   return 'sent';
 }
 

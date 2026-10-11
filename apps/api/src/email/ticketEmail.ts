@@ -6,9 +6,18 @@ import {
   type TicketView,
 } from '@eventify/shared';
 import QRCode from 'qrcode';
+import {
+  ACCENT,
+  ACCENT_INK,
+  emailShell,
+  escapeHtml,
+  FONT,
+  INK,
+  MONO,
+  MUTED,
+  SURFACE,
+} from './layout';
 import type { Email } from './mailer';
-
-const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** Same rule as the web app's "Get directions": the organizer's pin, else a search for the venue. */
 const directionsUrl = (e: PublicEvent) =>
@@ -19,14 +28,6 @@ const directionsUrl = (e: PublicEvent) =>
 
 const ticketLine = (t: TicketView) =>
   t.count > 1 ? `${t.tierName} · ${t.index} of ${t.count}` : t.tierName;
-
-// Colours from apps/web/src/styles/tokens.css (light theme); email clients need them inline.
-const INK = '#0e1a1c';
-const MUTED = '#56666a';
-const SURFACE = '#f1f6f6';
-const ACCENT = '#5ce1e6';
-const ACCENT_INK = '#06292b';
-const FONT = "font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 
 /**
  * The ticket email from the design's delivery screen: event, when and where, then each ticket's
@@ -63,7 +64,7 @@ export async function ticketEmail(p: {
             <td width="116" style="padding:12px"><img src="cid:qr-${i + 1}" width="92" height="92" alt="QR code for ${escapeHtml(t.code)}" style="display:block;border-radius:6px"></td>
             <td style="padding:12px 12px 12px 0;${FONT}">
               <div style="font-size:12px;color:${MUTED}">Ticket code</div>
-              <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:15px;font-weight:800;color:${INK}">${escapeHtml(t.code)}</div>
+              <div style="${MONO};font-size:15px;font-weight:800;color:${INK}">${escapeHtml(t.code)}</div>
               <div style="font-size:12px;color:${MUTED};padding-bottom:10px">${escapeHtml(ticketLine(t))}</div>
               <a href="${escapeHtml(passUrl(t))}" style="display:inline-block;background:${ACCENT};color:${ACCENT_INK};font-size:13px;font-weight:800;text-decoration:none;padding:9px 14px;border-radius:999px">Open Live Pass</a>
             </td>
@@ -72,16 +73,12 @@ export async function ticketEmail(p: {
     )
     .join('');
 
-  const html = `<!doctype html>
-<html lang="en">
-  <body style="margin:0;padding:24px 12px;background:${SURFACE}">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;margin:0 auto;background:#ffffff;border:2px solid ${INK};border-radius:16px;${FONT}">
-      <tr>
-        <td style="padding:12px 16px;border-bottom:2px solid ${INK};font-size:12px;font-weight:800;letter-spacing:0.14em;color:${INK}">EVENTIFY</td>
-      </tr>
-      <tr>
-        <td style="padding:16px">
-          <div style="font-size:14px;color:${MUTED};padding-bottom:10px">Hi ${escapeHtml(first)}, you’re confirmed. Show ${many ? 'these tickets' : 'this ticket'} at the door.</div>
+  const lead = `Hi ${first}, you’re confirmed. Show ${many ? 'these tickets' : 'this ticket'} at the door.`;
+  const html = emailShell({
+    siteUrl: p.siteUrl,
+    preview: `${lead} ${when} at ${event.venue}.`,
+    content: `
+          <div style="font-size:14px;color:${MUTED};padding-bottom:10px">${escapeHtml(lead)}</div>
           <div style="font-size:18px;font-weight:800;color:${INK};padding-bottom:8px">${escapeHtml(event.title)}</div>
           <div style="font-size:13px;line-height:1.5;color:${MUTED}">
             ${escapeHtml(when)}<br>
@@ -91,12 +88,8 @@ export async function ticketEmail(p: {
           <div style="font-size:12px;line-height:1.5;color:${MUTED};padding-top:14px">
             ${escapeHtml(paid)} · Order ${escapeHtml(p.orderId)}<br>
             The Live Pass link is your ticket, so only share it with whoever is using it.
-          </div>
-        </td>
-      </tr>
-    </table>
-  </body>
-</html>`;
+          </div>`,
+  });
 
   const text = [
     `Hi ${first}, you're confirmed for ${event.title}.`,
