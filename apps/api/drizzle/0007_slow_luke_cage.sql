@@ -1,0 +1,1 @@
+ALTER TABLE "organizers" ALTER COLUMN "category" DROP NOT NULL;

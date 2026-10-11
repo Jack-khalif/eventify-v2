@@ -42,7 +42,8 @@ export const organizers = pgTable('organizers', {
   bio: text('bio').notNull().default(''),
   bannerTone: text('banner_tone').$type<CoverTone>().notNull(),
   city: text('city').$type<City>().notNull(),
-  category: text('category').$type<Category>().notNull(),
+  /** Null when the applicant didn't say what they mostly host. */
+  category: text('category').$type<Category>(),
   agentId: text('agent_id'),
   /** The rate charged on new sales. Every change is also written to rate_changes. */
   rateBps: integer('rate_bps').notNull(),

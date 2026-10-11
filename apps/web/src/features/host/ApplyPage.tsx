@@ -82,6 +82,10 @@ function ApplyForm({ user }: { user: SessionUser | null }) {
 
   const filled = {
     ...draft,
+    // Left blank, the optional answers are simply not sent.
+    type: draft.type || undefined,
+    category: draft.category || undefined,
+    about: draft.about.trim() || undefined,
     ...agreed,
     termsVersion: ORGANIZER_TERMS_VERSION,
     privacyVersion: PRIVACY_NOTICE_VERSION,
@@ -202,32 +206,11 @@ function ApplyForm({ user }: { user: SessionUser | null }) {
             />
             <div className="grid gap-4 sm:grid-cols-2">
               <SelectField
-                label="What best describes you?"
-                value={draft.type}
-                onChange={set('type')}
-                error={shown.type}
-              >
-                <option value="">Choose one</option>
-                {ORGANIZER_TYPES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </SelectField>
-              <SelectField
-                label="Events you mostly host"
-                value={draft.category}
-                onChange={set('category')}
-                error={shown.category}
-              >
-                <option value="">Choose one</option>
-                {CATEGORIES.map((c) => (
-                  <option key={c}>{c}</option>
-                ))}
-              </SelectField>
-              <SelectField
                 label="City"
                 value={draft.city}
                 onChange={set('city')}
                 error={shown.city}
+                hint="Sets the currency you sell and are paid in."
               >
                 <option value="">Choose one</option>
                 {CITIES.map((c) => (
@@ -247,16 +230,51 @@ function ApplyForm({ user }: { user: SessionUser | null }) {
                 ))}
               </SelectField>
             </div>
-            <TextAreaField
-              label="Tell us about your events"
-              placeholder="What you host, how often, and roughly how many people come."
-              maxLength={ABOUT_MAX_LENGTH}
-              value={draft.about}
-              onChange={set('about')}
-              error={shown.about}
-              hint="This is only for our team. Links to past events or social pages help us approve you faster."
-            />
           </Card>
+
+          <details className="group rounded-2xl border-2 border-hair">
+            <summary className="cursor-pointer px-5 py-4 font-extrabold">
+              Tell us more{' '}
+              <span className="font-semibold text-muted">
+                (optional, helps us approve you faster)
+              </span>
+            </summary>
+            <div className="flex flex-col gap-4 px-5 pb-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <SelectField
+                  label="What best describes you?"
+                  value={draft.type}
+                  onChange={set('type')}
+                  error={shown.type}
+                >
+                  <option value="">Choose one</option>
+                  {ORGANIZER_TYPES.map((t) => (
+                    <option key={t}>{t}</option>
+                  ))}
+                </SelectField>
+                <SelectField
+                  label="Events you mostly host"
+                  value={draft.category}
+                  onChange={set('category')}
+                  error={shown.category}
+                >
+                  <option value="">Choose one</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c}>{c}</option>
+                  ))}
+                </SelectField>
+              </div>
+              <TextAreaField
+                label="Tell us about your events"
+                placeholder="What you host, how often, and roughly how many people come."
+                maxLength={ABOUT_MAX_LENGTH}
+                value={draft.about}
+                onChange={set('about')}
+                error={shown.about}
+                hint="This is only for our team. Links to past events or social pages help."
+              />
+            </div>
+          </details>
 
           <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
             <Check size={16} strokeWidth={3} className="flex-none text-accent-text" aria-hidden />

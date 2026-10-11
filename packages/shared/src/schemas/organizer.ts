@@ -18,7 +18,8 @@ export const organizerSchema = z.object({
   bio: z.string(),
   bannerTone: coverToneSchema,
   city: citySchema,
-  category: categorySchema,
+  /** Null when they didn't say what they mostly host. */
+  category: categorySchema.nullable(),
   agentId: idSchema.nullable(),
   rateBps: rateBpsSchema,
   status: organizerStatusSchema,

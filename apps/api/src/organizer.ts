@@ -1,6 +1,8 @@
 import {
   canApplyToHost,
   CATEGORY_TONE,
+  DEFAULT_BANNER_TONE,
+  DEFAULT_ORGANIZER_TYPE,
   CITY_CURRENCY,
   DEFAULT_RATE_BPS,
   displayStatus,
@@ -92,10 +94,10 @@ export async function applyToHost(
     const details = {
       handle: await uniqueHandle(tx, req.organizerName, id),
       name: req.organizerName,
-      type: req.type,
-      bannerTone: CATEGORY_TONE[req.category],
+      type: req.type ?? DEFAULT_ORGANIZER_TYPE,
+      bannerTone: req.category ? CATEGORY_TONE[req.category] : DEFAULT_BANNER_TONE,
       city: req.city,
-      category: req.category,
+      category: req.category ?? null,
       status: 'pending' as const,
       payoutMethod: req.payoutMethod,
     };
@@ -107,7 +109,7 @@ export async function applyToHost(
     const application = {
       contactName: req.contactName,
       email: account.email,
-      about: req.about,
+      about: req.about ?? '',
       appliedAt: new Date(now()),
     };
     await tx
