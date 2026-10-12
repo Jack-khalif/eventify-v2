@@ -85,7 +85,7 @@ export async function organizerProfile(
     .select()
     .from(events)
     .where(and(eq(events.organizerId, o.id), ne(events.status, 'draft')));
-  // No public page for an applicant until they are approved or have an event up.
+  // No public page for someone who was never let in, unless they have an event up.
   if ((o.status === 'pending' || o.status === 'rejected') && own.length === 0) return undefined;
   return {
     id: o.id,

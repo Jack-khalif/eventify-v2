@@ -1,5 +1,4 @@
 import {
-  adminApplicationRowSchema,
   ORGANIZER_TERMS_VERSION,
   PRIVACY_NOTICE_VERSION,
   sessionSchema,
@@ -9,11 +8,10 @@ import {
 } from '@eventify/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { z } from 'zod';
 import { createApp } from './app';
 import { openLocalDatabase, type Database } from './db/client';
 import { seedSamples } from './db/samples';
-import { accounts, consents, organizers } from './db/schema';
+import { accounts, consents, organizerApplications, organizers } from './db/schema';
 import type { Email } from './email/mailer';
 import { simulatedPayments } from './payments';
 
@@ -109,7 +107,7 @@ describe('signing up as an organizer', () => {
     expect(await database.db.select().from(consents)).toEqual([]);
   });
 
-  it('makes the account and the application together, signed in and waiting for approval', async () => {
+  it('makes the account and the organizer profile together, signed in and able to publish', async () => {
     const res = await signUp();
     expect(res.status).toBe(201);
     const who = await opened(res);
@@ -118,7 +116,7 @@ describe('signing up as an organizer', () => {
       email: 'wanjiku@example.com',
       name: 'Wanjiku Kamau',
       role: 'organizer',
-      organizer: { handle: 'kiln-club', status: 'pending' },
+      organizer: { handle: 'kiln-club', status: 'active' },
     });
 
     const [row] = await database.db
@@ -141,7 +139,7 @@ describe('signing up as an organizer', () => {
 });
 
 describe('signing up with only the essentials', () => {
-  it('needs no type, category or note, and says so plainly to whoever reviews it', async () => {
+  it('needs no type, category or note', async () => {
     const res = await signUp({
       email: 'brief@example.com',
       organizerName: 'Brief Events',
@@ -158,13 +156,11 @@ describe('signing up with only the essentials', () => {
       .where(eq(organizers.id, organizer!.id));
     expect(stored).toMatchObject({ type: 'Event organizer', category: null, city: 'Nairobi' });
 
-    const waiting = z
-      .array(adminApplicationRowSchema)
-      .parse(await (await send('/admin/applications', await withCode('boss@example.com'))).json());
-    expect(waiting.find((a) => a.organizerId === organizer!.id)).toMatchObject({
-      category: null,
-      about: '',
-    });
+    const [told] = await database.db
+      .select()
+      .from(organizerApplications)
+      .where(eq(organizerApplications.organizerId, organizer!.id));
+    expect(told).toMatchObject({ contactName: 'Wanjiku Kamau', about: '' });
     // The city is what sets their currency, so that one is still asked for.
     expect((await signUp({ email: 'nowhere@example.com', city: undefined })).status).toBe(400);
     // Past the limit on sign-ups from one visitor, which the tests after this share.

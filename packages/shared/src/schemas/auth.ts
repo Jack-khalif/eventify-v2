@@ -30,7 +30,7 @@ export type Account = z.infer<typeof accountSchema>;
 export const sessionUserSchema = accountSchema
   .pick({ id: true, name: true, email: true, role: true })
   .extend({
-    /** Set for organizers, including ones still waiting for approval. */
+    /** Set for organizers, whatever their status. */
     organizer: z
       .object({
         id: idSchema,
@@ -100,7 +100,7 @@ export const ABOUT_MAX_LENGTH = 500;
 /** Shown under an organizer's name when they didn't say what describes them. */
 export const DEFAULT_ORGANIZER_TYPE = 'Event organizer';
 
-/** POST /api/organizer/apply: ask to host. The organizer stays "pending" until a Super Admin approves. */
+/** POST /api/organizer/apply: become an organizer. They are active, and can publish, straight away. */
 export const organizerApplicationRequestSchema = z.object({
   contactName: z.string().trim().min(2, 'Enter your name.').max(80),
   organizerName: z
@@ -111,7 +111,7 @@ export const organizerApplicationRequestSchema = z.object({
   /** The city decides the currency their events sell in and they are paid in. */
   city: citySchema,
   payoutMethod: payoutMethodSchema,
-  // The rest helps our team review the application, but nobody has to answer.
+  // The rest fills in their public profile, but nobody has to answer.
   type: z.enum(ORGANIZER_TYPES).optional(),
   category: categorySchema.optional(),
   about: z
@@ -120,7 +120,7 @@ export const organizerApplicationRequestSchema = z.object({
     .max(ABOUT_MAX_LENGTH, `Keep it under ${ABOUT_MAX_LENGTH} characters.`)
     .optional(),
   /** Two separate ticks: consent to data processing must not be bundled with the contract. */
-  acceptTerms: z.literal(true, 'Agree to the Organizer Terms to apply.'),
+  acceptTerms: z.literal(true, 'Agree to the Organizer Terms to continue.'),
   consentToDataProcessing: z.literal(true, 'We need your consent to process your details.'),
   /** The versions that were on screen, so we record what was actually agreed to. */
   termsVersion: z.string().min(1).max(20),
@@ -135,8 +135,8 @@ const newPasswordSchema = z
   .max(200, 'Keep it under 200 characters.');
 
 /**
- * POST /api/organizer/signup: create an account and apply to host in one go. The answer is a
- * session for the new organizer, who waits as "pending" like any other applicant.
+ * POST /api/organizer/signup: create an account and its organizer profile in one go. The answer
+ * is a session for the new organizer.
  */
 export const organizerSignUpRequestSchema = organizerApplicationRequestSchema.extend({
   email: emailInputSchema,
@@ -156,7 +156,7 @@ export const passwordResetStartSchema = signInStartSchema;
 export const passwordResetFinishSchema = signInVerifySchema.extend({ password: newPasswordSchema });
 export type PasswordResetFinishRequest = z.infer<typeof passwordResetFinishSchema>;
 
-/** What an applicant told us, kept with the organizer for the admin who reviews it. */
+/** What an organizer told us when they signed up, kept for the admin portal. */
 export const organizerApplicationSchema = z.object({
   organizerId: idSchema,
   contactName: z.string().min(1),
