@@ -10,6 +10,7 @@ import {
   passwordResetStartSchema,
   passwordSignInSchema,
   PRIVACY_NOTICE_VERSION,
+  SUPPORT_EMAIL,
   organizerStatusChangeSchema,
   rateChangeRequestSchema,
   addStaffRequestSchema,
@@ -72,6 +73,7 @@ import { doorList, scannerCheckIns, syncDoor } from './checkin';
 import {
   allEvents,
   createEvent,
+  deleteEvent,
   eventDashboard,
   eventForCheckinCode,
   organizerHome,
@@ -409,6 +411,25 @@ export const handlers = [
       );
     }
     return HttpResponse.json(createEvent(body.data, organizer.id), { status: 201 });
+  }),
+
+  http.delete('*/api/organizer/events/:id', async ({ params, request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    const result = deleteEvent(organizer.id, String(params.id));
+    if (!result) return notFound();
+    const issued = result.ticketsIssued;
+    if (issued > 0) {
+      return HttpResponse.json(
+        {
+          error: 'tickets_issued',
+          message: `${issued} ${issued === 1 ? 'ticket has' : 'tickets have'} been issued for this event, so it can't be deleted here. Write to ${SUPPORT_EMAIL} and we'll help you cancel it.`,
+        },
+        { status: 409 },
+      );
+    }
+    return new HttpResponse(null, { status: 204 });
   }),
 
   // Door check-in: the link's code is the only credential door staff have.

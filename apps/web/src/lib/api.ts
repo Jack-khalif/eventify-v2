@@ -76,3 +76,9 @@ export async function apiPost<T>(path: string, body: unknown, schema: z.ZodType<
   if (!res.ok) throw await toApiError(res, 'Something went wrong. Please try again.');
   return schema.parse(await res.json());
 }
+
+/** DELETE something. There is nothing to read back: it worked unless this throws. */
+export async function apiDelete(path: string): Promise<void> {
+  const res = await send(new URL(BASE_URL + path, window.location.origin), { method: 'DELETE' });
+  if (!res.ok) throw await toApiError(res, 'Something went wrong. Please try again.');
+}

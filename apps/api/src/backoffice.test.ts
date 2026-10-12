@@ -23,7 +23,7 @@ import {
   type CheckoutRequest,
   type CreateEventRequest,
 } from '@eventify/shared';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createApp } from './app';
@@ -737,5 +737,85 @@ describe('the admin portal', () => {
     expect(of('organizer.status').map((entry) => `${entry.target}:${entry.detail.status}`)).toEqual(
       ['tickets-2:active', 'kiln-club:rejected', 'amaniwanjiru:suspended', 'amaniwanjiru:active'],
     );
+  });
+});
+
+describe('deleting an event', () => {
+  const DAY = 24 * 60 * MINUTE;
+  const remove = (id: string, token?: string) =>
+    api().request(`/api/organizer/events/${id}`, {
+      method: 'DELETE',
+      headers: token ? { Authorization: `Bearer ${token}`, Cookie: cookies.get(token) ?? '' } : {},
+    });
+  const publish = async (title: string) => {
+    const res = await send(
+      '/organizer/events',
+      await organizer(),
+      newEvent({
+        title,
+        coverImageUrl: POSTER,
+        startsAt: new Date(clock + 7 * DAY).toISOString(),
+        endsAt: new Date(clock + 7 * DAY + 180 * MINUTE).toISOString(),
+      }),
+    );
+    expect(res.status).toBe(201);
+    return publicEventSchema.parse(await res.json());
+  };
+
+  it('takes down an event nobody has a ticket for, with everything that hangs off it', async () => {
+    const event = await publish('Glaze Night');
+    await send(`/events/${event.slug}`); // a page view, which is kept per event
+
+    expect((await remove(event.id)).status).toBe(401);
+    // Only its own organizer: another one is told there's no such event.
+    const stranger = await signIn('otieno@example.com');
+    expect((await remove(event.id, stranger)).status).toBe(403);
+    expect(
+      (await send('/organizer/apply', stranger, { ...application, organizerName: 'Glaze Rivals' }))
+        .status,
+    ).toBe(201);
+    expect((await remove(event.id, stranger)).status).toBe(404);
+    expect((await remove('evt_nope', await organizer())).status).toBe(404);
+
+    expect((await remove(event.id, await organizer())).status).toBe(204);
+    expect((await send(`/events/${event.slug}`)).status).toBe(404);
+    expect((await api().request(event.coverImageUrl!)).status).toBe(404);
+    expect(await database.db.select().from(tiers).where(eq(tiers.eventId, event.id))).toEqual([]);
+    expect((await remove(event.id, await organizer())).status).toBe(404);
+  });
+
+  it('waits for a buyer who is in the middle of paying', async () => {
+    const event = await publish('Wheel Throwing');
+    const res = await send('/orders', undefined, {
+      eventId: event.id,
+      tierId: event.tiers[0]!.id,
+      quantity: 1,
+      buyer: { name: 'Amina Otieno', phone: '+254712345678', email: 'amina@example.com' },
+      paymentMethod: 'mpesa',
+    });
+    const order = orderViewSchema.parse(await res.json());
+
+    const refused = await remove(event.id, await organizer());
+    expect(refused.status).toBe(409);
+    expect(((await refused.json()) as { error: string }).error).toBe('payment_in_progress');
+
+    // The buyer gives up, and the order goes with the event.
+    expect((await send(`/orders/${order.id}/cancel`, undefined, {})).status).toBe(200);
+    expect((await remove(event.id, await organizer())).status).toBe(204);
+    expect((await send(`/orders/${order.id}`)).status).toBe(404);
+  });
+
+  it('refuses once a ticket has been issued, and says who to write to', async () => {
+    const event = await publish('Kiln Opening');
+    await buy({ eventId: event.id, tierId: event.tiers[0]!.id });
+
+    const refused = await remove(event.id, await organizer());
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({
+      error: 'tickets_issued',
+      message:
+        "1 ticket has been issued for this event, so it can't be deleted here. Write to support@eventifyafrica.co.ke and we'll help you cancel it.",
+    });
+    expect((await send(`/events/${event.slug}`)).status).toBe(200);
   });
 });

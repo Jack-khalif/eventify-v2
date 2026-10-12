@@ -6,21 +6,22 @@ import {
   lastDays,
   organizerNetFor,
   feeFor,
+  SUPPORT_EMAIL,
   type EventDashboard,
   type EventStatus,
   type OrganizerHome,
 } from '@eventify/shared';
-import { Copy } from 'lucide-react';
+import { Copy, Trash2 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { BarChart } from '../../components/BarChart';
 import { ErrorState } from '../../components/PageStates';
-import { Button, buttonClass, Card, Cover, Tag } from '../../components/ui';
+import { Button, buttonClass, Card, Cover, Dialog, Tag } from '../../components/ui';
 import { cn } from '../../lib/cn';
 import { displayUrl, siteUrl } from '../../lib/site';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useSession } from '../auth/useSession';
-import { useEventDashboard, useOrganizerHome } from './useDashboard';
+import { useDeleteEvent, useEventDashboard, useOrganizerHome } from './useDashboard';
 
 const STATUS_LABEL: Record<EventStatus, string> = { live: 'Live', draft: 'Draft', ended: 'Ended' };
 const count = (n: number) => n.toLocaleString('en-US');
@@ -147,13 +148,25 @@ function Dashboard({ home }: { home: OrganizerHome }) {
       ) : !dashboard.data ? (
         <div aria-busy="true" aria-label="Loading event numbers" className="h-64" />
       ) : (
-        <EventNumbers d={dashboard.data} myEvents={myEvents} />
+        <EventNumbers
+          d={dashboard.data}
+          myEvents={myEvents}
+          onDeleted={() => setParams({}, { replace: true })}
+        />
       )}
     </div>
   );
 }
 
-function EventNumbers({ d, myEvents }: { d: EventDashboard; myEvents: ReactNode }) {
+function EventNumbers({
+  d,
+  myEvents,
+  onDeleted,
+}: {
+  d: EventDashboard;
+  myEvents: ReactNode;
+  onDeleted: () => void;
+}) {
   const fees = feeFor(d.grossMinor, d.rateBps);
   const soldThisWeek = lastDays(d.dailySales, 7);
   const soldIn14 = lastDays(d.dailySales, 14);
@@ -250,7 +263,86 @@ function EventNumbers({ d, myEvents }: { d: EventDashboard; myEvents: ReactNode 
         <CheckIns d={d} />
         {myEvents}
       </div>
+
+      <DeleteEvent d={d} onDeleted={onDeleted} />
     </>
+  );
+}
+
+/**
+ * Taking an event down. Offered only while nobody holds a ticket: after that it has to be
+ * cancelled with the buyers told, which our team does with the organizer.
+ */
+function DeleteEvent({ d, onDeleted }: { d: EventDashboard; onDeleted: () => void }) {
+  const [open, setOpen] = useState(false);
+  const remove = useDeleteEvent();
+  const issued = d.ticketsSold;
+  const close = () => {
+    setOpen(false);
+    remove.reset();
+  };
+
+  return (
+    <section
+      aria-labelledby="delete-event"
+      className="flex flex-col items-start gap-2 border-t-2 border-hair pt-5"
+    >
+      <h3 id="delete-event" className="m-0 text-base">
+        Delete this event
+      </h3>
+      {issued > 0 ? (
+        <p className="m-0 max-w-[640px] text-sm text-muted">
+          {count(issued)} {issued === 1 ? 'ticket has' : 'tickets have'} been issued, so this event
+          can't be deleted here. To cancel it, write to{' '}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="font-bold">
+            {SUPPORT_EMAIL}
+          </a>{' '}
+          and we'll help you tell your buyers.
+        </p>
+      ) : (
+        <>
+          <p className="m-0 max-w-[640px] text-sm text-muted">
+            Nobody has a ticket yet, so you can take it down. Its page, ticket tiers and door link
+            go with it.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+            <Trash2 size={15} aria-hidden /> Delete event
+          </Button>
+        </>
+      )}
+      <Dialog
+        open={open}
+        onClose={close}
+        title={`Delete ${d.title}?`}
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={close} disabled={remove.isPending}>
+              Keep event
+            </Button>
+            <Button
+              size="sm"
+              className="bg-danger text-white hover:bg-danger hover:opacity-90"
+              disabled={remove.isPending}
+              onClick={() =>
+                remove.mutate({ id: d.eventId, slug: d.slug }, { onSuccess: onDeleted })
+              }
+            >
+              {remove.isPending ? 'Deleting…' : 'Delete for good'}
+            </Button>
+          </>
+        }
+      >
+        <p className="m-0">
+          The event page comes down straight away and anyone with the link will see that it's gone.
+          This can't be undone.
+        </p>
+        {remove.error && (
+          <p role="alert" className="mt-3 mb-0 font-semibold text-danger">
+            {remove.error.message}
+          </p>
+        )}
+      </Dialog>
+    </section>
   );
 }
 

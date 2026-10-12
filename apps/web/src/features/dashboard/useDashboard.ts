@@ -6,7 +6,7 @@ import {
   type CreateEventRequest,
 } from '@eventify/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiGet, apiPost } from '../../lib/api';
+import { apiDelete, apiGet, apiPost } from '../../lib/api';
 
 /** Signed-in organizer and their events. ("organizer" keys are public profiles.) */
 export function useOrganizerHome() {
@@ -38,6 +38,23 @@ export function useCreateEvent() {
       // The new event belongs on the dashboard and on Discover.
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['my-organizer'] }),
+        queryClient.invalidateQueries({ queryKey: ['events'] }),
+      ]);
+    },
+  });
+}
+
+/** Take an event down for good. The API refuses once tickets have been issued. */
+export function useDeleteEvent() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (event: { id: string; slug: string }) =>
+      apiDelete(`/api/organizer/events/${encodeURIComponent(event.id)}`),
+    onSuccess: async (_, event) => {
+      queryClient.removeQueries({ queryKey: ['event', event.slug] });
+      queryClient.removeQueries({ queryKey: ['my-organizer', 'dashboard', event.id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['my-organizer'], exact: true }),
         queryClient.invalidateQueries({ queryKey: ['events'] }),
       ]);
     },
