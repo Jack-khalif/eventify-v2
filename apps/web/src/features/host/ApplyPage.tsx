@@ -10,13 +10,13 @@ import {
   type OrganizerSignUpRequest,
   type SessionUser,
 } from '@eventify/shared';
+import { Check } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate } from 'react-router';
-import { BackLink } from '../../components/BackLink';
 import { ErrorState } from '../../components/PageStates';
 import {
   Button,
-  Card,
+  buttonClass,
   CheckboxField,
   PasswordField,
   SelectField,
@@ -24,8 +24,16 @@ import {
 } from '../../components/ui';
 import { ApiError } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
-import { loginPath } from '../auth/roles';
-import { useApplyToHost, useSession, useSignUpOrganizer } from '../auth/useSession';
+import { AUTH_CTA, AuthHeading, AuthShell, AuthStep, Spinner } from '../auth/AuthShell';
+import { ResendCode } from '../auth/CodeForm';
+import { OtpBoxes } from '../auth/OtpBoxes';
+import {
+  useApplyToHost,
+  useSession,
+  useSignUpOrganizer,
+  useStartSignIn,
+  useVerifySignIn,
+} from '../auth/useSession';
 type Agreement = 'acceptTerms' | 'consentToDataProcessing';
 /** What the form asks. What describes them and what they host is left out: the API has defaults. */
 type Draft = Record<
@@ -33,30 +41,82 @@ type Draft = Record<
   string
 >;
 type Errors = Partial<Record<keyof Draft | Agreement, string>>;
+type SignUp = ReturnType<typeof useSignUpOrganizer>;
+type SendCode = ReturnType<typeof useStartSignIn>;
 
 const PAYOUT_LABEL = { mpesa: 'M-Pesa', bank: 'Bank transfer' } as const;
 
 /**
- * /organizer/apply: become an organizer, on one page. A guest makes their account (email and
- * password) here too; someone already signed in only adds their organizer profile. Nobody reviews
- * it: they land on their dashboard, ready to publish.
+ * /organizer/apply: become an organizer. A guest makes their account here in three steps on one
+ * screen: the form, the 6-digit code we email to show the address is theirs, and a welcome.
+ * Someone already signed in only adds their organizer profile. Nobody reviews it: they can
+ * publish straight away.
  */
 export function ApplyPage() {
   const session = useSession();
+  const signUp = useSignUpOrganizer();
+  const sendCode = useStartSignIn();
+  const [confirmed, setConfirmed] = useState(false);
+
+  // The account exists from here on, so the last two steps outlive the "already an organizer"
+  // check below, which would otherwise send them off to their dashboard mid-flow.
+  if (signUp.isSuccess) {
+    return (
+      <AuthShell>
+        {confirmed ? (
+          <Welcome />
+        ) : (
+          <ConfirmEmail
+            email={signUp.data.user.email}
+            sendCode={sendCode}
+            onConfirmed={() => setConfirmed(true)}
+          />
+        )}
+      </AuthShell>
+    );
+  }
   if (session.status === 'loading') {
-    return <div aria-busy="true" aria-label="Checking your account" className="flex-1" />;
+    return (
+      <AuthShell tab="create">
+        <div aria-busy="true" aria-label="Checking your account" className="h-40" />
+      </AuthShell>
+    );
   }
   if (session.status === 'error') {
-    return <ErrorState onRetry={session.refetch}>Couldn't check your account.</ErrorState>;
+    return (
+      <AuthShell tab="create">
+        <ErrorState onRetry={session.refetch}>Couldn't check your account.</ErrorState>
+      </AuthShell>
+    );
   }
-  if (session.user && !canApplyToHost(session.user)) return <Navigate to="/organizer" replace />;
-  return <ApplyForm user={session.user} />;
+  if (session.user && !signUp.isPending && !canApplyToHost(session.user)) {
+    return <Navigate to="/organizer" replace />;
+  }
+  return (
+    <AuthShell tab={session.user ? undefined : 'create'}>
+      <ApplyForm
+        user={session.user}
+        signUp={signUp}
+        // The code goes out as soon as the account exists, ready for the next step.
+        onSignUp={(request) =>
+          signUp.mutate(request, { onSuccess: ({ user }) => sendCode.mutate(user.email) })
+        }
+      />
+    </AuthShell>
+  );
 }
 
-function ApplyForm({ user }: { user: SessionUser | null }) {
+function ApplyForm({
+  user,
+  signUp,
+  onSignUp,
+}: {
+  user: SessionUser | null;
+  signUp: SignUp;
+  onSignUp: (request: OrganizerSignUpRequest) => void;
+}) {
   useDocumentTitle(user ? 'Start hosting' : 'Create your organizer account');
   const applyAsMe = useApplyToHost();
-  const signUp = useSignUpOrganizer();
   const apply = user ? applyAsMe : signUp;
   const [attempted, setAttempted] = useState(false);
   const [draft, setDraft] = useState<Draft>({
@@ -100,116 +160,98 @@ function ApplyForm({ user }: { user: SessionUser | null }) {
     setAttempted(true);
     if (!parsed.success) return;
     if (user) applyAsMe.mutate(parsed.data);
-    else signUp.mutate(parsed.data as OrganizerSignUpRequest);
+    else onSignUp(parsed.data as OrganizerSignUpRequest);
   };
 
   const handle = draft.organizerName.trim() ? slugify(draft.organizerName) : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-5 px-5 pt-5 pb-12">
-      <BackLink label="Hosting" fallback="/organizer" />
-      <div className="flex flex-col gap-2">
-        <h1 className="m-0 text-[28px] tracking-[-0.02em] text-balance">
-          {user ? 'Start hosting' : 'Create your organizer account'}
-        </h1>
-        <p className="m-0 text-[15px] text-muted">
-          It takes about a minute, and you can publish your first event straight away.{' '}
-          {user ? (
-            <>
-              You're signed in as <strong className="break-all text-fg">{user.email}</strong>.
-            </>
-          ) : (
-            <>
-              Already have an account?{' '}
-              <Link to={loginPath('/organizer')} className="font-bold">
-                Sign in
-              </Link>
-            </>
-          )}
-        </p>
-      </div>
+    <AuthStep>
+      <AuthHeading title={user ? 'Start hosting' : 'Create your organizer account'}>
+        It takes about a minute, and you can publish your first event straight away.
+        {user && (
+          <>
+            {' '}
+            You're signed in as <strong className="break-all text-fg">{user.email}</strong>.
+          </>
+        )}
+      </AuthHeading>
 
-      <form onSubmit={submit} noValidate className="flex flex-col gap-5">
-        <Card className="flex flex-col gap-4 p-5">
-          <h2 className="m-0 text-base">{user ? 'About you' : 'Your account'}</h2>
-          <TextField
-            label="Your name"
-            name="name"
-            autoComplete="name"
-            value={draft.contactName}
-            onChange={set('contactName')}
-            error={shown.contactName}
-          />
-          {!user && (
-            <>
-              <TextField
-                label="Email"
-                type="email"
-                name="email"
-                autoComplete="username"
-                inputMode="email"
-                placeholder="you@example.com"
-                value={draft.email}
-                onChange={set('email')}
-                error={shown.email}
-                hint="You'll sign in with this, and we'll write to you here about your account."
-              />
-              <PasswordField
-                label="Password"
-                name="new-password"
-                autoComplete="new-password"
-                value={draft.password}
-                onChange={set('password')}
-                error={shown.password}
-                hint={`At least ${PASSWORD_MIN_LENGTH} characters. A few words you'll remember works well.`}
-              />
-            </>
-          )}
-        </Card>
+      <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <TextField
+          label="Your name"
+          name="name"
+          autoComplete="name"
+          value={draft.contactName}
+          onChange={set('contactName')}
+          error={shown.contactName}
+        />
+        {!user && (
+          <>
+            <TextField
+              label="Email"
+              type="email"
+              name="email"
+              autoComplete="username"
+              inputMode="email"
+              placeholder="you@example.com"
+              value={draft.email}
+              onChange={set('email')}
+              error={shown.email}
+              hint="You'll sign in with this. We'll email you a code to confirm it's yours."
+            />
+            <PasswordField
+              label="Password"
+              name="new-password"
+              autoComplete="new-password"
+              value={draft.password}
+              onChange={set('password')}
+              error={shown.password}
+              hint={`At least ${PASSWORD_MIN_LENGTH} characters. A few words you'll remember works well.`}
+            />
+          </>
+        )}
+        <TextField
+          label="Organizer name"
+          placeholder="e.g. Sauti Sessions, UoN Writers Guild"
+          value={draft.organizerName}
+          onChange={set('organizerName')}
+          error={shown.organizerName}
+          hint={
+            handle
+              ? `Buyers see this name. Your page will be eventify.co/${handle}`
+              : 'The name buyers see on your events: your own, or your brand, society or company.'
+          }
+        />
+        <div className="grid gap-4 min-[420px]:grid-cols-2">
+          <SelectField
+            label="City"
+            value={draft.city}
+            onChange={set('city')}
+            error={shown.city}
+            hint="Sets your currency."
+          >
+            <option value="">Choose one</option>
+            {CITIES.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="How should we pay you?"
+            value={draft.payoutMethod}
+            onChange={set('payoutMethod')}
+            error={shown.payoutMethod}
+          >
+            {Object.entries(PAYOUT_LABEL).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </SelectField>
+        </div>
 
-        <Card className="flex flex-col gap-4 p-5">
-          <h2 className="m-0 text-base">Your organizer profile</h2>
-          <TextField
-            label="Organizer name"
-            placeholder="e.g. Sauti Sessions, UoN Writers Guild"
-            value={draft.organizerName}
-            onChange={set('organizerName')}
-            error={shown.organizerName}
-            hint={
-              handle
-                ? `Buyers see this name. Your page will be eventify.co/${handle}`
-                : 'The name buyers see on your events: your own, or your brand, society or company.'
-            }
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
-            <SelectField
-              label="City"
-              value={draft.city}
-              onChange={set('city')}
-              error={shown.city}
-              hint="Sets the currency you sell and are paid in."
-            >
-              <option value="">Choose one</option>
-              {CITIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </SelectField>
-            <SelectField
-              label="How should we pay you?"
-              value={draft.payoutMethod}
-              onChange={set('payoutMethod')}
-              error={shown.payoutMethod}
-            >
-              {Object.entries(PAYOUT_LABEL).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </SelectField>
-          </div>
-        </Card>
-
-        <Card className="flex flex-col gap-4 p-5">
+        {/* Each document opens in its own tab, so reading it doesn't lose what was typed. */}
+        <div className="flex flex-col gap-3.5 border-t-2 border-hair pt-4">
           <CheckboxField
             checked={agreed.acceptTerms}
             onChange={tick('acceptTerms')}
@@ -239,7 +281,7 @@ function ApplyForm({ user }: { user: SessionUser | null }) {
               </>
             }
           />
-        </Card>
+        </div>
 
         {apply.error && (
           <p
@@ -251,11 +293,114 @@ function ApplyForm({ user }: { user: SessionUser | null }) {
               : "Couldn't create your organizer account. Check your connection and try again."}
           </p>
         )}
-        <Button type="submit" size="lg" disabled={apply.isPending}>
-          {apply.isPending ? 'Creating…' : user ? 'Start hosting' : 'Create account'}
+        <Button type="submit" size="lg" className={AUTH_CTA} disabled={apply.isPending}>
+          {apply.isPending ? (
+            <>
+              <Spinner /> Creating…
+            </>
+          ) : user ? (
+            'Start hosting'
+          ) : (
+            'Create account'
+          )}
         </Button>
       </form>
-    </div>
+    </AuthStep>
+  );
+}
+
+/**
+ * Step two for a new account: the code we emailed, which shows the address is theirs. The account
+ * already exists and is signed in, so someone whose email is slow can carry on and do this later.
+ */
+function ConfirmEmail({
+  email,
+  sendCode,
+  onConfirmed,
+}: {
+  email: string;
+  sendCode: SendCode;
+  onConfirmed: () => void;
+}) {
+  useDocumentTitle('Enter the code');
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<string>();
+  const verify = useVerifySignIn();
+  const check = (digits: string) => {
+    if (!verify.isPending) verify.mutate({ email, code: digits }, { onSuccess: onConfirmed });
+  };
+
+  return (
+    <AuthStep>
+      <AuthHeading title="Enter the code">
+        We sent a 6-digit code to <strong className="break-all text-fg">{email}</strong>. It can
+        take a minute to arrive; check your spam folder too.
+      </AuthHeading>
+      <form
+        noValidate
+        className="flex flex-col gap-4"
+        onSubmit={(ev) => {
+          ev.preventDefault();
+          if (!/^\d{6}$/.test(code)) return setError('Enter the 6-digit code');
+          check(code);
+        }}
+      >
+        <OtpBoxes
+          label="Code"
+          value={code}
+          onChange={(digits) => {
+            setCode(digits);
+            setError(undefined);
+            verify.reset();
+          }}
+          onComplete={check}
+          error={error ?? verify.error?.message}
+        />
+        <Button type="submit" size="lg" className={AUTH_CTA} disabled={verify.isPending}>
+          {verify.isPending ? (
+            <>
+              <Spinner /> Checking…
+            </>
+          ) : (
+            'Verify'
+          )}
+        </Button>
+        <ResendCode email={email} resend={sendCode} />
+      </form>
+      <p className="m-0 border-t-2 border-hair pt-4 text-sm text-muted">
+        Your account is already made.{' '}
+        <Link to="/organizer" className="font-bold">
+          Skip this for now
+        </Link>
+      </p>
+    </AuthStep>
+  );
+}
+
+/** Step three: they're in. */
+function Welcome() {
+  useDocumentTitle("You're in");
+  return (
+    <AuthStep>
+      <div className="flex flex-col items-center gap-4 py-6 text-center">
+        <span className="flex size-16 items-center justify-center rounded-full bg-accent-soft text-accent-text">
+          <Check size={30} strokeWidth={3} aria-hidden />
+        </span>
+        <AuthHeading title="You're in">
+          Your organizer account is ready. Publish your first event whenever you like.
+        </AuthHeading>
+      </div>
+      <Link
+        to="/organizer"
+        className={buttonClass({
+          size: 'lg',
+          block: true,
+          className: `${AUTH_CTA} text-accent-ink hover:text-accent-ink`,
+        })}
+      >
+        Go to my dashboard
+      </Link>
+    </AuthStep>
   );
 }
 

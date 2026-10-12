@@ -40,6 +40,7 @@
   --animate-ev-spin: ev-spin 0.9s linear infinite;
   --animate-ev-cta-ring: ev-cta-ring 1.8s ease-out infinite;
   --animate-ev-point: ev-point 1.1s ease-in-out infinite;
+  --animate-ev-step: ev-step 0.22s ease-out;
 }
 
 @keyframes ev-pulse {
@@ -69,6 +70,13 @@
   70%,
   100% {
     box-shadow: 0 0 0 14px transparent;
+  }
+}
+/* Each step of signing in or signing up eases in. */
+@keyframes ev-step {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
   }
 }
 @keyframes ev-point {

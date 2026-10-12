@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Button, PasswordField } from '../../components/ui';
+import { AUTH_CTA, Spinner } from './AuthShell';
 import { TwoStepForm } from './CodeForm';
 import { usePasswordSignIn } from './useSession';
 
@@ -48,8 +49,14 @@ export function PasswordForm({
         }}
         error={error ?? signIn.error?.message}
       />
-      <Button type="submit" size="lg" disabled={signIn.isPending}>
-        {signIn.isPending ? 'Signing in…' : 'Sign in'}
+      <Button type="submit" size="lg" className={AUTH_CTA} disabled={signIn.isPending}>
+        {signIn.isPending ? (
+          <>
+            <Spinner /> Signing in…
+          </>
+        ) : (
+          'Sign in'
+        )}
       </Button>
       <button
         type="button"

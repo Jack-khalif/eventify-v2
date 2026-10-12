@@ -56,6 +56,9 @@ export const routes: RouteObject[] = [
       { path: '*', element: <NotFound /> },
     ],
   },
+  // Signing in and signing up have a page of their own (AuthShell), without the site header.
+  { path: 'login', element: <LoginPage /> },
+  { path: 'organizer/apply', element: <ApplyPage /> },
   {
     element: <AppLayout />,
     children: [
@@ -79,7 +82,6 @@ export const routes: RouteObject[] = [
       },
       { path: 't/:ticketId/delivery', element: <DeliveryPage /> },
       { path: 'organizer', element: <OrganizerHome /> },
-      { path: 'organizer/apply', element: <ApplyPage /> },
       {
         path: 'organizer/events/new',
         element: (
@@ -93,7 +95,6 @@ export const routes: RouteObject[] = [
         element: <CheckinPage />,
         handle: { hideTabs: true } satisfies RouteHandle,
       },
-      { path: 'login', element: <LoginPage /> },
       { path: 'tickets', element: <FindTicketsPage /> },
       { path: 'saved', element: <SavedPage /> },
       { path: 'account', element: <AccountPage /> },
