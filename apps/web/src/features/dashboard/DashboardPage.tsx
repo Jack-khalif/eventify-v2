@@ -131,7 +131,7 @@ function Dashboard({ home }: { home: OrganizerHome }) {
           <h2 className="m-0 text-xl">No events yet</h2>
           <p className="m-0 text-muted">
             {canCreate
-              ? "You're approved. Create your first event and its sales and check-ins will show up here."
+              ? "You're all set. Create your first event and its sales and check-ins will show up here."
               : 'Sales and check-ins for your events will show up here.'}
           </p>
           {canCreate && (

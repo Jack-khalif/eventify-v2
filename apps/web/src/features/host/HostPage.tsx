@@ -1,5 +1,5 @@
 import { DEFAULT_RATE_BPS, formatRate, isStaff, type SessionUser } from '@eventify/shared';
-import { BadgeCheck, ClipboardList, Rocket, type LucideIcon } from 'lucide-react';
+import { CalendarPlus, ClipboardList, Rocket, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { buttonClass, Card } from '../../components/ui';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
@@ -10,23 +10,23 @@ const STEPS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: ClipboardList,
     title: 'Create your account',
-    body: 'Tell us who you are and what you host. It takes about two minutes.',
+    body: 'Your name, an email and what buyers should call you. It takes about a minute.',
   },
   {
-    icon: BadgeCheck,
-    title: 'We review',
-    body: 'A person on our team checks every organizer, usually within one working day.',
+    icon: CalendarPlus,
+    title: 'Create your event',
+    body: 'Add the date, the venue and your ticket tiers, then publish. It goes live straight away.',
   },
   {
     icon: Rocket,
-    title: 'Publish and sell',
-    body: 'Once approved, create events, take M-Pesa payments and scan guests in at the door.',
+    title: 'Sell and scan',
+    body: 'Share your link, take M-Pesa payments and scan guests in at the door.',
   },
 ];
 
 /**
  * /organizer for anyone who isn't an organizer yet: what hosting involves and the way in.
- * There is no "create event" here on purpose: publishing opens only after approval.
+ * There is no "create event" here: that comes right after the account is made.
  */
 export function HostPage({ user }: { user: SessionUser | null }) {
   useDocumentTitle('Host an event');
@@ -51,7 +51,7 @@ export function HostPage({ user }: { user: SessionUser | null }) {
   }
 
   const applyTo = '/organizer/apply';
-  const applyLabel = user ? 'Apply to host' : 'Create an organizer account';
+  const applyLabel = user ? 'Start hosting' : 'Create an organizer account';
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-10 px-5 pt-8 pb-14">
@@ -63,8 +63,8 @@ export function HostPage({ user }: { user: SessionUser | null }) {
           Sell tickets to your event on Eventify
         </h1>
         <p className="m-0 max-w-[600px] text-[17px] text-muted">
-          M-Pesa checkout, tickets by SMS and email, and queue-free Express Entry at the door. We
-          approve every organizer before they can publish, so buyers know the events here are real.
+          M-Pesa checkout, tickets by SMS and email, and queue-free Express Entry at the door.
+          Create an account and publish your first event today.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Link

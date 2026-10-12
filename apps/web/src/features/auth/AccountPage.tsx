@@ -63,7 +63,7 @@ export function AccountPage() {
               to: '/organizer',
               icon: Megaphone,
               label: 'Host an event',
-              note: 'Apply to sell tickets on Eventify',
+              note: 'Sell tickets on Eventify',
             },
           ]}
         />

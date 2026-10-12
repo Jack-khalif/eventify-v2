@@ -18,6 +18,7 @@ import {
   addStaffRequestSchema,
   assignAgentRequestSchema,
   signInStartSchema,
+  SUPPORT_EMAIL,
   signInVerifySchema,
   totpCodeRequestSchema,
   totpSignInSchema,
@@ -501,7 +502,7 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     userAgent: c.req.header('User-Agent') ?? '',
   });
 
-  // Signing up as an organizer: the account and the application in one step.
+  // Signing up as an organizer: the account and the organizer profile in one step.
   app.post('/organizer/signup', async (c) => {
     const stop = limited(c, 'signups', 10, 60 * MINUTE);
     if (stop) return stop;
@@ -552,7 +553,7 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return dashboard ? c.json(dashboard) : notFound(c);
   });
 
-  // Publishing is the gate: only organizers a Super Admin has approved get past it.
+  // Publishing is the gate: a suspended (or declined) organizer doesn't get past it.
   app.post('/organizer/events', async (c) => {
     const organizer = await organizerOf(c);
     if (organizer instanceof Response) return organizer;
@@ -560,7 +561,7 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
       return c.json(
         {
           error: 'organizer_not_approved',
-          message: 'Your organizer account has to be approved before you can publish events.',
+          message: `Your organizer account can't publish events right now. Write to ${SUPPORT_EMAIL} and we'll help.`,
         },
         403,
       );

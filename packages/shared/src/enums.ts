@@ -26,7 +26,11 @@ export type CoverTone = z.infer<typeof coverToneSchema>;
 export const eventStatusSchema = z.enum(['draft', 'live', 'ended']);
 export type EventStatus = z.infer<typeof eventStatusSchema>;
 
-/** pending = applied, waiting for a Super Admin; rejected = application declined. Only active organizers can publish. */
+/**
+ * New organizers start active. pending (waiting for a Super Admin) and rejected (declined) are from
+ * when every organizer was reviewed first; nothing puts anyone there now. Only active organizers
+ * can publish.
+ */
 export const organizerStatusSchema = z.enum(['active', 'pending', 'suspended', 'rejected']);
 export type OrganizerStatus = z.infer<typeof organizerStatusSchema>;
 

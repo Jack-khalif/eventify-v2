@@ -51,7 +51,7 @@ export const organizers = pgTable('organizers', {
   payoutMethod: text('payout_method').$type<PayoutMethod>().notNull(),
 });
 
-/** What an applicant told us, kept for the Super Admin who reviews it. Applying again replaces it. */
+/** What an organizer told us when they signed up: who to contact. Applying again replaces it. */
 export const organizerApplications = pgTable('organizer_applications', {
   organizerId: text('organizer_id')
     .primaryKey()

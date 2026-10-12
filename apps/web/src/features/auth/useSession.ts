@@ -199,7 +199,7 @@ export function useSignOut() {
   });
 }
 
-/** Ask to host. The answer is the same person, now an organizer waiting for approval. */
+/** Become an organizer. The answer is the same person, now an organizer who can publish. */
 export function useApplyToHost() {
   const queryClient = useQueryClient();
   const token = useSessionToken();

@@ -17,8 +17,8 @@ export function TermsPage() {
       version={ORGANIZER_TERMS_VERSION}
       intro={
         <>
-          These terms are the agreement between you (the organizer) and {company} when you apply to
-          host and sell tickets here. You accept them by ticking the box on the application form.
+          These terms are the agreement between you (the organizer) and {company} when you host and
+          sell tickets here. You accept them by ticking the box on the sign-up form.
         </>
       }
     >
@@ -27,8 +27,7 @@ export function TermsPage() {
   );
 }
 
-/** The terms themselves, also shown on the first step of organizer sign-up. */
-export function TermsBody() {
+function TermsBody() {
   return (
     <>
       <LegalSection title="1. Your account">
@@ -42,11 +41,11 @@ export function TermsBody() {
         </ul>
       </LegalSection>
 
-      <LegalSection title="2. Approval">
+      <LegalSection title="2. Your account">
         <p>
-          We review every organizer before they can publish. We may ask for more information,
-          decline an application, or suspend or close an organizer account that breaks these terms,
-          misleads buyers or puts them at risk.
+          You can publish as soon as your account is open. We may check an organizer or an event at
+          any time, ask for more information, take an event down, or suspend or close an organizer
+          account that breaks these terms, misleads buyers or puts them at risk.
         </p>
       </LegalSection>
 
