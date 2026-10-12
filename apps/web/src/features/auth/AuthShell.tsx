@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { ScrollToTop } from '../../app/ScrollToTop';
 import { useTheme } from '../../app/theme';
+import { SupportButton } from '../../components/SupportButton';
 import { buttonClass } from '../../components/ui';
 import { cn } from '../../lib/cn';
 
@@ -110,6 +111,7 @@ export function AuthShell({ tab, children }: { tab?: AuthTab; children: ReactNod
           {children}
         </div>
       </main>
+      <SupportButton />
     </div>
   );
 }

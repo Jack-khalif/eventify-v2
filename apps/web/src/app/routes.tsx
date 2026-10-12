@@ -93,7 +93,7 @@ export const routes: RouteObject[] = [
       {
         path: 'checkin/:code',
         element: <CheckinPage />,
-        handle: { hideTabs: true } satisfies RouteHandle,
+        handle: { hideTabs: true, hideSupport: true } satisfies RouteHandle,
       },
       { path: 'tickets', element: <FindTicketsPage /> },
       { path: 'saved', element: <SavedPage /> },
