@@ -24,6 +24,8 @@ const CODES_KEY = 'eventify-mock-checkin-codes';
 let created: Event[] = load(STORAGE_KEY, []);
 /** Door check-in codes for created events, by event id. */
 let codes: Record<string, string> = load(CODES_KEY, {});
+/** Sample events an organizer deleted, for this visit only. */
+let deleted = new Set<string>();
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -47,6 +49,7 @@ function save() {
 export function resetEvents() {
   created = [];
   codes = {};
+  deleted = new Set();
 }
 
 const withOrganizer = (e: Event): PublicEvent => {
@@ -58,7 +61,8 @@ const withOrganizer = (e: Event): PublicEvent => {
 };
 
 /** Sample events plus everything created in this browser. */
-export const allEvents = (): PublicEvent[] => [...publicEvents(), ...created.map(withOrganizer)];
+export const allEvents = (): PublicEvent[] =>
+  [...publicEvents(), ...created.map(withOrganizer)].filter((e) => !deleted.has(e.id));
 
 function uniqueSlug(title: string) {
   const base = slugify(title);
@@ -119,6 +123,26 @@ export function organizerHome(organizerId: string, now = new Date()): OrganizerH
       ticketsSold: salesSummary(e).ticketsSold,
     })),
   };
+}
+
+/**
+ * Take an event down, as the API does: only its own organizer can, and only while no tickets have
+ * been issued. Null when there is no such event of theirs.
+ */
+export function deleteEvent(
+  organizerId: string,
+  eventId: string,
+): { ticketsIssued: number } | null {
+  const e = ownEvents(organizerId).find((x) => x.id === eventId);
+  if (!e) return null;
+  const ticketsIssued = salesSummary(e).ticketsSold;
+  if (ticketsIssued === 0) {
+    created = created.filter((x) => x.id !== eventId);
+    delete codes[eventId];
+    deleted.add(eventId);
+    save();
+  }
+  return { ticketsIssued };
 }
 
 /** Door code for an event: random for created events; fixed for the samples ("sauti-a92f", from the design). */

@@ -78,6 +78,7 @@ import {
   applyToHost,
   signUpOrganizer,
   createEvent,
+  deleteEvent,
   eventDashboard,
   isFailure as isEventFailure,
   organizerFor,
@@ -571,6 +572,17 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return isEventFailure(event)
       ? c.json({ error: event.error, message: event.message }, event.status)
       : c.json(event, 201);
+  });
+
+  // Any standing will do: a suspended organizer can still take down what they posted.
+  app.delete('/organizer/events/:id', async (c) => {
+    const organizer = await organizerOf(c);
+    if (organizer instanceof Response) return organizer;
+    const result = await deleteEvent(deps, organizer, c.req.param('id'));
+    if (!result) return notFound(c);
+    return isEventFailure(result)
+      ? c.json({ error: result.error, message: result.message }, result.status)
+      : c.body(null, 204);
   });
 
   // Door check-in: the link's code is the only credential door staff have.
