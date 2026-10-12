@@ -8,16 +8,18 @@ import {
   ShieldCheck,
   Store,
   Ticket,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { Avatar } from '../../components/Avatar';
 import { ErrorState } from '../../components/PageStates';
-import { Button, buttonClass, Card, Tag } from '../../components/ui';
+import { Button, buttonClass, Card, Dialog, PasswordField, Tag } from '../../components/ui';
 import { useSavedEvents } from '../../lib/saved';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { loginPath, roleBadge } from './roles';
-import { useSession, useSignOut } from './useSession';
+import { useDeleteAccount, useSession, useSignOut } from './useSession';
 
 type Row = { to: string; icon: LucideIcon; label: string; note?: string };
 
@@ -70,6 +72,8 @@ export function AccountPage() {
       )}
 
       {user && <SignOut />}
+
+      {user && !isStaff(user.role) && <DeleteProfile user={user} />}
     </section>
   );
 }
@@ -205,5 +209,96 @@ function SignOut() {
     >
       {signOut.isPending ? 'Signing out…' : 'Sign out'}
     </Button>
+  );
+}
+
+/**
+ * Closing the account for good. Not offered to staff, whose access a Super Admin manages. An
+ * organizer with tickets out is told by the API to write to us instead.
+ */
+function DeleteProfile({ user }: { user: SessionUser }) {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState('');
+  const remove = useDeleteAccount();
+  const hosting = !!user.organizer;
+  const formId = 'delete-profile-form';
+  const close = () => {
+    setOpen(false);
+    setPassword('');
+    remove.reset();
+  };
+  const submit = (e: FormEvent) => {
+    e.preventDefault();
+    remove.mutate(user.hasPassword ? password : undefined);
+  };
+
+  return (
+    <section
+      aria-labelledby="delete-profile"
+      className="flex flex-col items-start gap-2 border-t-2 border-hair pt-5"
+    >
+      <h2 id="delete-profile" className="m-0 text-base">
+        Delete profile
+      </h2>
+      <p className="m-0 text-sm text-muted">
+        {hosting
+          ? 'Closes your account and takes down your organizer page and events. Tickets you bought stay valid.'
+          : 'Closes your account. Tickets you bought stay valid.'}
+      </p>
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <Trash2 size={15} aria-hidden /> Delete profile
+      </Button>
+      <Dialog
+        open={open}
+        onClose={close}
+        title="Delete your profile?"
+        actions={
+          <>
+            <Button variant="outline" size="sm" onClick={close} disabled={remove.isPending}>
+              Keep profile
+            </Button>
+            <Button
+              type="submit"
+              form={formId}
+              size="sm"
+              className="bg-danger text-white hover:bg-danger hover:opacity-90"
+              disabled={remove.isPending || (user.hasPassword && !password)}
+            >
+              {remove.isPending ? 'Deleting…' : 'Delete for good'}
+            </Button>
+          </>
+        }
+      >
+        <form id={formId} onSubmit={submit} className="flex flex-col gap-3">
+          <p className="m-0">
+            {hosting
+              ? `Your account, ${user.organizer!.name}'s page and its events will be removed, and you'll be signed out everywhere.`
+              : "Your account will be removed and you'll be signed out everywhere."}{' '}
+            This can't be undone.
+          </p>
+          <p className="m-0 text-muted">
+            Tickets you bought still work, and you can find them again with your phone number. We
+            keep the records the law asks us to, as our{' '}
+            <Link to="/privacy" className="font-bold">
+              privacy notice
+            </Link>{' '}
+            explains.
+          </p>
+          {user.hasPassword && (
+            <PasswordField
+              label="Your password, to confirm"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          )}
+          {remove.error && (
+            <p role="alert" className="m-0 font-semibold text-danger">
+              {remove.error.message}
+            </p>
+          )}
+        </form>
+      </Dialog>
+    </section>
   );
 }

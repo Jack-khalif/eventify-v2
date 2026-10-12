@@ -14,12 +14,18 @@ type DialogProps = {
 export function Dialog({ open, onClose, title, children, actions }: DialogProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Kept in a ref so a new onClose on every render doesn't re-run the effect below, which would
+  // pull focus out of a field in the dialog on each keystroke.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
     panelRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current();
     document.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -28,7 +34,7 @@ export function Dialog({ open, onClose, title, children, actions }: DialogProps)
       document.body.style.overflow = overflow;
       previouslyFocused?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

@@ -1,6 +1,7 @@
 import {
   ORGANIZER_TERMS_VERSION,
   PRIVACY_NOTICE_VERSION,
+  publicEventSchema,
   sessionSchema,
   sessionUserSchema,
   staffRowSchema,
@@ -11,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createApp } from './app';
 import { openLocalDatabase, type Database } from './db/client';
 import { seedSamples } from './db/samples';
-import { accounts, consents, organizerApplications, organizers } from './db/schema';
+import { accounts, consents, events, organizerApplications, organizers } from './db/schema';
 import type { Email } from './email/mailer';
 import { simulatedPayments } from './payments';
 
@@ -290,5 +291,117 @@ describe('resetting a forgotten password', () => {
     clock += 2 * 60 * MINUTE;
     expect((await start(EMAIL)).status).toBe(200);
     expect(await errorOf(await start(EMAIL))).toEqual({ status: 429, error: 'too_many_codes' });
+  });
+});
+
+describe('deleting a profile', () => {
+  const DAY = 24 * 60 * MINUTE;
+  const remove = (who?: Who, password?: string) => send('/auth/delete', who, { password });
+  const me = async (who: Who) =>
+    sessionUserSchema.parse(await (await send('/auth/me', who)).json());
+  /** A new organizer with one event on sale. */
+  async function organizerWithEvent(email: string, organizerName: string) {
+    clock += 2 * 60 * MINUTE; // past the limit on sign-ups from one place
+    const who = await opened(await signUp({ email, organizerName }));
+    const res = await send('/organizer/events', who, {
+      title: `${organizerName} Open Day`,
+      category: 'Workshops',
+      city: 'Nairobi',
+      venue: 'Karen Village',
+      startsAt: new Date(clock + 7 * DAY).toISOString(),
+      endsAt: new Date(clock + 7 * DAY + 180 * MINUTE).toISOString(),
+      description: ['Bring an apron.'],
+      coverImageUrl: null,
+      tiers: [
+        {
+          name: 'Regular',
+          note: '',
+          priceMinor: 150000,
+          quantity: 12,
+          saleStartsAt: null,
+          saleEndsAt: null,
+        },
+      ],
+    });
+    expect(res.status).toBe(201);
+    return { who, event: publicEventSchema.parse(await res.json()) };
+  }
+
+  it('asks an organizer for their password, then removes them and what they posted', async () => {
+    const { who, event } = await organizerWithEvent('zawadi@example.com', 'Loom House');
+    expect((await me(who)).hasPassword).toBe(true);
+
+    expect((await remove()).status).toBe(401);
+    const wrong = { status: 422, error: 'invalid_credentials' };
+    expect(await errorOf(await remove(who))).toEqual(wrong);
+    expect(await errorOf(await remove(who, 'not the password'))).toEqual(wrong);
+    expect((await send(`/events/${event.slug}`)).status).toBe(200);
+
+    const res = await remove(who, PASSWORD);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Set-Cookie')).toMatch(/Max-Age=0/);
+    expect((await send('/auth/me', who)).status).toBe(401);
+    expect((await logIn('zawadi@example.com', PASSWORD)).status).toBe(422);
+    expect((await send('/organizers/loom-house')).status).toBe(404);
+    expect((await send(`/events/${event.slug}`)).status).toBe(404);
+    const { db } = database;
+    expect(
+      await db.select().from(accounts).where(eq(accounts.email, 'zawadi@example.com')),
+    ).toEqual([]);
+    expect(await db.select().from(organizers).where(eq(organizers.handle, 'loom-house'))).toEqual(
+      [],
+    );
+    expect(await db.select().from(events).where(eq(events.id, event.id))).toEqual([]);
+    // What they agreed to is still on record, as the privacy notice says.
+    expect(
+      (await db.select().from(consents).where(eq(consents.email, 'zawadi@example.com'))).length,
+    ).toBeGreaterThan(0);
+
+    // The address and the name are free again.
+    clock += 2 * 60 * MINUTE;
+    const again = await signUp({ email: 'zawadi@example.com', organizerName: 'Loom House' });
+    expect(again.status).toBe(201);
+    expect((await me(await opened(again))).organizer?.handle).toBe('loom-house');
+  });
+
+  it('refuses while tickets are out, and says who to write to', async () => {
+    const { who, event } = await organizerWithEvent('baraka@example.com', 'Dye Works');
+    const order = await send('/orders', undefined, {
+      eventId: event.id,
+      tierId: event.tiers[0]!.id,
+      quantity: 2,
+      buyer: { name: 'Amina Otieno', phone: '+254712345678', email: 'amina@example.com' },
+      paymentMethod: 'mpesa',
+    });
+    const { id } = (await order.json()) as { id: string };
+
+    // Someone is paying: not now.
+    expect(await errorOf(await remove(who, PASSWORD))).toEqual({
+      status: 409,
+      error: 'payment_in_progress',
+    });
+    clock += 5_000;
+    await send(`/orders/${id}`); // the buyer approves the prompt
+
+    const refused = await remove(who, PASSWORD);
+    expect(refused.status).toBe(409);
+    expect(await refused.json()).toEqual({
+      error: 'tickets_issued',
+      message:
+        "2 tickets have been issued for your events, so your profile can't be deleted here. Write to support@eventifyafrica.co.ke and we'll help you close it.",
+    });
+    expect((await send('/auth/me', who)).status).toBe(200);
+    expect((await send(`/events/${event.slug}`)).status).toBe(200);
+  });
+
+  it('lets someone without a password go with just their sign-in, and keeps staff', async () => {
+    const guest = await withCode('njeri@example.com');
+    expect((await me(guest)).hasPassword).toBe(false);
+    expect((await remove(guest)).status).toBe(200);
+    expect((await send('/auth/me', guest)).status).toBe(401);
+
+    const boss = await withCode('boss@example.com');
+    expect(await errorOf(await remove(boss))).toEqual({ status: 403, error: 'staff_account' });
+    expect((await send('/auth/me', boss)).status).toBe(200);
   });
 });

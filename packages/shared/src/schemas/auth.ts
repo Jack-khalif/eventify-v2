@@ -39,6 +39,8 @@ export const sessionUserSchema = accountSchema
         status: organizerStatusSchema,
       })
       .nullable(),
+    /** Whether they sign in with a password, which deleting the account asks for again. */
+    hasPassword: z.boolean(),
   });
 export type SessionUser = z.infer<typeof sessionUserSchema>;
 
@@ -56,6 +58,8 @@ export const passwordSignInSchema = z.object({
   email: emailInputSchema,
   password: z.string().min(1, 'Enter your password.').max(200),
 });
+/** POST /api/auth/delete: close the signed-in account. The password, if the account has one. */
+export const deleteAccountRequestSchema = z.object({ password: z.string().max(200).optional() });
 export const sessionSchema = z.object({ token: z.string().min(16), user: sessionUserSchema });
 export type Session = z.infer<typeof sessionSchema>;
 

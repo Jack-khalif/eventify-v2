@@ -24,6 +24,8 @@ type Db = {
   applications: OrganizerApplication[];
   /** Agents assigned in the admin portal, by organizer id (null = nobody). */
   agent?: Record<string, string | null>;
+  /** Organizers whose owner deleted their profile. */
+  removed?: string[];
 };
 
 const STORAGE_KEY = 'eventify-mock-organizers';
@@ -56,11 +58,20 @@ export function resetOrganizers() {
 }
 
 export const allOrganizers = (): Organizer[] =>
-  [...sampleOrganizers, ...db.created].map((o) => {
-    const status = db.status[o.id];
-    const agentId = db.agent && o.id in db.agent ? db.agent[o.id]! : o.agentId;
-    return { ...o, agentId, ...(status && { status }) };
-  });
+  [...sampleOrganizers, ...db.created]
+    .filter((o) => !db.removed?.includes(o.id))
+    .map((o) => {
+      const status = db.status[o.id];
+      const agentId = db.agent && o.id in db.agent ? db.agent[o.id]! : o.agentId;
+      return { ...o, agentId, ...(status && { status }) };
+    });
+
+/** Take an organizer away for good, when its owner deletes their profile. */
+export function removeOrganizer(id: string) {
+  db.removed = [...(db.removed ?? []), id];
+  db.applications = db.applications.filter((a) => a.organizerId !== id);
+  save();
+}
 
 export const findOrganizer = (id: string) => allOrganizers().find((o) => o.id === id);
 

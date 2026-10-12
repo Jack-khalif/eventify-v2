@@ -10,6 +10,7 @@ import {
   organizerSignUpRequestSchema,
   passwordResetFinishSchema,
   passwordResetStartSchema,
+  deleteAccountRequestSchema,
   passwordSignInSchema,
   PRIVACY_NOTICE_VERSION,
   organizerStatusChangeSchema,
@@ -50,6 +51,7 @@ import {
   setOrganizerStatus,
   type AdminError,
 } from './admin';
+import { deleteAccount } from './account';
 import {
   accountForRequest,
   beginTotpSetup,
@@ -380,6 +382,27 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
 
   app.post('/auth/logout', async (c) => {
     await endSession(db, credentialsOf(c));
+    deleteCookie(c, SESSION_COOKIE, cookieOptions);
+    return c.json({ ok: true });
+  });
+
+  // Closing an account for good, with the organizer profile and events that belong to it.
+  app.post('/auth/delete', async (c) => {
+    const account = await accountOf(c);
+    if (!account) return unauthorized(c);
+    const body = deleteAccountRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return badRequest(c, 'Some details are missing or invalid.');
+    // Someone holding a signed-in phone doesn't get to guess the password for long.
+    if (!withinLimit(`delete:${account.id}`, 10, 15 * MINUTE)) {
+      return c.json(
+        { error: 'rate_limited', message: 'Too many tries. Wait a few minutes and try again.' },
+        429,
+      );
+    }
+    const result = await deleteAccount(deps, account, body.data.password);
+    if (isEventFailure(result)) {
+      return c.json({ error: result.error, message: result.message }, result.status);
+    }
     deleteCookie(c, SESSION_COOKIE, cookieOptions);
     return c.json({ ok: true });
   });

@@ -1,4 +1,5 @@
 import {
+  deleteAccountRequestSchema,
   organizerApplicationRequestSchema,
   organizerSignUpRequestSchema,
   passwordResetFinishSchema,
@@ -195,6 +196,27 @@ export function useSignOut() {
       setSessionToken(null);
       forgetPersonalData(queryClient);
       queryClient.removeQueries({ queryKey: [SESSION] });
+    },
+  });
+}
+
+/**
+ * Close the signed-in account for good. The API refuses an organizer whose events have tickets out,
+ * and a wrong password; only once it has agreed is this device signed out.
+ */
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (password?: string) =>
+      apiPost(
+        '/api/auth/delete',
+        deleteAccountRequestSchema.parse({ password }),
+        z.object({ ok: z.literal(true) }),
+      ),
+    onSuccess: () => {
+      setSessionToken(null);
+      // Their events and public page are gone too, so nothing fetched before can be trusted.
+      queryClient.clear();
     },
   });
 }

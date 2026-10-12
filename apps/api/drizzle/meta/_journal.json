@@ -64,6 +64,13 @@
       "when": 1791787251699,
       "tag": "0008_open_pending_organizers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1791789351951,
+      "tag": "0009_consents_outlive_accounts",
+      "breakpoints": true
     }
   ]
 }
