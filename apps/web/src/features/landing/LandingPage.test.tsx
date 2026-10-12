@@ -36,6 +36,12 @@ describe('Landing', () => {
     );
   });
 
+  it('names no fee rate, since organizers are on different ones', () => {
+    renderApp('/');
+    expect(screen.getByText('To list an event. Our fee comes out of your payout')).toBeVisible();
+    expect(screen.getByRole('main')).not.toHaveTextContent(/\d\s?%/);
+  });
+
   it('only promises the payment method that is switched on', () => {
     renderApp('/');
     expect(screen.getByText('Pay with M-Pesa')).toBeInTheDocument();

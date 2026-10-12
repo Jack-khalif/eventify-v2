@@ -1,4 +1,4 @@
-import { DEFAULT_RATE_BPS, formatRate, isStaff, type SessionUser } from '@eventify/shared';
+import { isStaff, type SessionUser } from '@eventify/shared';
 import { CalendarPlus, ClipboardList, Rocket, type LucideIcon } from 'lucide-react';
 import { Link } from 'react-router';
 import { buttonClass, Card } from '../../components/ui';
@@ -110,12 +110,11 @@ export function HostPage({ user }: { user: SessionUser | null }) {
 
       <Card variant="surface" className="flex flex-wrap items-center justify-between gap-4 p-5">
         <div className="flex max-w-[620px] flex-col gap-1">
-          <span className="font-extrabold">
-            {formatRate(DEFAULT_RATE_BPS)} of ticket sales. Nothing up front.
-          </span>
+          <span className="font-extrabold">Free to list. Nothing up front.</span>
           <span className="text-sm text-muted">
-            The fee comes out of your payout, so buyers pay exactly the price you set. Payouts go to
-            M-Pesa or your bank every week.
+            Our fee is a share of each ticket sold, and you see your rate before you publish. It
+            comes out of your payout, so buyers pay exactly the price you set. Payouts go to M-Pesa
+            or your bank every week.
           </span>
         </div>
         <Link to={applyTo} className={buttonClass({ variant: 'outline', className: 'text-fg' })}>

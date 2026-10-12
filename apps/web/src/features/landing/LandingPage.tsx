@@ -1,4 +1,4 @@
-import { DEFAULT_RATE_BPS, formatRate, homePathFor } from '@eventify/shared';
+import { homePathFor } from '@eventify/shared';
 import { ArrowDown, Search, Smartphone, type LucideIcon } from 'lucide-react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { hostCta } from '../../app/nav';
@@ -7,10 +7,8 @@ import { displayUrl, siteUrl } from '../../lib/site';
 import { useSession } from '../auth/useSession';
 
 const STATS: { figure: string; label: string }[] = [
-  {
-    figure: formatRate(DEFAULT_RATE_BPS),
-    label: 'Of ticket sales, taken from the payout. Nothing up front',
-  },
+  // No rate here: organizers are on different rates, and each sees their own before publishing.
+  { figure: 'Free', label: 'To list an event. Our fee comes out of your payout' },
   { figure: '2', label: 'Countries: Kenya and South Sudan' },
   { figure: '4', label: 'Kinds of organizer, one platform' },
 ];
