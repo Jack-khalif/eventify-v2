@@ -39,8 +39,11 @@ export const sessionUserSchema = accountSchema
         status: organizerStatusSchema,
       })
       .nullable(),
-    /** Whether they sign in with a password, which deleting the account asks for again. */
-    hasPassword: z.boolean(),
+    /**
+     * Whether they sign in with a password, which deleting the account asks for again. Assumed not
+     * when the API doesn't say: the web app can go live a few minutes before the API that sends it.
+     */
+    hasPassword: z.boolean().default(false),
   });
 export type SessionUser = z.infer<typeof sessionUserSchema>;
 
