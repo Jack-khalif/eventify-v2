@@ -164,6 +164,8 @@ function ApplyForm({
   };
 
   const handle = draft.organizerName.trim() ? slugify(draft.organizerName) : null;
+  // The button only works once both boxes are ticked, so agreeing is never a step you can miss.
+  const agreedToBoth = agreed.acceptTerms && agreed.consentToDataProcessing;
 
   return (
     <AuthStep>
@@ -293,7 +295,13 @@ function ApplyForm({
               : "Couldn't create your organizer account. Check your connection and try again."}
           </p>
         )}
-        <Button type="submit" size="lg" className={AUTH_CTA} disabled={apply.isPending}>
+        <Button
+          type="submit"
+          size="lg"
+          className={AUTH_CTA}
+          disabled={apply.isPending || !agreedToBoth}
+          aria-describedby={agreedToBoth ? undefined : 'agree-first'}
+        >
           {apply.isPending ? (
             <>
               <Spinner /> Creating…
@@ -304,6 +312,11 @@ function ApplyForm({
             'Create account'
           )}
         </Button>
+        {!agreedToBoth && (
+          <p id="agree-first" className="m-0 text-center text-sm text-muted">
+            Tick both boxes above to continue.
+          </p>
+        )}
       </form>
     </AuthStep>
   );

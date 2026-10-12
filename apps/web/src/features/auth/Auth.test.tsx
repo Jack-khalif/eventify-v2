@@ -270,14 +270,26 @@ describe('Who can create events', () => {
       '/privacy',
     );
 
-    // Nothing is ticked for them, and every gap is named.
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    // Nothing is ticked for them, and the button waits for both boxes.
+    const terms = screen.getByRole('checkbox', { name: /agree to the Organizer Terms/ });
+    const consent = screen.getByRole('checkbox', { name: /I consent to Eventify/ });
+    const create = screen.getByRole('button', { name: 'Create account' });
+    expect(terms).not.toBeChecked();
+    expect(consent).not.toBeChecked();
+    expect(create).toBeDisabled();
+    expect(screen.getByText('Tick both boxes above to continue.')).toBeInTheDocument();
+    await user.click(terms);
+    expect(create).toBeDisabled();
+    await user.click(consent);
+    expect(create).toBeEnabled();
+    expect(screen.queryByText('Tick both boxes above to continue.')).not.toBeInTheDocument();
+
+    // Then every gap is named.
+    await user.click(create);
     expect(screen.getByText('Enter your name.')).toBeInTheDocument();
     expect(screen.getByText('Enter a valid email address.')).toBeInTheDocument();
     expect(screen.getByText('Use at least 8 characters.')).toBeInTheDocument();
     expect(screen.getByText('Choose a city.')).toBeInTheDocument();
-    expect(screen.getByText('Agree to the Organizer Terms to continue.')).toBeInTheDocument();
-    expect(screen.getByText('We need your consent to process your details.')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Your name'), 'Wambui Njeri');
     await user.type(screen.getByLabelText('Email'), 'Wambui@Example.com');
@@ -285,9 +297,7 @@ describe('Who can create events', () => {
     await user.type(screen.getByLabelText('Organizer name'), 'Kilele Nights');
     await user.selectOptions(screen.getByLabelText('City'), 'Nairobi');
     expect(screen.getByText(/eventify\.co\/kilele-nights/)).toBeInTheDocument();
-    await user.click(screen.getByRole('checkbox', { name: /agree to the Organizer Terms/ }));
-    await user.click(screen.getByRole('checkbox', { name: /I consent to Eventify/ }));
-    await user.click(screen.getByRole('button', { name: 'Create account' }));
+    await user.click(create);
 
     // The code we emailed shows the address is theirs; a wrong one says so.
     expect(
