@@ -2,9 +2,10 @@ import { homePathFor, normalizeEmail, safeNextPath } from '@eventify/shared';
 import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router';
 import { ErrorState } from '../../components/PageStates';
-import { Button, Card, TextField } from '../../components/ui';
+import { Button, TextField } from '../../components/ui';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { TEST_LOOKUP_CODE, TEST_PASSWORD, TEST_SIGN_INS } from '../../mocks/testPhones';
+import { AUTH_CTA, AuthHeading, AuthShell, AuthStep, Spinner } from './AuthShell';
 import { CodeForm, EmailRow } from './CodeForm';
 import { PasswordForm } from './PasswordForm';
 import { ResetPasswordForm } from './ResetPasswordForm';
@@ -17,7 +18,8 @@ type Step =
   | { at: 'code' | 'reset'; email: string };
 
 /**
- * /login: the email first, then either the password or a 6-digit code sent to that address.
+ * /login: the email first, then either the password or a 6-digit code sent to that address,
+ * shown in the sign-in half of AuthShell (the other half is ApplyPage, where accounts are made).
  * Organizers can use either; Eventify staff use the code. Buyers never need it. What you reach
  * afterwards depends on the account.
  */
@@ -36,10 +38,18 @@ export function LoginPage() {
     return <Navigate to={next ?? homePathFor(session.user)} replace />;
   }
   if (session.status === 'loading') {
-    return <div aria-busy="true" aria-label="Checking your account" className="flex-1" />;
+    return (
+      <AuthShell tab="sign-in">
+        <div aria-busy="true" aria-label="Checking your account" className="h-40" />
+      </AuthShell>
+    );
   }
   if (session.status === 'error') {
-    return <ErrorState onRetry={session.refetch}>Couldn't check your account.</ErrorState>;
+    return (
+      <AuthShell tab="sign-in">
+        <ErrorState onRetry={session.refetch}>Couldn't check your account.</ErrorState>
+      </AuthShell>
+    );
   }
 
   const go = (to: Step) => {
@@ -70,15 +80,10 @@ export function LoginPage() {
   }[step.at];
 
   return (
-    <section className="mx-auto flex w-full max-w-[420px] flex-1 flex-col gap-5 px-5 pt-10 pb-12">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="m-0 text-[32px] leading-[1.05] tracking-[-0.02em] text-balance">
-          {heading}
-        </h1>
-        <p className="m-0 text-[15px] text-muted">{lead}</p>
-      </div>
+    <AuthShell tab="sign-in">
+      <AuthStep key={step.at}>
+        <AuthHeading title={heading}>{lead}</AuthHeading>
 
-      <Card className="flex flex-col gap-4 p-5">
         {step.at === 'email' && (
           <EmailForm
             key={visit}
@@ -102,12 +107,19 @@ export function LoginPage() {
               <Button
                 variant="outline"
                 block
+                className="rounded-lg"
                 disabled={sending}
                 onClick={() =>
                   sendCode.mutate(email, { onSuccess: () => go({ at: 'code', email }) })
                 }
               >
-                {sending ? 'Sending…' : 'Email me a code instead'}
+                {sending ? (
+                  <>
+                    <Spinner /> Sending…
+                  </>
+                ) : (
+                  'Email me a code instead'
+                )}
               </Button>
               <span className="text-sm text-muted">Eventify staff sign in with the code.</span>
               {sendError && (
@@ -120,17 +132,7 @@ export function LoginPage() {
         )}
         {step.at === 'code' && <CodeForm email={email} onChangeEmail={startAgain} />}
         {step.at === 'reset' && <ResetPasswordForm email={email} onChangeEmail={startAgain} />}
-      </Card>
-
-      <Card variant="surface" className="flex flex-col gap-1 p-4">
-        <span className="font-extrabold">New to Eventify?</span>
-        <span className="text-sm text-muted">
-          Sell tickets to your own events.{' '}
-          <Link to="/organizer/apply" className="font-bold">
-            Create an organizer account
-          </Link>
-        </span>
-      </Card>
+      </AuthStep>
 
       <p className="m-0 text-sm text-muted">
         Looking for a ticket you bought?{' '}
@@ -146,7 +148,7 @@ export function LoginPage() {
       <TestAccounts
         onPick={(address, password) => go({ at: 'choose', email: address, password })}
       />
-    </section>
+    </AuthShell>
   );
 }
 
@@ -187,7 +189,7 @@ function EmailForm({
         }}
         error={error}
       />
-      <Button type="submit" size="lg">
+      <Button type="submit" size="lg" className={AUTH_CTA}>
         Continue
       </Button>
     </form>

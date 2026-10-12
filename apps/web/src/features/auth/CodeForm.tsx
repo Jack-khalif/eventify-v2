@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Button, TextField } from '../../components/ui';
+import { AUTH_CTA, Spinner } from './AuthShell';
+import { OtpBoxes } from './OtpBoxes';
+import { useResendWait } from './useResendWait';
 import { useCompleteTwoStep, useStartSignIn, useVerifySignIn } from './useSession';
 
 /**
@@ -63,7 +66,6 @@ export function EmailRow({ email, onChange }: { email: string; onChange: () => v
 export function CodeForm({ email, onChangeEmail }: { email: string; onChangeEmail: () => void }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState<string>();
-  const [resent, setResent] = useState(false);
   const resend = useStartSignIn();
   const verify = useVerifySignIn();
   /** Set once the emailed code was right for an account that also uses an authenticator app. */
@@ -86,9 +88,8 @@ export function CodeForm({ email, onChangeEmail }: { email: string; onChangeEmai
       <p className="m-0 text-[15px] text-muted">
         It can take a minute to arrive; check your spam folder too.
       </p>
-      <CodeField
+      <OtpBoxes
         label="Code"
-        name="code"
         value={code}
         onChange={(digits) => {
           setCode(digits);
@@ -98,24 +99,54 @@ export function CodeForm({ email, onChangeEmail }: { email: string; onChangeEmai
         onComplete={(digits) => verify.mutate({ email, code: digits })}
         error={error ?? verify.error?.message}
       />
-      <Button type="submit" size="lg" disabled={verify.isPending}>
-        {verify.isPending ? 'Checking…' : 'Sign in'}
+      <Button type="submit" size="lg" className={AUTH_CTA} disabled={verify.isPending}>
+        {verify.isPending ? (
+          <>
+            <Spinner /> Checking…
+          </>
+        ) : (
+          'Sign in'
+        )}
       </Button>
-      <Button
-        variant="outline"
-        size="sm"
-        className="self-start"
-        onClick={() => resend.mutate(email, { onSuccess: () => setResent(true) })}
-        disabled={resend.isPending}
+      <ResendCode email={email} resend={resend} />
+    </form>
+  );
+}
+
+/** Ask for the code again, once the first has had half a minute to arrive. */
+export function ResendCode({
+  email,
+  resend,
+}: {
+  email: string;
+  resend: ReturnType<typeof useStartSignIn>;
+}) {
+  const wait = useResendWait();
+  return (
+    <div className="flex flex-col gap-1.5">
+      <button
+        type="button"
+        disabled={wait.left > 0 || resend.isPending}
+        onClick={() => resend.mutate(email, { onSuccess: wait.restart })}
+        className="cursor-pointer self-start rounded-md text-sm font-bold text-accent-text underline hover:text-fg disabled:cursor-default disabled:text-muted disabled:no-underline"
       >
-        {resent ? 'Code sent again' : 'Resend code'}
-      </Button>
+        {wait.left > 0
+          ? `Resend code in ${wait.left}s`
+          : resend.isPending
+            ? 'Sending…'
+            : 'Resend code'}
+      </button>
+      {resend.isSuccess && wait.left > 0 && (
+        <span role="status" className="text-sm text-muted">
+          We sent a new code.
+        </span>
+      )}
       {resend.error && (
         <p role="alert" className="m-0 text-sm text-danger">
           {resend.error.message}
         </p>
       )}
-    </form>
+    </div>
   );
 }
 

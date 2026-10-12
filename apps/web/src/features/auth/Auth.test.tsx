@@ -21,11 +21,17 @@ async function signIn(user: User, email: string, password: string = TEST_PASSWOR
   await user.click(screen.getByRole('button', { name: 'Sign in' }));
 }
 
+/** Type a code into its six boxes, as a keyboard does: each digit moves on to the next box. */
+async function enterCode(user: User, code: string) {
+  await user.click(await screen.findByLabelText('Digit 1'));
+  await user.keyboard(code);
+}
+
 /** Staff sign in with the code sent to their email; the sixth digit sends it. */
 async function signInWithCode(user: User, email: string, code = '123456') {
   await enterEmail(user, email);
   await user.click(screen.getByRole('button', { name: 'Email me a code instead' }));
-  await user.type(await screen.findByLabelText('Code'), code);
+  await enterCode(user, code);
 }
 
 describe('Sign in', () => {
@@ -58,7 +64,7 @@ describe('Sign in', () => {
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Check your email' }),
     ).toBeVisible();
-    await user.type(screen.getByLabelText('Code'), '000000');
+    await enterCode(user, '000000');
     expect(await screen.findByText(/That code isn't right/)).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/login');
   });
@@ -68,7 +74,7 @@ describe('Sign in', () => {
     const { router } = renderApp('/login');
     await enterEmail(user, 'admin@eventify.test');
     await user.click(screen.getByRole('button', { name: 'Email me a code instead' }));
-    await user.click(await screen.findByLabelText('Code'));
+    await user.click(await screen.findByLabelText('Digit 1'));
     await user.paste(' 123 456 ');
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
   });
@@ -296,7 +302,22 @@ describe('Who can create events', () => {
     await user.click(screen.getByRole('checkbox', { name: /I consent to Eventify/ }));
     await user.click(screen.getByRole('button', { name: 'Create account' }));
 
+    // The code we emailed shows the address is theirs; a wrong one says so.
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Enter the code' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('wambui@example.com')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Resend code in \d+s/ })).toBeDisabled();
+    await enterCode(user, '000000');
+    expect(await screen.findByText(/code isn't right/)).toBeInTheDocument();
+    // Backspace walks back through the boxes, and the right code goes straight through.
+    await user.keyboard('{Backspace}'.repeat(6));
+    expect(screen.getByLabelText('Digit 1')).toHaveFocus();
+    await user.keyboard('123456');
+
     // Nobody reviews them first.
+    expect(await screen.findByRole('heading', { level: 1, name: "You're in" })).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: 'Go to my dashboard' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
     expect(await screen.findByText('No events yet')).toBeInTheDocument();
     first.unmount();
