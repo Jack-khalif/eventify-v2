@@ -1,4 +1,4 @@
-import { DEFAULT_RATE_BPS, formatRate } from '@eventify/shared';
+import { DEFAULT_RATE_BPS, formatRate, homePathFor } from '@eventify/shared';
 import { ArrowDown, Search, Smartphone, type LucideIcon } from 'lucide-react';
 import { Link, Navigate, useLocation } from 'react-router';
 import { hostCta } from '../../app/nav';
@@ -66,15 +66,28 @@ const band = 'border-t-2 border-rule';
 const inner = 'mx-auto w-full max-w-[1240px] px-5';
 const frame = 'overflow-hidden rounded-[20px] border-2 border-rule';
 
-/** The first page visitors see: what Eventify is, for buyers and for organizers. Events live at /discover. */
+/**
+ * The first page visitors see: what Eventify is, for buyers and for organizers. Events live at
+ * /discover. It is an introduction, so someone who is already signed in skips it and goes to where
+ * they work: organizers to their dashboard, staff to the admin portal, anyone else to the events.
+ */
 export function LandingPage() {
-  const cta = hostCta(useSession().user);
+  const session = useSession();
+  const cta = hostCta(null);
   const { search } = useLocation();
 
   // Discover used to live here, so old shared links like /?city=Juba still open the filtered list.
   const params = new URLSearchParams(search);
   if (['city', 'category', 'q'].some((key) => params.has(key))) {
     return <Navigate to={`/discover${search}`} replace />;
+  }
+  // Only someone with a saved sign-in waits here, and only until we know whose it is.
+  if (session.status === 'loading') {
+    return <div aria-busy="true" aria-label="Loading" className="flex-1" />;
+  }
+  if (session.user) {
+    const { user } = session;
+    return <Navigate to={user.role === 'attendee' ? '/discover' : homePathFor(user)} replace />;
   }
 
   return (

@@ -56,7 +56,7 @@ describe('app shell', () => {
 
   it('gives staff the admin link and no create button', async () => {
     signInAs('agent');
-    renderApp('/');
+    renderApp('/discover');
     const nav = screen.getByRole('navigation', { name: 'Main' });
     expect(await within(nav).findByRole('link', { name: 'Admin' })).toHaveAttribute(
       'href',

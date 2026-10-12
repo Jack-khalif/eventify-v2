@@ -1,5 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { SESSION_STORAGE_KEY } from '../../lib/session';
+import { verifySignIn } from '../../mocks/auth';
 import { renderApp } from '../../test/render';
 import { signInAs } from '../../test/signIn';
 
@@ -40,12 +42,24 @@ describe('Landing', () => {
     expect(screen.getByText(/MTN Mobile Money and card on the way/)).toBeInTheDocument();
   });
 
-  it('takes an approved organizer straight to the create form', async () => {
+  it('is skipped by people who are signed in, who go to where they work', async () => {
     signInAs('organizer');
-    renderApp('/');
-    expect(
-      await screen.findByRole('link', { name: 'Create an event — free to list' }),
-    ).toHaveAttribute('href', '/organizer/events/new');
+    const organizer = renderApp('/');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+    expect(organizer.router.state.location.pathname).toBe('/organizer');
+    organizer.unmount();
+
+    signInAs('agent');
+    const staff = renderApp('/');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Overview' })).toBeInTheDocument();
+    expect(staff.router.state.location.pathname).toBe('/admin');
+  });
+
+  it('sends a signed-in buyer to the events', async () => {
+    localStorage.setItem(SESSION_STORAGE_KEY, verifySignIn('njeri@example.com', '123456')!.token);
+    const { router } = renderApp('/');
+    expect(await screen.findByRole('heading', { level: 1 })).toHaveTextContent(/What's on/);
+    expect(router.state.location.pathname).toBe('/discover');
   });
 
   it('opens old shared Discover links on the Discover page', async () => {
