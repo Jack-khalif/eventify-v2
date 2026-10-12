@@ -75,6 +75,32 @@ describe('app shell', () => {
     expect(within(nav).getByRole('link', { name: 'Discover' })).not.toHaveAttribute('aria-current');
   });
 
+  it('floats a support button that emails us, for buyers, organizers and people signing up', async () => {
+    const support = () => screen.getByRole('link', { name: /Email support/ });
+    const mailto = 'mailto:support@eventifyafrica.co.ke?subject=Help%20with%20Eventify';
+
+    const buyer = renderApp('/discover');
+    expect(support()).toHaveAttribute('href', mailto);
+    buyer.unmount();
+
+    const guest = renderApp('/organizer/apply');
+    expect(
+      await screen.findByRole('heading', { name: 'Create your organizer account' }),
+    ).toBeInTheDocument();
+    expect(support()).toHaveAttribute('href', mailto);
+    guest.unmount();
+
+    signInAs('organizer');
+    renderApp('/organizer');
+    expect(support()).toHaveAttribute('href', mailto);
+  });
+
+  it('keeps the support button off the door scanner', async () => {
+    renderApp('/checkin/sauti-a92f');
+    expect(await screen.findByText(/Sauti Sessions/)).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Email support/ })).not.toBeInTheDocument();
+  });
+
   it('has the four mobile tabs from the design', () => {
     renderApp('/discover');
     const tabs = screen.getByRole('navigation', { name: 'Tabs' });
