@@ -166,6 +166,57 @@ describe('Sign in', () => {
   });
 });
 
+describe('Deleting a profile', () => {
+  /** Open the dialog from the profile and give this password. */
+  async function confirmWith(user: User, password: string) {
+    await user.click(await screen.findByRole('button', { name: 'Delete profile' }));
+    const dialog = screen.getByRole('dialog', { name: 'Delete your profile?' });
+    await user.type(within(dialog).getByLabelText('Your password, to confirm'), password);
+    await user.click(within(dialog).getByRole('button', { name: 'Delete for good' }));
+    return dialog;
+  }
+
+  it('asks for the password, then removes the account and signs out', async () => {
+    const account = signInAs('pendingOrganizer'); // nobody has a ticket for their event
+    const user = userEvent.setup();
+    renderApp('/account');
+
+    const dialog = await confirmWith(user, 'not my password');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "That password isn't right.",
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Keep profile' }));
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    await confirmWith(user, TEST_PASSWORD);
+    expect(await screen.findByText("You're browsing as a guest")).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+    // The account is gone, not just signed out.
+    await user.click(within(screen.getByRole('main')).getByRole('link', { name: 'Sign in' }));
+    await signIn(user, account.email);
+    expect(await screen.findByText("That email or password isn't right.")).toBeInTheDocument();
+  });
+
+  it('sends an organizer with tickets out to support, and leaves them signed in', async () => {
+    signInAs('organizer');
+    const user = userEvent.setup();
+    renderApp('/account');
+    const dialog = await confirmWith(user, TEST_PASSWORD);
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "412 tickets have been issued for your events, so your profile can't be deleted here. Write to support@eventifyafrica.co.ke and we'll help you close it.",
+    );
+    expect(within(screen.getByRole('main')).getByText('Amani Wanjiru')).toBeInTheDocument();
+  });
+
+  it('is not offered to staff', async () => {
+    signInAs('agent');
+    renderApp('/account');
+    expect(await screen.findByRole('link', { name: /Admin portal/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete profile' })).not.toBeInTheDocument();
+  });
+});
+
 describe('Who can create events', () => {
   it('sends a guest who opens the create link to sign in', async () => {
     const { router } = renderApp('/organizer/events/new');

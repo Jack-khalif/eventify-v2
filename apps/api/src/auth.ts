@@ -59,6 +59,7 @@ async function toSessionUser(db: Db, account: AccountRow): Promise<SessionUser> 
     email: account.email,
     role: account.role,
     organizer: o ? { id: o.id, handle: o.handle, name: o.name, status: o.status } : null,
+    hasPassword: !!account.passwordHash,
   };
 }
 

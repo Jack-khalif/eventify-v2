@@ -8,6 +8,7 @@ import {
   organizerSignUpRequestSchema,
   passwordResetFinishSchema,
   passwordResetStartSchema,
+  deleteAccountRequestSchema,
   passwordSignInSchema,
   PRIVACY_NOTICE_VERSION,
   SUPPORT_EMAIL,
@@ -35,6 +36,8 @@ import {
   signInWithPassword,
   signUpOrganizer,
   endSession,
+  passwordAllowsDelete,
+  removeAccount,
   hasTwoStep,
   removeStaff,
   sessionUser,
@@ -42,7 +45,7 @@ import {
   staffRows,
   verifySignIn,
 } from './auth';
-import { allOrganizers, findOrganizer, setOrganizerAgent } from './organizers';
+import { allOrganizers, findOrganizer, removeOrganizer, setOrganizerAgent } from './organizers';
 import { delay, http, HttpResponse, type JsonBodyType } from 'msw';
 import {
   cancelOrder,
@@ -74,6 +77,7 @@ import {
   allEvents,
   createEvent,
   deleteEvent,
+  deleteOrganizerEvents,
   eventDashboard,
   eventForCheckinCode,
   organizerHome,
@@ -329,6 +333,44 @@ export const handlers = [
     await delay();
     const token = tokenOf(request);
     if (token) endSession(token);
+    return HttpResponse.json({ ok: true });
+  }),
+
+  // Closing an account, as the API does: staff can't, a password is asked for again, and an
+  // organizer with tickets out is sent to support.
+  http.post('*/api/auth/delete', async ({ request }) => {
+    await delay();
+    const account = accountOf(request);
+    if (!account) return unauthorized();
+    const body = deleteAccountRequestSchema.safeParse(await request.json());
+    if (!body.success) return badRequest('Some details are missing or invalid.');
+    if (account.role === 'agent' || account.role === 'super_admin') {
+      return HttpResponse.json(
+        { error: 'staff_account', message: 'Staff accounts are removed by a Super Admin.' },
+        { status: 403 },
+      );
+    }
+    if (!passwordAllowsDelete(account, body.data.password)) {
+      return HttpResponse.json(
+        { error: 'invalid_credentials', message: "That password isn't right." },
+        { status: 422 },
+      );
+    }
+    const organizerId = account.organizerId;
+    if (organizerId) {
+      const issued = deleteOrganizerEvents(organizerId).ticketsIssued;
+      if (issued > 0) {
+        return HttpResponse.json(
+          {
+            error: 'tickets_issued',
+            message: `${issued} ${issued === 1 ? 'ticket has' : 'tickets have'} been issued for your events, so your profile can't be deleted here. Write to ${SUPPORT_EMAIL} and we'll help you close it.`,
+          },
+          { status: 409 },
+        );
+      }
+      removeOrganizer(organizerId);
+    }
+    removeAccount(account);
     return HttpResponse.json({ ok: true });
   }),
 

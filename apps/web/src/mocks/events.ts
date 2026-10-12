@@ -145,6 +145,24 @@ export function deleteEvent(
   return { ticketsIssued };
 }
 
+/**
+ * Take down everything an organizer posted, when they delete their profile. Like the API, all of it
+ * or none: nothing goes while any of their events has tickets out.
+ */
+export function deleteOrganizerEvents(organizerId: string): { ticketsIssued: number } {
+  const own = ownEvents(organizerId);
+  const ticketsIssued = own.reduce((sum, e) => sum + salesSummary(e).ticketsSold, 0);
+  if (ticketsIssued === 0) {
+    for (const e of own) {
+      delete codes[e.id];
+      deleted.add(e.id);
+    }
+    created = created.filter((e) => e.organizerId !== organizerId);
+    save();
+  }
+  return { ticketsIssued };
+}
+
 /** Door code for an event: random for created events; fixed for the samples ("sauti-a92f", from the design). */
 function checkinCode(e: Event): string {
   const stored = codes[e.id];

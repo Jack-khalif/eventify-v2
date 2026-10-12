@@ -25,6 +25,8 @@ type Db = {
   sessions: Record<string, string>;
   /** account id → password, for accounts signed up in this browser. It's a mock: nothing is hashed. */
   passwords?: Record<string, string>;
+  /** Sample accounts whose owner deleted them. */
+  deleted?: string[];
 };
 
 const STORAGE_KEY = 'eventify-mock-accounts';
@@ -58,12 +60,25 @@ export function resetAuth() {
 
 const allAccounts = (): Account[] => [
   ...db.accounts,
-  ...sampleAccounts.filter((s) => !db.accounts.some((a) => a.id === s.id)),
+  ...sampleAccounts.filter(
+    (s) => !db.accounts.some((a) => a.id === s.id) && !db.deleted?.includes(s.id),
+  ),
 ];
 
 function store(account: Account) {
   db.accounts = [...db.accounts.filter((a) => a.id !== account.id), account];
   save();
+}
+
+const isStaffAccount = (a: Account) => a.role === 'agent' || a.role === 'super_admin';
+
+/** Null for staff and for accounts made with an emailed code: they have no password. */
+function passwordOf(account: Account): string | null {
+  if (isStaffAccount(account)) return null;
+  return (
+    db.passwords?.[account.id] ??
+    (sampleAccounts.some((s) => s.id === account.id) ? TEST_PASSWORD : null)
+  );
 }
 
 export function sessionUser(account: Account): SessionUser {
@@ -74,6 +89,7 @@ export function sessionUser(account: Account): SessionUser {
     email: account.email,
     role: account.role,
     organizer: o ? { id: o.id, handle: o.handle, name: o.name, status: o.status } : null,
+    hasPassword: passwordOf(account) !== null,
   };
 }
 
@@ -106,11 +122,7 @@ export function verifySignIn(email: string, code: string): Session | null {
 /** Null when the email or password is wrong, or the account is staff (they use the code). */
 export function signInWithPassword(email: string, password: string): Session | null {
   const account = allAccounts().find((a) => a.email === email);
-  if (!account || account.role === 'agent' || account.role === 'super_admin') return null;
-  const expected =
-    db.passwords?.[account.id] ??
-    (sampleAccounts.some((s) => s.id === account.id) && TEST_PASSWORD);
-  if (password !== expected) return null;
+  if (!account || password !== passwordOf(account)) return null;
   return { token: startSession(account.id), user: sessionUser(account) };
 }
 
@@ -147,6 +159,21 @@ export function signUpOrganizer({
 export function accountForToken(token: string): Account | null {
   const id = db.sessions[token];
   return (id && allAccounts().find((a) => a.id === id)) || null;
+}
+
+/** Whether this account may be deleted with this password (none needed when it has none). */
+export const passwordAllowsDelete = (account: Account, password: string | undefined) =>
+  passwordOf(account) === null || passwordOf(account) === password;
+
+/** Forget an account and sign it out everywhere. */
+export function removeAccount(account: Account) {
+  db.accounts = db.accounts.filter((a) => a.id !== account.id);
+  db.deleted = [...(db.deleted ?? []), account.id];
+  for (const [token, id] of Object.entries(db.sessions)) {
+    if (id === account.id) delete db.sessions[token];
+  }
+  if (db.passwords) delete db.passwords[account.id];
+  save();
 }
 
 export function endSession(token: string) {

@@ -18,7 +18,7 @@ import {
   type PublicEvent,
   type SessionUser,
 } from '@eventify/shared';
-import { and, count, eq, gt, gte, inArray, isNotNull, like, ne, sql } from 'drizzle-orm';
+import { and, count, eq, gte, inArray, isNotNull, like, ne, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import {
   createPasswordAccount,
@@ -50,7 +50,7 @@ import { storePoster } from './images';
 import { eatDay, eatDaySql, eatDayStart } from './time';
 
 export type OrganizerRow = typeof organizers.$inferSelect;
-type Failure = { status: 400 | 409 | 422; error: string; message: string };
+export type Failure = { status: 400 | 403 | 409 | 422; error: string; message: string };
 export const isFailure = (r: object): r is Failure => 'error' in r;
 
 const hex = (bytes: number) => randomBytes(bytes).toString('hex');
@@ -360,6 +360,55 @@ export async function createEvent(
 }
 
 /**
+ * What stands in the way of taking an event down: tickets already issued, or a buyer in the middle
+ * of paying. Takes the lock checkout takes, so no order can be placed until the transaction ends.
+ */
+export async function eventHolds(tx: Db, eventId: string, at: number) {
+  await tx.select({ id: tiers.id }).from(tiers).where(eq(tiers.eventId, eventId)).for('update');
+  const placed = await tx
+    .select({
+      status: orders.status,
+      quantity: orders.quantity,
+      holdExpiresAt: orders.holdExpiresAt,
+    })
+    .from(orders)
+    .where(eq(orders.eventId, eventId))
+    .for('update');
+  return {
+    issued: placed
+      .filter((order) => order.status === 'paid')
+      .reduce((sum, order) => sum + order.quantity, 0),
+    paying: placed.some(
+      (order) =>
+        (order.status === 'awaiting_payment' || order.status === 'failed') &&
+        order.holdExpiresAt.getTime() > at,
+    ),
+  };
+}
+
+/** Remove an event and everything that hangs off it. Only once eventHolds() finds nothing. */
+export async function removeEvent(tx: Db, event: { id: string; coverImageUrl: string | null }) {
+  const placed = tx.select({ id: orders.id }).from(orders).where(eq(orders.eventId, event.id));
+  await tx.delete(paymentAttempts).where(inArray(paymentAttempts.orderId, placed));
+  await tx.delete(orders).where(eq(orders.eventId, event.id));
+  await tx.delete(tiers).where(eq(tiers.eventId, event.id));
+  await tx.delete(eventDoors).where(eq(eventDoors.eventId, event.id));
+  await tx.delete(eventViews).where(eq(eventViews.eventId, event.id));
+  await tx.delete(rateApprovals).where(eq(rateApprovals.eventId, event.id));
+  await tx.delete(rateChanges).where(eq(rateChanges.eventId, event.id));
+  await tx.delete(payouts).where(eq(payouts.eventId, event.id));
+  await tx.delete(events).where(eq(events.id, event.id));
+  const poster = /^\/api\/images\/([\w-]+)$/.exec(event.coverImageUrl ?? '')?.[1];
+  if (poster) await tx.delete(images).where(eq(images.id, poster));
+}
+
+export const PAYMENT_IN_PROGRESS = {
+  status: 409,
+  error: 'payment_in_progress',
+  message: 'Someone is paying for a ticket right now. Try again in a few minutes.',
+} as const;
+
+/**
  * Take one of this organizer's events down for good: the page, its tiers, its door link and its
  * poster. Only while nobody holds a ticket and nobody is in the middle of paying for one; after
  * that, cancelling means telling buyers and refunding them, which a person at Eventify handles.
@@ -371,23 +420,13 @@ export async function deleteEvent(
   eventId: string,
 ): Promise<{ deleted: true } | Failure | undefined> {
   return db.transaction(async (tx) => {
-    // The lock checkout takes, so no order can be placed while this decides.
-    await tx.select({ id: tiers.id }).from(tiers).where(eq(tiers.eventId, eventId)).for('update');
+    const { issued, paying } = await eventHolds(tx, eventId, now());
     const [event] = await tx
       .select({ id: events.id, coverImageUrl: events.coverImageUrl })
       .from(events)
       .where(and(eq(events.id, eventId), eq(events.organizerId, o.id)))
       .for('update');
     if (!event) return undefined;
-
-    const placed = await tx
-      .select({ id: orders.id, status: orders.status, quantity: orders.quantity })
-      .from(orders)
-      .where(eq(orders.eventId, event.id))
-      .for('update');
-    const issued = placed
-      .filter((order) => order.status === 'paid')
-      .reduce((sum, order) => sum + order.quantity, 0);
     if (issued > 0) {
       return {
         status: 409,
@@ -395,39 +434,8 @@ export async function deleteEvent(
         message: `${issued} ${issued === 1 ? 'ticket has' : 'tickets have'} been issued for this event, so it can't be deleted here. Write to ${SUPPORT_EMAIL} and we'll help you cancel it.`,
       };
     }
-    const [paying] = await tx
-      .select({ id: orders.id })
-      .from(orders)
-      .where(
-        and(
-          eq(orders.eventId, event.id),
-          inArray(orders.status, ['awaiting_payment', 'failed']),
-          gt(orders.holdExpiresAt, new Date(now())),
-        ),
-      )
-      .limit(1);
-    if (paying) {
-      return {
-        status: 409,
-        error: 'payment_in_progress',
-        message: 'Someone is paying for a ticket right now. Try again in a few minutes.',
-      };
-    }
-
-    const orderIds = placed.map((order) => order.id);
-    if (orderIds.length > 0) {
-      await tx.delete(paymentAttempts).where(inArray(paymentAttempts.orderId, orderIds));
-      await tx.delete(orders).where(inArray(orders.id, orderIds));
-    }
-    await tx.delete(tiers).where(eq(tiers.eventId, event.id));
-    await tx.delete(eventDoors).where(eq(eventDoors.eventId, event.id));
-    await tx.delete(eventViews).where(eq(eventViews.eventId, event.id));
-    await tx.delete(rateApprovals).where(eq(rateApprovals.eventId, event.id));
-    await tx.delete(rateChanges).where(eq(rateChanges.eventId, event.id));
-    await tx.delete(payouts).where(eq(payouts.eventId, event.id));
-    await tx.delete(events).where(eq(events.id, event.id));
-    const poster = /^\/api\/images\/([\w-]+)$/.exec(event.coverImageUrl ?? '')?.[1];
-    if (poster) await tx.delete(images).where(eq(images.id, poster));
+    if (paying) return PAYMENT_IN_PROGRESS;
+    await removeEvent(tx, event);
     return { deleted: true } as const;
   });
 }

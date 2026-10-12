@@ -95,9 +95,8 @@ export const consents = pgTable(
   'consents',
   {
     id: text('id').primaryKey(),
-    accountId: text('account_id')
-      .notNull()
-      .references(() => accounts.id),
+    /** Whose account it was. Not a reference: the proof is kept after the account is deleted. */
+    accountId: text('account_id').notNull(),
     /** The email as it was then. */
     email: text('email').notNull(),
     document: text('document').$type<LegalDocument>().notNull(),

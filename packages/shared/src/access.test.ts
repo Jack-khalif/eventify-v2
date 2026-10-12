@@ -10,6 +10,7 @@ const user = (role: Role, status?: OrganizerStatus): SessionUser => ({
   email: 'test@example.com',
   role,
   organizer: status ? { id: 'org_1', handle: 'test', name: 'Test', status } : null,
+  hasPassword: role === 'organizer',
 });
 
 describe('access rules', () => {
