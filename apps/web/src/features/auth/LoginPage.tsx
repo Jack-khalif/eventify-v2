@@ -62,7 +62,7 @@ export function LoginPage() {
   }[step.at];
   const lead = {
     email: creating
-      ? 'Only approved organizers can create events.'
+      ? 'You need an organizer account to create events.'
       : 'For event organizers. Buying a ticket needs no account.',
     choose: 'Enter your password, or get a 6-digit code by email instead.',
     code: 'We sent a 6-digit code to your address.',

@@ -70,9 +70,10 @@ async function uniqueHandle(tx: Db, name: string, ownId: string) {
 export type ConsentEvidence = { ip: string; userAgent: string };
 
 /**
- * Record an application to host: a new organizer, or (for a declined one applying again) the same
- * organizer with the new details. Either way it waits as "pending" for a Super Admin. The terms
- * and the data-processing consent the applicant ticked are written down with it.
+ * Open an organizer profile: a new organizer, or (for one declined in the past) the same organizer
+ * with the new details. Nobody reviews it first: they can publish straight away, and a Super Admin
+ * can suspend them afterwards. The terms and the data-processing consent they ticked are written
+ * down with it.
  * Null when this account can't apply (already an organizer in good standing, or staff).
  */
 export async function applyToHost(
@@ -98,7 +99,7 @@ export async function applyToHost(
       bannerTone: req.category ? CATEGORY_TONE[req.category] : DEFAULT_BANNER_TONE,
       city: req.city,
       category: req.category ?? null,
-      status: 'pending' as const,
+      status: 'active' as const,
       payoutMethod: req.payoutMethod,
     };
     await tx
@@ -149,8 +150,8 @@ export async function applyToHost(
 }
 
 /**
- * Sign up as an organizer: a new account with a password and its application, together or not at
- * all, then signed in. Null when the email can't be used for a new account.
+ * Sign up as an organizer: a new account with a password and its organizer profile, together or
+ * not at all, then signed in. Null when the email can't be used for a new account.
  */
 export async function signUpOrganizer(
   deps: { db: Db; now: () => number; superAdminEmails: readonly string[] },
@@ -270,7 +271,7 @@ export async function eventDashboard(
   };
 }
 
-/** Publish a new event. The caller has already checked that this organizer is approved. */
+/** Publish a new event. The caller has already checked that this organizer is active. */
 export async function createEvent(
   { db, now }: { db: Db; now: () => number },
   o: OrganizerRow,

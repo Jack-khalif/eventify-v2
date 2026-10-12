@@ -210,65 +210,45 @@ describe('Who can create events', () => {
     expect((await post(localStorage.getItem('eventify-session')!)).status).toBe(403);
   });
 
-  it('takes a new person from applying to publishing once a Super Admin approves', async () => {
+  it('takes a new person from signing up straight to their dashboard, ready to publish', async () => {
     const user = userEvent.setup();
     const first = renderApp('/organizer');
     await user.click(
       (await screen.findAllByRole('link', { name: 'Create an organizer account' }))[0]!,
     );
-    // No sign-in wall: the account and the application are one page.
+    // No sign-in wall and no steps: the account, the profile and the terms are one page.
     expect(
       await screen.findByRole('heading', { level: 1, name: 'Create your organizer account' }),
     ).toBeInTheDocument();
-    // The terms come first: no details can be entered until both boxes are ticked.
-    expect(screen.getByText(/Step 1 of 2/)).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Organizer Terms' })).toHaveTextContent(
-      "6. Your buyers' personal data",
+    expect(screen.getByRole('link', { name: 'Organizer Terms' })).toHaveAttribute('href', '/terms');
+    expect(screen.getByRole('link', { name: 'Privacy Notice' })).toHaveAttribute(
+      'href',
+      '/privacy',
     );
-    expect(screen.queryByLabelText('Your name')).not.toBeInTheDocument();
-    // The button only lights up once both boxes are ticked.
-    const agree = screen.getByRole('button', { name: 'Agree and continue' });
-    expect(agree).toBeDisabled();
-    expect(agree).toHaveAccessibleDescription('Tick both boxes above to continue.');
-    await user.click(screen.getByRole('checkbox', { name: /agree to the Organizer Terms/ }));
-    expect(agree).toBeDisabled();
-    for (const link of screen.getAllByRole('link', { name: 'Privacy Notice' })) {
-      expect(link).toHaveAttribute('href', '/privacy');
-    }
-    await user.click(screen.getByRole('checkbox', { name: /I consent to Eventify/ }));
-    expect(agree).toBeEnabled();
-    await user.click(agree);
 
-    expect(screen.getByText(/Step 2 of 2/)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Create account and apply' }));
+    // Nothing is ticked for them, and every gap is named.
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
     expect(screen.getByText('Enter your name.')).toBeInTheDocument();
     expect(screen.getByText('Enter a valid email address.')).toBeInTheDocument();
     expect(screen.getByText('Use at least 8 characters.')).toBeInTheDocument();
     expect(screen.getByText('Choose a city.')).toBeInTheDocument();
+    expect(screen.getByText('Agree to the Organizer Terms to continue.')).toBeInTheDocument();
+    expect(screen.getByText('We need your consent to process your details.')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText('Your name'), 'Wambui Njeri');
     await user.type(screen.getByLabelText('Email'), 'Wambui@Example.com');
     await user.type(screen.getByLabelText('Password'), 'rooftop nights');
     await user.type(screen.getByLabelText('Organizer name'), 'Kilele Nights');
-    // What describes them, what they host and the note to our team can all stay blank.
     await user.selectOptions(screen.getByLabelText('City'), 'Nairobi');
-    await user.click(screen.getByRole('button', { name: 'Create account and apply' }));
-    expect(
-      await screen.findByRole('heading', { level: 1, name: "We're reviewing Kilele Nights" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText('eventify.co/kilele-nights')).toBeInTheDocument();
-    first.unmount();
-    localStorage.removeItem('eventify-session');
+    expect(screen.getByText(/eventify\.co\/kilele-nights/)).toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: /agree to the Organizer Terms/ }));
+    await user.click(screen.getByRole('checkbox', { name: /I consent to Eventify/ }));
+    await user.click(screen.getByRole('button', { name: 'Create account' }));
 
-    signInAs('superAdmin');
-    const admin = renderApp('/admin/approvals');
-    await user.click(
-      await screen.findByRole('button', { name: 'Approve Kilele Nights as an organizer' }),
-    );
-    await waitFor(() =>
-      expect(screen.queryByRole('button', { name: /Kilele Nights/ })).not.toBeInTheDocument(),
-    );
-    admin.unmount();
+    // Nobody reviews them first.
+    expect(await screen.findByRole('heading', { level: 1, name: 'Dashboard' })).toBeInTheDocument();
+    expect(await screen.findByText('No events yet')).toBeInTheDocument();
+    first.unmount();
 
     // Back another day, signing in with the password they chose.
     localStorage.removeItem('eventify-session');

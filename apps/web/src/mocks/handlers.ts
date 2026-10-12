@@ -10,6 +10,7 @@ import {
   passwordResetStartSchema,
   passwordSignInSchema,
   PRIVACY_NOTICE_VERSION,
+  SUPPORT_EMAIL,
   organizerStatusChangeSchema,
   rateChangeRequestSchema,
   addStaffRequestSchema,
@@ -164,7 +165,7 @@ export const handlers = [
   http.get('*/api/organizers/:handle', async ({ params }) => {
     await delay();
     const o = allOrganizers().find((x) => x.handle === params.handle);
-    // No public page for an applicant until they are approved or have an event up.
+    // No public page for someone who was never let in, unless they have an event up.
     const hidden =
       (o?.status === 'pending' || o?.status === 'rejected') &&
       !allEvents().some((e) => e.organizerId === o.id);
@@ -387,7 +388,7 @@ export const handlers = [
     return dashboard ? HttpResponse.json(dashboard) : notFound();
   }),
 
-  // Publishing is the gate: only organizers a Super Admin has approved get past it.
+  // Publishing is the gate: a suspended (or declined) organizer doesn't get past it.
   http.post('*/api/organizer/events', async ({ request }) => {
     await delay();
     const organizer = organizerOf(request);
@@ -396,7 +397,7 @@ export const handlers = [
       return HttpResponse.json(
         {
           error: 'organizer_not_approved',
-          message: 'Your organizer account has to be approved before you can publish events.',
+          message: `Your organizer account can't publish events right now. Write to ${SUPPORT_EMAIL} and we'll help.`,
         },
         { status: 403 },
       );

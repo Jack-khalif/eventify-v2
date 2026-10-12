@@ -10,11 +10,11 @@ type MaybeUser = SessionUser | null | undefined;
 
 export const isStaff = (role: Role) => role === 'agent' || role === 'super_admin';
 
-/** Only organizers a Super Admin has approved can publish events. */
+/** Organizers can publish unless a Super Admin has suspended them. */
 export const canCreateEvents = (user: MaybeUser) =>
   user?.role === 'organizer' && user.organizer?.status === 'active';
 
-/** Attendees can apply; a declined organizer can fix their details and apply again. */
+/** Attendees can become organizers; one declined in the past can fix their details and apply again. */
 export const canApplyToHost = (user: MaybeUser) =>
   user?.role === 'attendee' ||
   (user?.role === 'organizer' && user.organizer?.status === 'rejected');

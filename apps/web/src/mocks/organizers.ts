@@ -92,8 +92,8 @@ function uniqueHandle(name: string, ownId?: string) {
 }
 
 /**
- * Record an application: a new organizer, or (for a declined one applying again) the same
- * organizer with the new details. Either way it waits as "pending".
+ * Open an organizer profile: a new organizer, or (for one declined in the past) the same
+ * organizer with the new details. Active straight away, as in the API.
  */
 export function submitApplication(
   req: OrganizerApplicationRequest,
@@ -114,11 +114,11 @@ export function submitApplication(
     category: req.category ?? null,
     agentId: null,
     rateBps: DEFAULT_RATE_BPS,
-    status: 'pending',
+    status: 'active',
     payoutMethod: req.payoutMethod,
   };
   db.created = [...db.created.filter((o) => o.id !== id), organizer];
-  db.status[id] = 'pending';
+  db.status[id] = 'active';
   db.applications = [
     ...db.applications.filter((a) => a.organizerId !== id),
     {

@@ -10,7 +10,7 @@ export function workLink(user: SessionUser | null): { to: string; label: string 
   return { to: '/organizer', label: 'Host an event' };
 }
 
-/** Where "host/create an event" buttons go: straight to the form only for approved organizers. */
+/** Where "host/create an event" buttons go: straight to the form only for active organizers. */
 export function hostCta(user: SessionUser | null): { to: string; label: string } {
   return canCreateEvents(user)
     ? { to: '/organizer/events/new', label: 'Create an event' }

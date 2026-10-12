@@ -23,13 +23,13 @@ import {
   type CheckoutRequest,
   type CreateEventRequest,
 } from '@eventify/shared';
-import { asc } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { createApp } from './app';
 import { openLocalDatabase, type Database } from './db/client';
 import { seedSamples } from './db/samples';
-import { auditLog, consents, events, tiers } from './db/schema';
+import { auditLog, consents, events, organizers, tiers } from './db/schema';
 import type { Email } from './email/mailer';
 import { simulatedPayments } from './payments';
 
@@ -203,7 +203,7 @@ const newEvent = (over: Partial<CreateEventRequest> = {}): CreateEventRequest =>
 });
 
 describe('applying to host', () => {
-  it('turns an attendee into a pending organizer whose handle avoids the app’s own paths', async () => {
+  it('turns an attendee into an organizer whose handle avoids the app’s own paths', async () => {
     expect((await send('/organizer/apply', undefined, application)).status).toBe(401);
 
     const token = await signIn('wanjiku@example.com');
@@ -218,45 +218,51 @@ describe('applying to host', () => {
     expect(user).toMatchObject({
       name: 'Wanjiku Kamau',
       role: 'organizer',
-      organizer: { name: 'Tickets', status: 'pending' },
+      organizer: { name: 'Tickets', status: 'active' },
     });
     // Plain "tickets" would have shadowed the app's own /tickets page.
     expect(user.organizer!.handle).toBe('tickets-2');
 
     expect((await send('/organizer/apply', token, application)).status).toBe(409);
-    expect((await send('/organizers/tickets-2')).status).toBe(404); // no public page yet
+    expect((await send('/organizers/tickets-2')).status).toBe(200); // public from the start
   });
 
-  it('keeps a pending organizer from publishing until a Super Admin approves', async () => {
+  it('lets a new organizer publish straight away, until a Super Admin suspends them', async () => {
     const token = await signIn('wanjiku@example.com');
-    const refused = await send('/organizer/events', token, newEvent());
+    expect((await send('/organizer/events', token, newEvent())).status).toBe(201);
+
+    // Nobody new waits for review; only the one who applied before reviews stopped.
+    const boss = await admin();
+    const waiting = await get('/admin/applications', z.array(adminApplicationRowSchema), boss);
+    expect(waiting.map((a) => a.handle)).toEqual(['mizizi']);
+
+    // Agents can't suspend, and an organizer can't be suspended twice.
+    const suspend = { status: 'suspended' };
+    expect((await send('/admin/organizers/tickets-2/status', await agent(), suspend)).status).toBe(
+      403,
+    );
+    expect((await send('/admin/organizers/tickets-2/status', boss, suspend)).status).toBe(200);
+    expect((await send('/admin/organizers/tickets-2/status', boss, suspend)).status).toBe(409);
+
+    const refused = await send('/organizer/events', token, newEvent({ title: 'Second Night' }));
     expect(refused.status).toBe(403);
     expect(((await refused.json()) as { error: string }).error).toBe('organizer_not_approved');
 
-    const boss = await admin();
-    const waiting = await get('/admin/applications', z.array(adminApplicationRowSchema), boss);
-    expect(waiting.map((a) => a.handle)).toEqual(['mizizi', 'tickets-2']); // oldest first
-    expect(waiting[1]).toMatchObject({
-      contactName: 'Wanjiku Kamau',
-      email: 'wanjiku@example.com',
-    });
-
-    // Agents can't decide applications, and an approved organizer can't be approved again.
-    const status = { status: 'active' };
-    expect((await send('/admin/organizers/tickets-2/status', await agent(), status)).status).toBe(
-      403,
-    );
-    expect((await send('/admin/organizers/tickets-2/status', boss, status)).status).toBe(200);
-    expect((await send('/admin/organizers/tickets-2/status', boss, status)).status).toBe(409);
-
-    expect((await send('/organizer/events', token, newEvent())).status).toBe(201);
+    await send('/admin/organizers/tickets-2/status', boss, { status: 'active' });
+    expect(
+      (await send('/organizer/events', token, newEvent({ title: 'Second Night' }))).status,
+    ).toBe(201);
   });
 
   it('lets a declined organizer apply again with new details', async () => {
     const token = await signIn('second-try@example.com');
     await send('/organizer/apply', token, { ...application, organizerName: 'Kiln Club' });
+    // Declined back when applications were reviewed.
+    await database.db
+      .update(organizers)
+      .set({ status: 'rejected' })
+      .where(eq(organizers.handle, 'kiln-club'));
     const boss = await admin();
-    await send('/admin/organizers/kiln-club/status', boss, { status: 'rejected' });
 
     const res = await send('/organizer/apply', token, {
       ...application,
@@ -265,7 +271,7 @@ describe('applying to host', () => {
     expect(res.status).toBe(201);
     expect(sessionUserSchema.parse(await res.json()).organizer).toMatchObject({
       handle: 'kiln-club-nairobi',
-      status: 'pending',
+      status: 'active',
     });
     const rows = await get('/admin/organizers', z.array(adminOrganizerRowSchema), boss);
     expect(rows.filter((o) => o.name.startsWith('Kiln Club'))).toHaveLength(1);
@@ -735,7 +741,7 @@ describe('the admin portal', () => {
       'reject',
     ]);
     expect(of('organizer.status').map((entry) => `${entry.target}:${entry.detail.status}`)).toEqual(
-      ['tickets-2:active', 'kiln-club:rejected', 'amaniwanjiru:suspended', 'amaniwanjiru:active'],
+      ['tickets-2:suspended', 'tickets-2:active', 'amaniwanjiru:suspended', 'amaniwanjiru:active'],
     );
   });
 });

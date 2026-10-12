@@ -33,7 +33,7 @@ import { AppLayout, type RouteHandle } from './AppLayout';
 
 /**
  * URL scheme follows the design: eventify.co/e/{slug}, /t/{ticketId}, /checkin/{code}, /{orgHandle}.
- * Buying, tickets and door check-in need no account. Publishing needs an approved organizer and
+ * Buying, tickets and door check-in need no account. Publishing needs an active organizer and
  * /admin needs staff; the guards only pick the screen, the API enforces the same rules.
  */
 export const routes: RouteObject[] = [

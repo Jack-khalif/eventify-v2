@@ -55,8 +55,8 @@ export function PrivacyPage() {
         <ul>
           <li>To sell and deliver tickets and let you in at the door (to perform our contract).</li>
           <li>
-            To review organizer applications, run organizer accounts and pay organizers (to perform
-            our contract, and with your consent).
+            To open and run organizer accounts and pay organizers (to perform our contract, and with
+            your consent).
           </li>
           <li>To send codes and messages about your tickets or account.</li>
           <li>To prevent fraud and keep the service secure (our legitimate interest).</li>
@@ -67,9 +67,9 @@ export function PrivacyPage() {
 
       <LegalSection title="3. What you must give us">
         <p>
-          The details marked on our forms are needed to issue a ticket or to consider an organizer
-          application. You are free not to give them, but then we cannot sell you a ticket or
-          approve you as an organizer.
+          The details marked on our forms are needed to issue a ticket or to open an organizer
+          account. You are free not to give them, but then we cannot sell you a ticket or open your
+          organizer account.
         </p>
       </LegalSection>
 

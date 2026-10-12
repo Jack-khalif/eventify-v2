@@ -60,7 +60,7 @@ export function SignedIn({
   return <>{children(session.user)}</>;
 }
 
-/** Publishing tools: approved organizers only. Everyone else goes to /organizer, which explains why. */
+/** Publishing tools: active organizers only. Everyone else goes to /organizer, which explains why. */
 export function ActiveOrganizerOnly({ children }: { children: ReactNode }) {
   return (
     <SignedIn intent="create">
