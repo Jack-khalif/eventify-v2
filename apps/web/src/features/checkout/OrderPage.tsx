@@ -4,6 +4,7 @@ import {
   type OrderView,
   type PaymentFailure,
   type PublicEvent,
+  SUPPORT_EMAIL,
 } from '@eventify/shared';
 import { CircleAlert, Clock, Smartphone } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -46,7 +47,7 @@ const FAILURES: Record<PaymentFailure, { title: string; body: string }> = {
   },
   unknown: {
     title: "The payment didn't go through",
-    body: "No tickets were issued. If money left your account, contact us with the M-Pesa message and we'll sort it out.",
+    body: `No tickets were issued. If money left your account, send the M-Pesa message to ${SUPPORT_EMAIL} and we'll sort it out.`,
   },
 };
 

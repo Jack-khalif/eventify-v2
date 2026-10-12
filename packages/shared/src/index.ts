@@ -17,3 +17,4 @@ export * from './doorCheck';
 export * from './adminRules';
 export * from './access';
 export * from './legal';
+export * from './contact';
