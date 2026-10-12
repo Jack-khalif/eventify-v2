@@ -4,7 +4,6 @@ import { Link, Navigate, useSearchParams } from 'react-router';
 import { ErrorState } from '../../components/PageStates';
 import { Button, TextField } from '../../components/ui';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
-import { TEST_LOOKUP_CODE, TEST_PASSWORD, TEST_SIGN_INS } from '../../mocks/testPhones';
 import { AUTH_CTA, AuthHeading, AuthShell, AuthStep, Spinner } from './AuthShell';
 import { CodeForm, EmailRow } from './CodeForm';
 import { PasswordForm } from './PasswordForm';
@@ -12,10 +11,7 @@ import { ResetPasswordForm } from './ResetPasswordForm';
 import { useSession, useStartPasswordReset, useStartSignIn } from './useSession';
 
 /** Where the person is on the way in. The email is asked for once and carried along. */
-type Step =
-  | { at: 'email'; email: string }
-  | { at: 'choose'; email: string; password: string }
-  | { at: 'code' | 'reset'; email: string };
+type Step = { at: 'email' | 'choose' | 'code' | 'reset'; email: string };
 
 /**
  * /login: the email first, then either the password or a 6-digit code sent to that address,
@@ -30,7 +26,6 @@ export function LoginPage() {
   const session = useSession();
   const next = safeNextPath(params.get('next'));
   const [step, setStep] = useState<Step>({ at: 'email', email: '' });
-  const [visit, setVisit] = useState(0);
   const sendCode = useStartSignIn();
   const sendReset = useStartPasswordReset();
 
@@ -56,8 +51,6 @@ export function LoginPage() {
     sendCode.reset();
     sendReset.reset();
     setStep(to);
-    // Each arrival gets forms of its own, so a picked test account refills them.
-    setVisit((v) => v + 1);
   };
   const { email } = step;
   const startAgain = () => go({ at: 'email', email });
@@ -86,18 +79,15 @@ export function LoginPage() {
 
         {step.at === 'email' && (
           <EmailForm
-            key={visit}
             initialEmail={email}
-            onContinue={(address) => go({ at: 'choose', email: address, password: '' })}
+            onContinue={(address) => go({ at: 'choose', email: address })}
           />
         )}
         {step.at === 'choose' && (
           <>
             <EmailRow email={email} onChange={startAgain} />
             <PasswordForm
-              key={visit}
               email={email}
-              initialPassword={step.password}
               onForgot={() =>
                 sendReset.mutate(email, { onSuccess: () => go({ at: 'reset', email }) })
               }
@@ -144,10 +134,6 @@ export function LoginPage() {
           Privacy Notice
         </Link>
       </p>
-
-      <TestAccounts
-        onPick={(address, password) => go({ at: 'choose', email: address, password })}
-      />
     </AuthShell>
   );
 }
@@ -193,38 +179,5 @@ function EmailForm({
         Continue
       </Button>
     </form>
-  );
-}
-
-/** Only while the mock API is on: a sample account for each kind of user, tucked out of the way. */
-function TestAccounts({ onPick }: { onPick: (email: string, password: string) => void }) {
-  if (import.meta.env.VITE_API_MOCKS === 'off') return null;
-  return (
-    <details className="rounded-xl border-2 border-dashed border-hair text-xs text-muted">
-      <summary className="cursor-pointer px-3.5 py-2.5 font-bold text-fg">
-        Test mode: sample accounts
-      </summary>
-      <div className="flex flex-col gap-2 px-3.5 pb-3.5">
-        <span>
-          Nothing is emailed. Organizers use the password{' '}
-          <code className="font-mono text-fg">{TEST_PASSWORD}</code>; staff use the code{' '}
-          <code className="font-mono text-fg">{TEST_LOOKUP_CODE}</code>.
-        </span>
-        <ul className="m-0 flex list-none flex-col gap-1 p-0">
-          {TEST_SIGN_INS.map((a) => (
-            <li key={a.email}>
-              <button
-                type="button"
-                onClick={() => onPick(a.email, a.staff ? '' : TEST_PASSWORD)}
-                className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left hover:bg-surface"
-              >
-                <span className="font-semibold text-fg">{a.label}</span>
-                <code className="flex-none font-mono whitespace-nowrap">{a.email}</code>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </details>
   );
 }
