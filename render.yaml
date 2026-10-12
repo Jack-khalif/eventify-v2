@@ -1,5 +1,5 @@
 # Render blueprint for the API (https://render.com/docs/blueprint-spec). The web app is on Vercel
-# and forwards /api/* here (apps/web/vercel.json), so both share one address and sign-in works.
+# and forwards /api/* here (apps/web/vercel.ts), so both share one address and sign-in works.
 services:
   - type: web
     name: eventify-api

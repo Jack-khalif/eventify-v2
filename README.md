@@ -50,7 +50,7 @@ With no settings at all it runs on its own: the database is a local file (`apps/
 
 Protections worth knowing about:
 
-- **Sessions** are held in two halves: a cookie scripts can't read, and a token the web app sends back. The API needs both, so the web app and the API have to share a site: put the API on a subdomain of the web app's domain, or forward `/api/*` from the web host to the API (a rewrite in `apps/web/vercel.json`) and leave `VITE_API_URL` empty. On two unrelated addresses, browsers won't send the cookie and nobody stays signed in.
+- **Sessions** are held in two halves: a cookie scripts can't read, and a token the web app sends back. The API needs both, so the web app and the API have to share a site: put the API on a subdomain of the web app's domain, or forward `/api/*` from the web host to the API (a rewrite in `apps/web/vercel.ts`) and leave `VITE_API_URL` empty. On two unrelated addresses, browsers won't send the cookie and nobody stays signed in.
 - **Two-step sign-in** (an authenticator app, set up under Admin → Security) is open to all staff. In production a Super Admin can't approve organizers, change rates, record payouts or manage staff until theirs is on (`REQUIRE_TWO_STEP`).
 - **Staff** are added and removed under Admin → Staff, and each organizer's agent is picked on the organizer's page. `SUPER_ADMIN_EMAILS` is only for the first admin.
 - **Rate limits**: sign-in codes and checkouts are limited per visitor (and codes per email or phone), and one phone number can hold three unpaid orders at a time.
@@ -64,6 +64,17 @@ What the numbers mean on the real API:
 - **Page views** on the organizer dashboard count requests for the event page.
 
 After changing `apps/api/src/db/schema.ts`, run `npm run db:generate --workspace @eventify/api` and commit the new file in `apps/api/drizzle`.
+
+### Production and staging
+
+The web app is on Vercel and the API on Render, with a Postgres database on Neon. `apps/web/vercel.ts` forwards `/api/*` to an API, and the `API_ORIGIN` setting in Vercel says which one:
+
+| Vercel environment                 | `API_ORIGIN`              | So it uses                                  |
+| ---------------------------------- | ------------------------- | ------------------------------------------- |
+| Production (`main`)                | not set                   | the live API and database                   |
+| Preview (every other branch or PR) | the staging API's address | the staging API, which has its own database |
+
+Until `API_ORIGIN` is set for Preview, preview sites use the live API. The staging API is a second Render service that deploys the `staging` branch, so to try a change there, push it to `staging` first; merge it to `main` once it works.
 
 ### Who can do what
 
