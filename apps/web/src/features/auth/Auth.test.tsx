@@ -1,8 +1,7 @@
-import { accounts } from '@eventify/shared/fixtures';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
-import { TEST_PASSWORD, TEST_SIGN_INS } from '../../mocks/testPhones';
+import { TEST_PASSWORD } from '../../mocks/testPhones';
 import { renderApp } from '../../test/render';
 import { signInAs } from '../../test/signIn';
 
@@ -35,10 +34,6 @@ async function signInWithCode(user: User, email: string, code = '123456') {
 }
 
 describe('Sign in', () => {
-  it('offers the sample accounts that exist', () => {
-    expect(TEST_SIGN_INS.map((s) => s.email)).toEqual(accounts.map((a) => a.email));
-  });
-
   it('rejects a bad email, a wrong password and a wrong code', async () => {
     const user = userEvent.setup();
     const { router } = renderApp('/login');
@@ -79,7 +74,7 @@ describe('Sign in', () => {
     await waitFor(() => expect(router.state.location.pathname).toBe('/admin'));
   });
 
-  it('shows the password on request and fills in a picked test account', async () => {
+  it('shows the password on request', async () => {
     const user = userEvent.setup();
     renderApp('/login');
     await enterEmail(user, 'organizer@eventify.test');
@@ -87,14 +82,6 @@ describe('Sign in', () => {
     expect(password).toHaveAttribute('type', 'password');
     await user.click(screen.getByRole('button', { name: 'Show password' }));
     expect(password).toHaveAttribute('type', 'text');
-
-    await user.click(screen.getByText('Test mode: sample accounts'));
-    await user.click(screen.getByRole('button', { name: /Organizer \(approved\)/ }));
-    expect(screen.getByLabelText('Password')).toHaveValue(TEST_PASSWORD);
-    await user.click(screen.getByRole('button', { name: /Super Admin/ }));
-    expect(screen.getByLabelText('Password')).toHaveValue('');
-    const card = screen.getByRole('button', { name: 'Change' }).parentElement!;
-    expect(card).toHaveTextContent('admin@eventify.test');
   });
 
   it('takes an organizer to their dashboard', async () => {
@@ -307,6 +294,8 @@ describe('Who can create events', () => {
       await screen.findByRole('heading', { level: 1, name: 'Enter the code' }),
     ).toBeInTheDocument();
     expect(screen.getByText('wambui@example.com')).toBeInTheDocument();
+    // The mock API sends nothing, and says so.
+    expect(screen.getByText(/no email is sent/)).toHaveTextContent('The code is always 123456.');
     expect(screen.getByRole('button', { name: /Resend code in \d+s/ })).toBeDisabled();
     await enterCode(user, '000000');
     expect(await screen.findByText(/code isn't right/)).toBeInTheDocument();

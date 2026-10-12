@@ -7,16 +7,14 @@ import { usePasswordSignIn } from './useSession';
 /** The password for `email`, which the page has already asked for. */
 export function PasswordForm({
   email,
-  initialPassword = '',
   onForgot,
   onRestart,
 }: {
   email: string;
-  initialPassword?: string;
   onForgot: () => void;
   onRestart: () => void;
 }) {
-  const [password, setPassword] = useState(initialPassword);
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string>();
   const signIn = usePasswordSignIn();
   const challenge =

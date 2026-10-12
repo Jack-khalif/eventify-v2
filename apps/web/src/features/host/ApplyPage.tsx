@@ -25,7 +25,7 @@ import {
 import { ApiError } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { AUTH_CTA, AuthHeading, AuthShell, AuthStep, Spinner } from '../auth/AuthShell';
-import { ResendCode } from '../auth/CodeForm';
+import { MockCodeHint, ResendCode } from '../auth/CodeForm';
 import { OtpBoxes } from '../auth/OtpBoxes';
 import {
   useApplyToHost,
@@ -366,6 +366,7 @@ function ConfirmEmail({
           )}
         </Button>
         <ResendCode email={email} resend={sendCode} />
+        <MockCodeHint />
       </form>
       <p className="m-0 border-t-2 border-hair pt-4 text-sm text-muted">
         Your account is already made.{' '}
