@@ -184,8 +184,34 @@ export async function organizerFor(db: Db, account: AccountRow): Promise<Organiz
 const bySoonest = (a: PublicEvent, b: PublicEvent) =>
   Date.parse(a.startsAt) - Date.parse(b.startsAt);
 
+/** Complimentary tickets issued, per tier id, for these events. */
+async function compsByTier(db: Db, eventIds: string[]) {
+  if (eventIds.length === 0) return new Map<string, number>();
+  const rows = await db
+    .select({ tierId: orders.tierId, quantity: sql<number>`sum(${orders.quantity})::int` })
+    .from(orders)
+    .where(
+      and(inArray(orders.eventId, eventIds), eq(orders.kind, 'comp'), eq(orders.status, 'paid')),
+    )
+    .groupBy(orders.tierId);
+  return new Map(rows.map((r) => [r.tierId, r.quantity]));
+}
+
+/**
+ * The event with its tiers' "sold" counting sales only. Tiers count comps as sold so they fill
+ * capacity, but nobody paid for them, so they stay out of sales and money.
+ */
+const salesOnly = (e: PublicEvent, comps: Map<string, number>): PublicEvent => ({
+  ...e,
+  tiers: e.tiers.map((t) => ({ ...t, sold: t.sold - (comps.get(t.id) ?? 0) })),
+});
+
 export async function organizerHome(db: Db, o: OrganizerRow, now: number): Promise<OrganizerHome> {
   const own = await loadEvents(db, eq(events.organizerId, o.id));
+  const comps = await compsByTier(
+    db,
+    own.map((e) => e.id),
+  );
   return {
     organizer: {
       id: o.id,
@@ -204,7 +230,7 @@ export async function organizerHome(db: Db, o: OrganizerRow, now: number): Promi
       status: displayStatus(e, new Date(now)),
       coverTone: e.coverTone,
       coverImageUrl: e.coverImageUrl,
-      ticketsSold: salesSummary(e).ticketsSold,
+      ticketsSold: salesSummary(salesOnly(e, comps)).ticketsSold,
     })),
   };
 }
@@ -220,6 +246,7 @@ export async function eventDashboard(
 ): Promise<EventDashboard | undefined> {
   const [e] = await loadEvents(db, and(eq(events.id, eventId), eq(events.organizerId, o.id)));
   if (!e) return undefined;
+  const comps = await compsByTier(db, [e.id]);
   const [own] = await db
     .select({ rateBps: events.rateBps, checkinCode: events.checkinCode })
     .from(events)
@@ -233,6 +260,7 @@ export async function eventDashboard(
       and(
         eq(orders.eventId, e.id),
         eq(orders.status, 'paid'),
+        eq(orders.kind, 'sale'),
         gte(orders.paidAt, eatDayStart(today - DASHBOARD_DAYS + 1)),
       ),
     )
@@ -258,7 +286,10 @@ export async function eventDashboard(
   names.delete('');
 
   return {
-    ...salesSummary(e),
+    ...salesSummary(salesOnly(e, comps)),
+    // Capacity is what the tiers hold, comps or not.
+    capacity: salesSummary(e).capacity,
+    compsIssued: [...comps.values()].reduce((sum, n) => sum + n, 0),
     eventId: e.id,
     title: e.title,
     slug: e.slug,

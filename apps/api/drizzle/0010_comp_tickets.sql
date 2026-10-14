@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ADD COLUMN "kind" text DEFAULT 'sale' NOT NULL;

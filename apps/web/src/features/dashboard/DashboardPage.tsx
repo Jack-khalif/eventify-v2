@@ -21,10 +21,13 @@ import { cn } from '../../lib/cn';
 import { displayUrl, siteUrl } from '../../lib/site';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useSession } from '../auth/useSession';
+import { CompTickets } from './CompTickets';
 import { useDeleteEvent, useEventDashboard, useOrganizerHome } from './useDashboard';
 
 const STATUS_LABEL: Record<EventStatus, string> = { live: 'Live', draft: 'Draft', ended: 'Ended' };
 const count = (n: number) => n.toLocaleString('en-US');
+/** Every ticket out there: sold and complimentary. */
+const issuedOf = (d: EventDashboard) => d.ticketsSold + d.compsIssued;
 
 export function DashboardPage() {
   useDocumentTitle('Dashboard');
@@ -150,6 +153,7 @@ function Dashboard({ home }: { home: OrganizerHome }) {
       ) : (
         <EventNumbers
           d={dashboard.data}
+          canIssue={canCreate && selected.status !== 'ended'}
           myEvents={myEvents}
           onDeleted={() => setParams({}, { replace: true })}
         />
@@ -160,10 +164,12 @@ function Dashboard({ home }: { home: OrganizerHome }) {
 
 function EventNumbers({
   d,
+  canIssue,
   myEvents,
   onDeleted,
 }: {
   d: EventDashboard;
+  canIssue: boolean;
   myEvents: ReactNode;
   onDeleted: () => void;
 }) {
@@ -186,8 +192,8 @@ function EventNumbers({
     {
       label: 'Check-ins',
       value: count(d.checkIns),
-      sub: d.ticketsSold
-        ? `${Math.round((d.checkIns / d.ticketsSold) * 100)}% of sold`
+      sub: issuedOf(d)
+        ? `${Math.round((d.checkIns / issuedOf(d)) * 100)}% of tickets`
         : 'None sold yet',
     },
     {
@@ -264,6 +270,10 @@ function EventNumbers({
         {myEvents}
       </div>
 
+      <div className="flex flex-wrap items-start gap-5">
+        <CompTickets eventId={d.eventId} canIssue={canIssue} />
+      </div>
+
       <DeleteEvent d={d} onDeleted={onDeleted} />
     </>
   );
@@ -276,7 +286,7 @@ function EventNumbers({
 function DeleteEvent({ d, onDeleted }: { d: EventDashboard; onDeleted: () => void }) {
   const [open, setOpen] = useState(false);
   const remove = useDeleteEvent();
-  const issued = d.ticketsSold;
+  const issued = issuedOf(d);
   const close = () => {
     setOpen(false);
     remove.reset();
@@ -371,7 +381,7 @@ function CheckIns({ d }: { d: EventDashboard }) {
       <div className="flex items-center justify-between gap-3">
         <h3 className="m-0 text-base">Live check-ins</h3>
         <span className="text-[13px] font-extrabold text-accent-text">
-          {count(d.checkIns)} / {count(d.ticketsSold)} checked in
+          {count(d.checkIns)} / {count(issuedOf(d))} checked in
         </span>
       </div>
       {d.doors.length === 0 ? (

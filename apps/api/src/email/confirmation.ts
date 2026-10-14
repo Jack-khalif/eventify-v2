@@ -51,6 +51,7 @@ export async function sendTicketEmail(deps: ConfirmationDeps, orderId: string): 
         buyer: { name: order.buyerName, email: order.buyerEmail },
         orderId: order.id,
         totalMinor: order.totalMinor,
+        comp: order.kind === 'comp',
         tickets,
         siteUrl: deps.siteUrl,
       }),

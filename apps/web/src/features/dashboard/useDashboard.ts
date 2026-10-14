@@ -1,8 +1,11 @@
 import {
+  compListSchema,
+  compRequestSchema,
   createEventRequestSchema,
   eventDashboardSchema,
   organizerHomeSchema,
   publicEventSchema,
+  type CompRequest,
   type CreateEventRequest,
 } from '@eventify/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -57,6 +60,30 @@ export function useDeleteEvent() {
         queryClient.invalidateQueries({ queryKey: ['my-organizer'], exact: true }),
         queryClient.invalidateQueries({ queryKey: ['events'] }),
       ]);
+    },
+  });
+}
+
+const compsPath = (eventId: string) => `/api/organizer/events/${encodeURIComponent(eventId)}/comps`;
+
+/** Complimentary tickets issued for an event, and the tiers they can come from. */
+export function useComps(eventId: string) {
+  return useQuery({
+    queryKey: ['my-organizer', 'comps', eventId],
+    queryFn: () => apiGet(compsPath(eventId), compListSchema),
+  });
+}
+
+/** Give tickets away. They are emailed to the guest like a purchase. */
+export function useIssueComps(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (req: CompRequest) =>
+      apiPost(compsPath(eventId), compRequestSchema.parse(req), compListSchema),
+    onSuccess: async (list) => {
+      queryClient.setQueryData(['my-organizer', 'comps', eventId], list);
+      // Comps fill capacity and appear in the check-in numbers.
+      await queryClient.invalidateQueries({ queryKey: ['my-organizer', 'dashboard', eventId] });
     },
   });
 }

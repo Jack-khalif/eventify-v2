@@ -51,6 +51,11 @@ export type OrganizerHome = z.infer<typeof organizerHomeSchema>;
 /** GET /api/organizer/events/:id/dashboard */
 export const eventDashboardSchema = organizerDashboardSchema.extend({
   title: z.string().min(1),
+  /**
+   * Complimentary tickets given away. Not in ticketsSold or the money; they do use up capacity.
+   * Defaults so the web app still reads an API from before comps existed.
+   */
+  compsIssued: z.int().nonnegative().default(0),
   slug: slugSchema,
   /** Door staff open eventify.co/checkin/{code} to scan for this event. */
   checkinCode: z.string().regex(/^[a-z0-9-]{4,40}$/),

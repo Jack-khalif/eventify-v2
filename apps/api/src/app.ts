@@ -1,5 +1,6 @@
 import {
   checkoutRequestSchema,
+  compRequestSchema,
   createEventRequestSchema,
   doorSyncRequestSchema,
   eventQuerySchema,
@@ -67,6 +68,7 @@ import {
   type AccountRow,
   type OpenedSession,
 } from './auth';
+import { compList, issueComps } from './comps';
 import { doorList, eventForCheckinCode, syncDoor, type VerifyKey } from './checkin';
 import type { Db } from './db/client';
 import { auditLog, events } from './db/schema';
@@ -576,19 +578,56 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return dashboard ? c.json(dashboard) : notFound(c);
   });
 
+  const notApproved = (c: Context, doing: string) =>
+    c.json(
+      {
+        error: 'organizer_not_approved',
+        message: `Your organizer account can't ${doing} right now. Write to ${SUPPORT_EMAIL} and we'll help.`,
+      },
+      403,
+    );
+
+  // Complimentary tickets: issued and emailed like a purchase, at no charge.
+  app.get('/organizer/events/:id/comps', async (c) => {
+    const organizer = await organizerOf(c);
+    if (organizer instanceof Response) return organizer;
+    const list = await compList(db, organizer, c.req.param('id'));
+    return list ? c.json(list) : notFound(c);
+  });
+
+  app.post('/organizer/events/:id/comps', async (c) => {
+    const organizer = await organizerOf(c);
+    if (organizer instanceof Response) return organizer;
+    if (organizer.status !== 'active') return notApproved(c, 'issue tickets');
+    const body = compRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) {
+      return badRequest(c, body.error.issues[0]?.message ?? 'Check the guest’s details.');
+    }
+    // Each one emails an address we were given, so keep that from becoming a way to send mail.
+    if (!withinLimit(`comps:${organizer.id}`, 60, 60 * MINUTE)) {
+      return c.json(
+        {
+          error: 'rate_limited',
+          message: 'That’s a lot of tickets at once. Try again in an hour.',
+        },
+        429,
+      );
+    }
+    const eventId = c.req.param('id');
+    const result = await issueComps(deps, organizer, eventId, body.data);
+    if (!result) return notFound(c);
+    if (isFailure(result)) {
+      return c.json({ error: result.error, message: result.message }, result.status);
+    }
+    await sendTicketEmail(deps, result.orderId);
+    return c.json((await compList(db, organizer, eventId))!, 201);
+  });
+
   // Publishing is the gate: a suspended (or declined) organizer doesn't get past it.
   app.post('/organizer/events', async (c) => {
     const organizer = await organizerOf(c);
     if (organizer instanceof Response) return organizer;
-    if (organizer.status !== 'active') {
-      return c.json(
-        {
-          error: 'organizer_not_approved',
-          message: `Your organizer account can't publish events right now. Write to ${SUPPORT_EMAIL} and we'll help.`,
-        },
-        403,
-      );
-    }
+    if (organizer.status !== 'active') return notApproved(c, 'publish events');
     const body = createEventRequestSchema.safeParse(await c.req.json().catch(() => null));
     if (!body.success) return badRequest(c, 'Some event details are missing or invalid.');
     const event = await createEvent(deps, organizer, body.data);
