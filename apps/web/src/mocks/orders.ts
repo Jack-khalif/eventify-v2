@@ -352,7 +352,7 @@ export function issueComps(event: PublicEvent, req: CompRequest, now = Date.now(
     quantity: req.quantity,
     totalMinor: 0,
     currency: event.currency,
-    buyer: { name: req.name, phone: '', email: req.email },
+    buyer: { name: req.name, phone: req.phone ?? '', email: req.email },
     paymentMethod: null,
     status: 'paid',
     failureReason: null,
