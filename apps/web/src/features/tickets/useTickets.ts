@@ -3,7 +3,10 @@ import {
   ticketLookupStartResultSchema,
   ticketLookupStartSchema,
   ticketLookupVerifySchema,
+  ticketTransferRequestSchema,
+  ticketTransferResultSchema,
   ticketViewSchema,
+  type TicketTransferRequest,
   type TicketView,
 } from '@eventify/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -82,5 +85,32 @@ export function useMyTickets({ enabled }: { enabled: boolean }) {
       return tickets;
     },
     enabled,
+  });
+}
+
+/**
+ * Pass a ticket on. Its pass stops working straight away, so it is dropped from every list this
+ * visit holds; asking for it again tells whoever opens the link that it was transferred.
+ */
+export function useTransferTicket(ticketId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (req: TicketTransferRequest) =>
+      apiPost(
+        `/api/tickets/${encodeURIComponent(ticketId)}/transfer`,
+        ticketTransferRequestSchema.parse(req),
+        ticketTransferResultSchema,
+      ),
+    onSuccess: async () => {
+      queryClient.setQueryData<LookupResult | null>(LOOKUP_KEY, (found) =>
+        found ? { ...found, tickets: found.tickets.filter((t) => t.id !== ticketId) } : found,
+      );
+      await Promise.all([
+        // Not refetched now: the screen that did this says so itself.
+        queryClient.invalidateQueries({ queryKey: ['ticket', ticketId], refetchType: 'none' }),
+        queryClient.invalidateQueries({ queryKey: ['my-tickets'] }),
+        queryClient.invalidateQueries({ queryKey: ['order'] }),
+      ]);
+    },
   });
 }

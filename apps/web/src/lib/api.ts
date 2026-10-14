@@ -32,9 +32,12 @@ async function toApiError(res: Response, fallback: string) {
 
 export const isNotFound = (error: unknown) => error instanceof ApiError && error.status === 404;
 
-/** Not signed in, not allowed, or not there: asking again won't change the answer. */
+/** A ticket link that stopped working because the ticket was passed on to someone else. */
+export const isTransferred = (error: unknown) => error instanceof ApiError && error.status === 410;
+
+/** Not signed in, not allowed, not there or gone: asking again won't change the answer. */
 export const isFinalError = (error: unknown) =>
-  error instanceof ApiError && [401, 403, 404].includes(error.status);
+  error instanceof ApiError && [401, 403, 404, 410].includes(error.status);
 
 /** Send the request as whoever is signed in. A 401 means the session ended, so forget it. */
 async function send(url: URL, init: RequestInit = {}): Promise<Response> {

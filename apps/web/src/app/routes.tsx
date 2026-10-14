@@ -2,6 +2,7 @@ import type { RouteObject } from 'react-router';
 import { AdminLayout } from '../features/admin/AdminLayout';
 import { AgentsPage } from '../features/admin/AgentsPage';
 import { ApprovalsPage } from '../features/admin/ApprovalsPage';
+import { MerchQueuePage } from '../features/admin/MerchQueuePage';
 import { OrganizerDetailPage } from '../features/admin/OrganizerDetailPage';
 import { OrganizersPage } from '../features/admin/OrganizersPage';
 import { OverviewPage } from '../features/admin/OverviewPage';
@@ -51,6 +52,7 @@ export const routes: RouteObject[] = [
       { path: 'approvals', element: <ApprovalsPage /> },
       { path: 'agents', element: <AgentsPage /> },
       { path: 'payouts', element: <PayoutsPage /> },
+      { path: 'merch', element: <MerchQueuePage /> },
       { path: 'staff', element: <StaffPage /> },
       { path: 'security', element: <SecurityPage /> },
       { path: '*', element: <NotFound /> },

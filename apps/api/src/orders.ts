@@ -16,6 +16,7 @@ import type { Db } from './db/client';
 import { events, orders, organizers, paymentAttempts, tickets, tiers } from './db/schema';
 import { publishedEvent } from './events';
 import type { PaymentProvider } from './payments';
+import { heldByBuyer } from './tickets';
 
 export type OrderRow = typeof orders.$inferSelect;
 export type Failure = { status: 404 | 409 | 422 | 429 | 503; error: string; message: string };
@@ -41,9 +42,14 @@ const isOpen = (o: OrderRow) => o.status === 'awaiting_payment' || o.status === 
 const eatIso = (d: Date) => toEatIso(d.getTime());
 
 async function toOrderView(db: Db, o: OrderRow): Promise<OrderView> {
+  // Tickets passed on to someone else belong to them now, not to whoever has the order link.
   const issued =
     o.status === 'paid'
-      ? await db.select().from(tickets).where(eq(tickets.orderId, o.id)).orderBy(asc(tickets.index))
+      ? await db
+          .select()
+          .from(tickets)
+          .where(and(eq(tickets.orderId, o.id), heldByBuyer))
+          .orderBy(asc(tickets.index))
       : [];
   return {
     id: o.id,
@@ -76,6 +82,15 @@ const resolveAttempt = (tx: Db, orderId: string, outcome: 'paid' | PaymentFailur
     .set({ outcome, resolvedAt: new Date(at) })
     .where(and(eq(paymentAttempts.orderId, orderId), isNull(paymentAttempts.outcome)));
 
+/** The code printed on ticket number `n` of an event: letters and digits only, e.g. EVT-SAUTI-0412. */
+export function ticketCode(eventId: string, n: number) {
+  const key = eventId
+    .replace(/^evt_/, '')
+    .replace(/[^a-z0-9]/gi, '')
+    .toUpperCase();
+  return `EVT-${key}-${String(n).padStart(4, '0')}`;
+}
+
 /** Mark the order paid, count its tickets as sold and issue them. Call inside a transaction. */
 export async function markPaid(tx: Db, o: OrderRow, now: number): Promise<OrderRow> {
   const [paid] = await tx
@@ -93,16 +108,11 @@ export async function markPaid(tx: Db, o: OrderRow, now: number): Promise<OrderR
     .where(eq(events.id, o.eventId))
     .returning({ ticketSeq: events.ticketSeq });
 
-  // Letters and digits only, e.g. evt_sauti → EVT-SAUTI-0412.
-  const key = o.eventId
-    .replace(/^evt_/, '')
-    .replace(/[^a-z0-9]/gi, '')
-    .toUpperCase();
   const first = event!.ticketSeq - o.quantity + 1;
   await tx.insert(tickets).values(
     Array.from({ length: o.quantity }, (_, i) => ({
       id: randomToken(),
-      code: `EVT-${key}-${String(first + i).padStart(4, '0')}`,
+      code: ticketCode(o.eventId, first + i),
       orderId: o.id,
       eventId: o.eventId,
       index: i + 1,

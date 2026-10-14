@@ -1,9 +1,9 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { issueCode, redeemCode } from './codes';
 import type { Db } from './db/client';
 import { orders } from './db/schema';
 import type { SmsSender } from './sms';
-import { ticketViewsWhere } from './tickets';
+import { heldByBuyer, ticketViewsWhere } from './tickets';
 
 export type LookupDeps = {
   db: Db;
@@ -35,12 +35,15 @@ export async function startLookup(
   return 'sent';
 }
 
-/** Step 2: the tickets bought with this phone, or null when the code is wrong or out of date. */
+/**
+ * Step 2: the tickets bought with this phone and not passed on, or null when the code is wrong or
+ * out of date.
+ */
 export async function verifyLookup(
   { db, signingKey, now }: LookupDeps,
   phone: string,
   code: string,
 ) {
   if (!(await redeemCode(db, phone, code, now()))) return null;
-  return ticketViewsWhere(db, signingKey, eq(orders.buyerPhone, phone));
+  return ticketViewsWhere(db, signingKey, and(eq(orders.buyerPhone, phone), heldByBuyer));
 }

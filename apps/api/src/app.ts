@@ -6,6 +6,8 @@ import {
   eventQuerySchema,
   filterEvents,
   markPaidRequestSchema,
+  merchRequestSchema,
+  merchStatusChangeSchema,
   ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
   organizerSignUpRequestSchema,
@@ -26,6 +28,7 @@ import {
   totpSignInSchema,
   ticketLookupStartSchema,
   ticketLookupVerifySchema,
+  ticketTransferRequestSchema,
   type AdminMe,
   type OrderView,
 } from '@eventify/shared';
@@ -76,6 +79,7 @@ import { sendTicketEmail } from './email/confirmation';
 import type { Mailer } from './email/mailer';
 import { organizerProfile, publishedEvent, publishedEvents } from './events';
 import { loadImage } from './images';
+import { merchFor, merchQueue, requestMerch, setMerchStatus } from './merch';
 import { startLookup, verifyLookup } from './lookup';
 import { cancelOrder, createOrder, getOrder, isFailure, retryPayment } from './orders';
 import {
@@ -96,6 +100,7 @@ import type { SmsSender } from './sms';
 import { addStaff, assignAgent, removeStaff, staffRows } from './staff';
 import { otpauthUrl } from './totp';
 import { ticketView, ticketViewsForEmail } from './tickets';
+import { transferredAway, transferTicket } from './transfers';
 
 export type AppDeps = {
   db: Db;
@@ -241,8 +246,26 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
   });
 
   app.get('/tickets/:id', async (c) => {
-    const ticket = await ticketView(db, deps.signingKey, c.req.param('id'));
-    return ticket ? c.json(ticket) : notFound(c);
+    const id = c.req.param('id');
+    const ticket = await ticketView(db, deps.signingKey, id);
+    if (ticket) return c.json(ticket);
+    const gone = await transferredAway(db, id);
+    return gone ? c.json({ error: gone.error, message: gone.message }, gone.status) : notFound(c);
+  });
+
+  // Passing a ticket on. Whoever holds the link may, as they may walk in with it.
+  app.post('/tickets/:id/transfer', async (c) => {
+    const stop = limited(c, 'transfers', 20, 10 * MINUTE);
+    if (stop) return stop;
+    const body = ticketTransferRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) {
+      return badRequest(c, body.error.issues[0]?.message ?? 'Check their details.');
+    }
+    const result = await transferTicket(deps, c.req.param('id'), body.data);
+    if (!result) return notFound(c);
+    return 'error' in result
+      ? c.json({ error: result.error, message: result.message }, result.status)
+      : c.json(result);
   });
 
   const tooManyCodes = (c: Context) =>
@@ -623,6 +646,39 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return c.json((await compList(db, organizer, eventId))!, 201);
   });
 
+  // Branded print for an event: requests go to the print queue in the admin portal.
+  app.get('/organizer/events/:id/merch', async (c) => {
+    const organizer = await organizerOf(c);
+    if (organizer instanceof Response) return organizer;
+    const requests = await merchFor(db, organizer, c.req.param('id'));
+    return requests ? c.json({ requests }) : notFound(c);
+  });
+
+  app.post('/organizer/events/:id/merch', async (c) => {
+    const account = await accountOf(c);
+    const organizer = await organizerOf(c);
+    if (organizer instanceof Response) return organizer;
+    if (organizer.status !== 'active') return notApproved(c, 'order merch');
+    const body = merchRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) {
+      return badRequest(c, body.error.issues[0]?.message ?? 'Check the request.');
+    }
+    if (!withinLimit(`merch:${organizer.id}`, 20, 60 * MINUTE)) {
+      return c.json(
+        { error: 'rate_limited', message: 'Too many requests at once. Try again in an hour.' },
+        429,
+      );
+    }
+    const requests = await requestMerch(
+      deps,
+      organizer,
+      account!.email,
+      c.req.param('id'),
+      body.data,
+    );
+    return requests ? c.json({ requests }, 201) : notFound(c);
+  });
+
   // Publishing is the gate: a suspended (or declined) organizer doesn't get past it.
   app.post('/organizer/events', async (c) => {
     const organizer = await organizerOf(c);
@@ -816,6 +872,25 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
       reference: body.data.reference.toUpperCase(),
       ...('amountMinor' in result && { amountMinor: result.amountMinor, handle: result.handle }),
     });
+    return adminReply(c, result);
+  });
+
+  // The print queue: organizers' merch requests, moved along by a Super Admin.
+  app.get('/admin/merch', async (c) => {
+    const me = await staffOf(c);
+    if (me instanceof Response) return me;
+    return superAdminOnly(c, me) ?? c.json(await merchQueue(db));
+  });
+
+  app.post('/admin/merch/:id/status', async (c) => {
+    const me = await staffOf(c);
+    if (me instanceof Response) return me;
+    const notAllowed = superAdminOnly(c, me) ?? needsTwoStep(c, me);
+    if (notAllowed) return notAllowed;
+    const body = merchStatusChangeSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return badRequest(c, 'Pick a status.');
+    const result = await setMerchStatus(deps, c.req.param('id'), body.data);
+    await audit(me, result, 'merch.status', c.req.param('id'), body.data);
     return adminReply(c, result);
   });
 

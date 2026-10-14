@@ -4,6 +4,8 @@ import {
   createEventRequestSchema,
   doorSyncRequestSchema,
   markPaidRequestSchema,
+  merchRequestSchema,
+  merchStatusChangeSchema,
   ORGANIZER_TERMS_VERSION,
   organizerApplicationRequestSchema,
   organizerSignUpRequestSchema,
@@ -26,6 +28,7 @@ import {
   filterEvents,
   ticketLookupStartSchema,
   ticketLookupVerifySchema,
+  ticketTransferRequestSchema,
   type OrderView,
 } from '@eventify/shared';
 import { organizerProfiles } from '@eventify/shared/fixtures';
@@ -58,6 +61,8 @@ import {
   retryPayment,
   ticketsForEmail,
   ticketsForPhone,
+  transferredAway,
+  transferTicket,
 } from './orders';
 import {
   adminMe,
@@ -85,6 +90,7 @@ import {
   eventForCheckinCode,
   organizerHome,
 } from './events';
+import { merchFor, merchQueue, requestMerch, setMerchStatus } from './merch';
 import { TEST_LOOKUP_CODE } from './testPhones';
 
 const notFound = () =>
@@ -237,7 +243,25 @@ export const handlers = [
   http.get('*/api/tickets/:id', async ({ params }) => {
     await delay();
     const ticket = await getTicket(String(params.id), allEvents());
-    return ticket ? HttpResponse.json(ticket) : notFound();
+    if (ticket) return HttpResponse.json(ticket);
+    const gone = transferredAway(String(params.id));
+    return gone
+      ? HttpResponse.json({ error: gone.error, message: gone.message }, { status: gone.status })
+      : notFound();
+  }),
+
+  // Passing a ticket on: whoever holds the link may. Nothing is emailed here.
+  http.post('*/api/tickets/:id/transfer', async ({ params, request }) => {
+    await delay();
+    const body = ticketTransferRequestSchema.safeParse(await request.json());
+    if (!body.success) return badRequest(body.error.issues[0]?.message ?? 'Check their details.');
+    const result = transferTicket(String(params.id), body.data, allEvents());
+    return 'error' in result
+      ? HttpResponse.json(
+          { error: result.error, message: result.message },
+          { status: result.status },
+        )
+      : HttpResponse.json(result);
   }),
 
   // Always "sent", whether or not the number has tickets, so nobody can probe which numbers bought.
@@ -470,6 +494,35 @@ export const handlers = [
       : HttpResponse.json(result, { status: 201 });
   }),
 
+  http.get('*/api/organizer/events/:id/merch', async ({ params, request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    const event = allEvents().find((e) => e.id === params.id && e.organizerId === organizer.id);
+    return event ? HttpResponse.json({ requests: merchFor(event.id) }) : notFound();
+  }),
+
+  http.post('*/api/organizer/events/:id/merch', async ({ params, request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    const event = allEvents().find((e) => e.id === params.id && e.organizerId === organizer.id);
+    if (!event) return notFound();
+    if (organizer.status !== 'active') {
+      return HttpResponse.json(
+        {
+          error: 'organizer_not_approved',
+          message: `Your organizer account can't order merch right now. Write to ${SUPPORT_EMAIL} and we'll help.`,
+        },
+        { status: 403 },
+      );
+    }
+    const body = merchRequestSchema.safeParse(await request.json());
+    if (!body.success) return badRequest(body.error.issues[0]?.message ?? 'Check the request.');
+    const requests = requestMerch(event, organizer, accountOf(request)!.email, body.data);
+    return HttpResponse.json({ requests }, { status: 201 });
+  }),
+
   // Publishing is the gate: a suspended (or declined) organizer doesn't get past it.
   http.post('*/api/organizer/events', async ({ request }) => {
     await delay();
@@ -658,6 +711,27 @@ export const handlers = [
     }
     setTwoStep(account.id, params.change === 'enable');
     return HttpResponse.json({ enabled: params.change === 'enable' });
+  }),
+
+  // The print queue: Super Admin only.
+  http.get('*/api/admin/merch', async ({ request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    return superAdminOnly(me) ?? HttpResponse.json(merchQueue(allEvents(), findOrganizer));
+  }),
+
+  http.post('*/api/admin/merch/:id/status', async ({ params, request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    const notAllowed = superAdminOnly(me);
+    if (notAllowed) return notAllowed;
+    const body = merchStatusChangeSchema.safeParse(await request.json());
+    if (!body.success) return badRequest('Pick a status.');
+    const id = setMerchStatus(String(params.id), body.data);
+    const row = id && merchQueue(allEvents(), findOrganizer).find((r) => r.id === id);
+    return row ? HttpResponse.json(row) : notFound();
   }),
 
   http.get('*/api/admin/staff', async ({ request }) => {
