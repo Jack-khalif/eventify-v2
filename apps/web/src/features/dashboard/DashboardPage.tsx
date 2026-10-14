@@ -22,6 +22,7 @@ import { displayUrl, siteUrl } from '../../lib/site';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useSession } from '../auth/useSession';
 import { CompTickets } from './CompTickets';
+import { MerchRequests } from './MerchRequests';
 import { useDeleteEvent, useEventDashboard, useOrganizerHome } from './useDashboard';
 
 const STATUS_LABEL: Record<EventStatus, string> = { live: 'Live', draft: 'Draft', ended: 'Ended' };
@@ -272,6 +273,7 @@ function EventNumbers({
 
       <div className="flex flex-wrap items-start gap-5">
         <CompTickets eventId={d.eventId} canIssue={canIssue} />
+        <MerchRequests eventId={d.eventId} canRequest={canIssue} />
       </div>
 
       <DeleteEvent d={d} onDeleted={onDeleted} />

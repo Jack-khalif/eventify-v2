@@ -5,6 +5,8 @@ import type {
   Currency,
   EventStatus,
   LegalDocument,
+  MerchLine,
+  MerchStatus,
   OrderKind,
   OrderStatus,
   OrganizerStatus,
@@ -401,4 +403,33 @@ export const auditLog = pgTable(
     detail: jsonb('detail').$type<Record<string, unknown>>().notNull(),
   },
   (t) => [index('audit_log_at_idx').on(t.at)],
+);
+
+/**
+ * An organizer's order for branded print (banners, wristbands…) for one of their events. It lands
+ * in the admin portal's print queue, where ops move it along and leave notes the organizer sees.
+ */
+export const merchRequests = pgTable(
+  'merch_requests',
+  {
+    id: text('id').primaryKey(),
+    organizerId: text('organizer_id')
+      .notNull()
+      .references(() => organizers.id),
+    eventId: text('event_id')
+      .notNull()
+      .references(() => events.id),
+    items: jsonb('items').$type<MerchLine[]>().notNull(),
+    brandingNotes: text('branding_notes').notNull(),
+    /** Who asked, so ops know who to call about artwork. */
+    requestedByEmail: text('requested_by_email').notNull(),
+    status: text('status').$type<MerchStatus>().notNull(),
+    opsNote: text('ops_note').notNull().default(''),
+    createdAt: instant('created_at').notNull(),
+    updatedAt: instant('updated_at').notNull(),
+  },
+  (t) => [
+    index('merch_requests_event_idx').on(t.eventId),
+    index('merch_requests_status_idx').on(t.status),
+  ],
 );
