@@ -126,12 +126,22 @@ describe('merch requests', () => {
       event: { id: 'evt_sauti' },
     });
 
-    const moved = await send(`/admin/merch/${requests[0]!.id}/status`, await admin(), {
+    const boss = await admin();
+    emails = [];
+    const moved = await send(`/admin/merch/${requests[0]!.id}/status`, boss, {
       status: 'in_production',
       note: 'Quote sent by email: KSh 38,000. Ready Thursday.',
     });
     expect(moved.status).toBe(200);
     expect(adminMerchRowSchema.parse(await moved.json()).status).toBe('in_production');
+    // Whoever asked is told, with the team's note and a way back to the dashboard.
+    expect(emails).toHaveLength(1);
+    expect(emails[0]).toMatchObject({
+      to: 'organizer@eventify.test',
+      subject: 'Merch for Sauti Sessions: Afro-house Listening Night: In production',
+    });
+    expect(emails[0]!.text).toContain('From Eventify: Quote sent by email: KSh 38,000.');
+    expect(emails[0]!.text).toContain('https://tickets.test/organizer?event=evt_sauti');
 
     const seen = await get('/organizer/events/evt_sauti/merch', merchListSchema, token);
     expect(seen.requests[0]).toMatchObject({
@@ -144,11 +154,17 @@ describe('merch requests', () => {
       status: 'ready',
       note: '',
     });
+    expect(emails.at(-1)!.subject).toMatch(/: Ready for pickup$/);
     const ready = await get('/organizer/events/evt_sauti/merch', merchListSchema, token);
     expect(ready.requests[0]).toMatchObject({
       status: 'ready',
       opsNote: expect.stringContaining('Quote'),
     });
+
+    // Saving with nothing changed sends nothing.
+    emails = [];
+    await send(`/admin/merch/${requests[0]!.id}/status`, boss, { status: 'ready', note: '' });
+    expect(emails).toHaveLength(0);
 
     const [audit] = await database.db
       .select()
