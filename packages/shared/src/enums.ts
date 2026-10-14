@@ -50,6 +50,10 @@ export const orderStatusSchema = z.enum([
 ]);
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 
+/** sale = bought through checkout; comp = a free ticket an organizer gave away from the dashboard. */
+export const orderKindSchema = z.enum(['sale', 'comp']);
+export type OrderKind = z.infer<typeof orderKindSchema>;
+
 export const payoutMethodSchema = z.enum(['mpesa', 'bank']);
 export type PayoutMethod = z.infer<typeof payoutMethodSchema>;
 

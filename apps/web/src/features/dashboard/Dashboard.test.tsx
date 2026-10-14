@@ -29,7 +29,7 @@ describe('Organizer dashboard', () => {
     expect(within(stat('Eventify fees')).getByText('KSh 19,638')).toBeInTheDocument();
     expect(within(stat('Eventify fees')).getByText('4.5% rate')).toBeInTheDocument();
     expect(within(stat('Net payout')).getByText('KSh 416,762')).toBeInTheDocument();
-    expect(within(stat('Check-ins')).getByText('56% of sold')).toBeInTheDocument();
+    expect(within(stat('Check-ins')).getByText('56% of tickets')).toBeInTheDocument();
 
     expect(screen.getByRole('table', { name: 'Tickets sold per day' })).toBeInTheDocument();
     expect(screen.getByText('231 / 412 checked in')).toBeInTheDocument();
@@ -98,6 +98,35 @@ describe('Organizer dashboard', () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Clay Day/ })).not.toBeInTheDocument();
+  });
+
+  it('issues complimentary tickets that count toward check-ins but not sales', async () => {
+    const user = userEvent.setup();
+    renderApp('/organizer');
+    const card = (await screen.findByRole('heading', { name: 'Complimentary tickets' }))
+      .parentElement!.parentElement!;
+    await user.click(await within(card).findByRole('button', { name: 'Issue tickets' }));
+    const dialog = screen.getByRole('dialog', { name: 'Issue complimentary tickets' });
+
+    // Sold-out tiers can't be picked; the rest say how many are left.
+    expect(within(dialog).getByRole('option', { name: 'Early Bird (sold out)' })).toBeDisabled();
+    await user.selectOptions(within(dialog).getByLabelText('Tier'), 'VIP (32 left)');
+    await user.click(within(dialog).getByRole('button', { name: 'Send ticket' }));
+    expect(within(dialog).getByText('Enter their name')).toBeInTheDocument();
+
+    await user.type(within(dialog).getByLabelText("Guest's name"), 'Wanjiru Kamau');
+    await user.type(within(dialog).getByLabelText('Email'), 'wanjiru@example.com');
+    await user.click(within(dialog).getByRole('button', { name: 'More' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Send tickets' }));
+
+    expect(await within(card).findByRole('status')).toHaveTextContent(
+      '2 tickets sent to wanjiru@example.com.',
+    );
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(within(card).getByText('Wanjiru Kamau')).toBeInTheDocument();
+    expect(within(card).getByText('2 × VIP')).toBeInTheDocument();
+    expect(await screen.findByText('231 / 414 checked in')).toBeInTheDocument();
+    expect(within(stat('Tickets sold')).getByText('412')).toBeInTheDocument();
   });
 
   it('sends the organizer to support once tickets have been issued', async () => {

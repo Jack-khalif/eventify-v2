@@ -1,6 +1,6 @@
 import { ENABLED_PAYMENT_METHODS, type Currency, type PaymentMethod } from './enums';
 import { toDarajaMsisdn } from './phone';
-import type { CheckoutRequest, PublicEvent, TicketTier } from './schemas';
+import { tierRemaining, type CheckoutRequest, type PublicEvent, type TicketTier } from './schemas';
 import { tierAvailability } from './tiers';
 
 /** Which currencies each method can charge. M-Pesa is Kenyan shillings only. */
@@ -72,4 +72,33 @@ export function validateCheckout(
   return { tier, totalMinor };
 }
 
-export const isCheckoutError = (r: CheckoutOk | CheckoutError): r is CheckoutError => 'error' in r;
+export const isCheckoutError = (r: object): r is CheckoutError => 'error' in r;
+
+/**
+ * Rules for an organizer giving tickets away. Sale dates don't apply (guests can be added before
+ * sales open or after they close), but capacity does, and nobody is let in after the event.
+ */
+export function validateComp(
+  event: PublicEvent,
+  req: Pick<CheckoutRequest, 'tierId' | 'quantity'>,
+  now: Date = new Date(),
+): { tier: TicketTier } | CheckoutError {
+  const tier = event.tiers.find((t) => t.id === req.tierId);
+  if (!tier)
+    return { status: 404, error: 'tier_not_found', message: 'That ticket type no longer exists.' };
+  if (Date.parse(event.endsAt) <= now.getTime()) {
+    return { status: 409, error: 'event_ended', message: 'This event has ended.' };
+  }
+  const remaining = tierRemaining(tier);
+  if (remaining !== null && req.quantity > remaining) {
+    return {
+      status: 409,
+      error: 'not_enough_tickets',
+      message:
+        remaining === 0
+          ? `${tier.name} is sold out. Pick another tier or raise its quantity.`
+          : `Only ${remaining} ${tier.name} ${remaining === 1 ? 'ticket is' : 'tickets are'} left.`,
+    };
+  }
+  return { tier };
+}

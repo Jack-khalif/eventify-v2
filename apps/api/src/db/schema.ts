@@ -5,6 +5,7 @@ import type {
   Currency,
   EventStatus,
   LegalDocument,
+  OrderKind,
   OrderStatus,
   OrganizerStatus,
   PaymentFailure,
@@ -244,6 +245,8 @@ export const orders = pgTable(
       .notNull()
       .references(() => tiers.id),
     quantity: integer('quantity').notNull(),
+    /** A comp is free tickets an organizer gave away: in capacity and check-ins, not in sales. */
+    kind: text('kind').$type<OrderKind>().notNull().default('sale'),
     totalMinor: integer('total_minor').notNull(),
     currency: text('currency').$type<Currency>().notNull(),
     buyerName: text('buyer_name').notNull(),

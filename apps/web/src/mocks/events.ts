@@ -11,6 +11,7 @@ import {
   type PublicEvent,
 } from '@eventify/shared';
 import { publicEvents, sautiDashboard } from '@eventify/shared/fixtures';
+import { compsIssued } from './orders';
 import { findOrganizer } from './organizers';
 import { eventRate, organizerRate } from './rates';
 
@@ -213,6 +214,7 @@ export function eventDashboard(
     slug: e.slug,
     currency: e.currency,
     rateBps: eventRate(o.id, e.id),
+    compsIssued: compsIssued(e.id),
     checkIns: traffic.checkIns + doorCheckIns.length,
     pageViews: traffic.pageViews,
     pageViewsThisWeek: traffic.pageViewsThisWeek,

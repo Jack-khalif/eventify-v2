@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { availablePaymentMethods, isCheckoutError, validateCheckout } from './checkout';
+import {
+  availablePaymentMethods,
+  isCheckoutError,
+  validateCheckout,
+  validateComp,
+} from './checkout';
 import { publicEvents } from './fixtures';
 import type { CheckoutRequest } from './schemas';
 
@@ -90,6 +95,39 @@ describe('validateCheckout', () => {
   it('reports a tier that does not exist', () => {
     expect(validateCheckout(bySlug('sauti-sessions'), req({ tierId: 'nope' }), now)).toMatchObject({
       status: 404,
+    });
+  });
+});
+
+describe('validateComp', () => {
+  const sauti = bySlug('sauti-sessions');
+  const tierId = (name: string) => sauti.tiers.find((t) => t.name === name)!.id;
+
+  it('ignores sale dates but not capacity', () => {
+    const closed = {
+      ...sauti,
+      tiers: sauti.tiers.map((t) => ({ ...t, saleEndsAt: '2026-09-01T00:00:00+03:00' })),
+    };
+    expect(validateComp(closed, { tierId: tierId('VIP'), quantity: 32 }, now)).toMatchObject({
+      tier: { name: 'VIP' },
+    });
+    expect(validateComp(closed, { tierId: tierId('VIP'), quantity: 33 }, now)).toMatchObject({
+      error: 'not_enough_tickets',
+      message: 'Only 32 VIP tickets are left.',
+    });
+    expect(validateComp(sauti, { tierId: tierId('Early Bird'), quantity: 1 }, now)).toMatchObject({
+      error: 'not_enough_tickets',
+      message: 'Early Bird is sold out. Pick another tier or raise its quantity.',
+    });
+  });
+
+  it('turns away unknown tiers and events that are over', () => {
+    expect(validateComp(sauti, { tierId: 'tier_nope', quantity: 1 }, now)).toMatchObject({
+      error: 'tier_not_found',
+    });
+    const after = new Date(sauti.endsAt);
+    expect(validateComp(sauti, { tierId: tierId('VIP'), quantity: 1 }, after)).toMatchObject({
+      error: 'event_ended',
     });
   });
 });

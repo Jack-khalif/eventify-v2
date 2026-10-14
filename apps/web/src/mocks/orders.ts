@@ -6,7 +6,12 @@ import {
   randomToken,
   signTicketQr,
   validateCheckout,
+  validateComp,
   type CheckoutRequest,
+  tierRemaining,
+  type CompList,
+  type CompRequest,
+  type CompRow,
   type OrderView,
   type PublicEvent,
   type TicketView,
@@ -35,9 +40,12 @@ type StoredTicket = {
   checkedInAt: string | null;
   checkedInDoor?: string | null;
 };
+type StoredComp = CompRow & { orderId: string; eventId: string; tierId: string };
 type Db = {
   orders: Record<string, OrderView>;
   tickets: Record<string, StoredTicket>;
+  /** Missing in data saved before comps existed. */
+  comps?: StoredComp[];
   sequence: number;
 };
 
@@ -269,4 +277,83 @@ export function recordTicketCheckIn(ticketId: string, at: string, door: string) 
   t.checkedInAt = at;
   t.checkedInDoor = door;
   save();
+}
+
+const compsFor = (eventId: string) => (db.comps ?? []).filter((c) => c.eventId === eventId);
+
+/** Complimentary tickets issued for an event, newest first, and the tiers to pick from. */
+export const compList = (event: PublicEvent): CompList => ({
+  comps: compRows(event.id),
+  tiers: withComps(event).tiers.map((t) => ({
+    id: t.id,
+    name: t.name,
+    remaining: tierRemaining(t),
+  })),
+});
+
+const compRows = (eventId: string): CompRow[] =>
+  compsFor(eventId)
+    .map(({ name, email, tierName, quantity, issuedAt, emailed }) => ({
+      name,
+      email,
+      tierName,
+      quantity,
+      issuedAt,
+      emailed,
+    }))
+    .reverse();
+
+export const compsIssued = (eventId: string) =>
+  compsFor(eventId).reduce((sum, c) => sum + c.quantity, 0);
+
+/** Free tickets from the organizer, issued at once. Nothing is emailed; it shows as sent. */
+export function issueComps(event: PublicEvent, req: CompRequest, now = Date.now()) {
+  const check = validateComp(withComps(event), req, new Date(now));
+  if (isCheckoutError(check)) return check;
+
+  db.sequence += 1;
+  const order: OrderView = {
+    id: `ord_${String(db.sequence).padStart(5, '0')}`,
+    eventId: event.id,
+    tierId: check.tier.id,
+    quantity: req.quantity,
+    totalMinor: 0,
+    currency: event.currency,
+    buyer: { name: req.name, phone: '', email: req.email },
+    paymentMethod: null,
+    status: 'paid',
+    failureReason: null,
+    paymentRequestedAt: null,
+    holdExpiresAt: iso(now),
+    rateBps: 0,
+    createdAt: iso(now),
+    tickets: [],
+  };
+  issueTickets(order, event);
+  db.orders[order.id] = order;
+  (db.comps ??= []).push({
+    orderId: order.id,
+    eventId: event.id,
+    tierId: check.tier.id,
+    name: req.name,
+    email: req.email,
+    tierName: check.tier.name,
+    quantity: req.quantity,
+    issuedAt: iso(now),
+    emailed: true,
+  });
+  save();
+  return compList(event);
+}
+
+/** Sample tiers' sold counts don't move with mock orders, so earlier comps are counted here. */
+function withComps(event: PublicEvent): PublicEvent {
+  const issued = compsFor(event.id);
+  return {
+    ...event,
+    tiers: event.tiers.map((t) => ({
+      ...t,
+      sold: t.sold + issued.filter((c) => c.tierId === t.id).reduce((n, c) => n + c.quantity, 0),
+    })),
+  };
 }

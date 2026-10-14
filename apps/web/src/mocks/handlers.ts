@@ -1,5 +1,6 @@
 import {
   checkoutRequestSchema,
+  compRequestSchema,
   createEventRequestSchema,
   doorSyncRequestSchema,
   markPaidRequestSchema,
@@ -49,9 +50,11 @@ import { allOrganizers, findOrganizer, removeOrganizer, setOrganizerAgent } from
 import { delay, http, HttpResponse, type JsonBodyType } from 'msw';
 import {
   cancelOrder,
+  compList,
   createOrder,
   getOrder,
   getTicket,
+  issueComps,
   retryPayment,
   ticketsForEmail,
   ticketsForPhone,
@@ -429,6 +432,42 @@ export const handlers = [
     const id = String(params.id);
     const dashboard = eventDashboard(organizer.id, id, scannerCheckIns(id));
     return dashboard ? HttpResponse.json(dashboard) : notFound();
+  }),
+
+  http.get('*/api/organizer/events/:id/comps', async ({ params, request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    const event = allEvents().find((e) => e.id === params.id && e.organizerId === organizer.id);
+    return event ? HttpResponse.json(compList(event)) : notFound();
+  }),
+
+  http.post('*/api/organizer/events/:id/comps', async ({ params, request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    const event = allEvents().find((e) => e.id === params.id && e.organizerId === organizer.id);
+    if (!event) return notFound();
+    if (organizer.status !== 'active') {
+      return HttpResponse.json(
+        {
+          error: 'organizer_not_approved',
+          message: `Your organizer account can't issue tickets right now. Write to ${SUPPORT_EMAIL} and we'll help.`,
+        },
+        { status: 403 },
+      );
+    }
+    const body = compRequestSchema.safeParse(await request.json());
+    if (!body.success) {
+      return badRequest(body.error.issues[0]?.message ?? 'Check the guest’s details.');
+    }
+    const result = issueComps(event, body.data);
+    return 'error' in result
+      ? HttpResponse.json(
+          { error: result.error, message: result.message },
+          { status: result.status },
+        )
+      : HttpResponse.json(result, { status: 201 });
   }),
 
   // Publishing is the gate: a suspended (or declined) organizer doesn't get past it.

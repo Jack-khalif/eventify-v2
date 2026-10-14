@@ -9,6 +9,7 @@ import {
   type CheckoutRequest,
   type OrderView,
   type PaymentFailure,
+  type PublicEvent,
 } from '@eventify/shared';
 import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from './db/client';
@@ -76,7 +77,7 @@ const resolveAttempt = (tx: Db, orderId: string, outcome: 'paid' | PaymentFailur
     .where(and(eq(paymentAttempts.orderId, orderId), isNull(paymentAttempts.outcome)));
 
 /** Mark the order paid, count its tickets as sold and issue them. Call inside a transaction. */
-async function markPaid(tx: Db, o: OrderRow, now: number): Promise<OrderRow> {
+export async function markPaid(tx: Db, o: OrderRow, now: number): Promise<OrderRow> {
   const [paid] = await tx
     .update(orders)
     .set({ status: 'paid', failureReason: null, paidAt: new Date(now) })
@@ -112,42 +113,45 @@ async function markPaid(tx: Db, o: OrderRow, now: number): Promise<OrderRow> {
   return paid!;
 }
 
+/**
+ * Lock the event's tiers so two buyers can't both take the last ticket, then load it with the
+ * tickets in unpaid orders counted as sold: they stay off sale until their hold runs out.
+ */
+export async function lockEventForSale(tx: Db, eventId: string, at: number) {
+  await tx.select({ id: tiers.id }).from(tiers).where(eq(tiers.eventId, eventId)).for('update');
+  const event = await publishedEvent(tx, eq(events.id, eventId));
+  return event && withHeldAsSold(tx, event, at);
+}
+
+async function withHeldAsSold(tx: Db, event: PublicEvent, at: number): Promise<PublicEvent> {
+  const held = await tx
+    .select({ tierId: orders.tierId, quantity: sql<number>`sum(${orders.quantity})::int` })
+    .from(orders)
+    .where(
+      and(
+        eq(orders.eventId, event.id),
+        inArray(orders.status, OPEN),
+        gt(orders.holdExpiresAt, new Date(at)),
+      ),
+    )
+    .groupBy(orders.tierId);
+  const heldFor = (tierId: string) => held.find((h) => h.tierId === tierId)?.quantity ?? 0;
+  return { ...event, tiers: event.tiers.map((t) => ({ ...t, sold: t.sold + heldFor(t.id) })) };
+}
+
 export async function createOrder(
   { db, payments, now }: OrderDeps,
   req: CheckoutRequest,
 ): Promise<OrderView | Failure> {
   const at = now();
   const result = await db.transaction(async (tx): Promise<OrderRow | Failure> => {
-    // Lock the event's tiers so two buyers can't both take the last ticket.
-    await tx
-      .select({ id: tiers.id })
-      .from(tiers)
-      .where(eq(tiers.eventId, req.eventId))
-      .for('update');
-    const event = await publishedEvent(tx, eq(events.id, req.eventId));
+    const event = await lockEventForSale(tx, req.eventId, at);
     if (!event) return { status: 404, error: 'not_found', message: 'Not found' };
     if (displayStatus(event, new Date(at)) !== 'live') {
       return { status: 409, error: 'event_ended', message: 'This event has ended.' };
     }
 
-    // Tickets in unpaid orders stay off sale until their hold runs out.
-    const held = await tx
-      .select({ tierId: orders.tierId, quantity: sql<number>`sum(${orders.quantity})::int` })
-      .from(orders)
-      .where(
-        and(
-          eq(orders.eventId, event.id),
-          inArray(orders.status, OPEN),
-          gt(orders.holdExpiresAt, new Date(at)),
-        ),
-      )
-      .groupBy(orders.tierId);
-    const heldFor = (tierId: string) => held.find((h) => h.tierId === tierId)?.quantity ?? 0;
-    const check = validateCheckout(
-      { ...event, tiers: event.tiers.map((t) => ({ ...t, sold: t.sold + heldFor(t.id) })) },
-      req,
-      new Date(at),
-    );
+    const check = validateCheckout(await withHeldAsSold(tx, event, at), req, new Date(at));
     if (isCheckoutError(check)) return check;
 
     const [open] = await tx

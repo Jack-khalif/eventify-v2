@@ -71,6 +71,13 @@
       "when": 1791789351951,
       "tag": "0009_consents_outlive_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1791968767121,
+      "tag": "0010_comp_tickets",
+      "breakpoints": true
     }
   ]
 }

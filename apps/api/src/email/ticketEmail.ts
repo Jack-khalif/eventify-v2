@@ -37,6 +37,8 @@ export async function ticketEmail(p: {
   buyer: { name: string; email: string };
   orderId: string;
   totalMinor: number;
+  /** Complimentary tickets the organizer sent, rather than ones the guest bought. */
+  comp?: boolean;
   tickets: TicketView[];
   siteUrl: string;
 }): Promise<Email> {
@@ -45,8 +47,11 @@ export async function ticketEmail(p: {
   const when = `${formatDate(event.startsAt)} · ${formatTimeRange(event.startsAt, event.endsAt)}`;
   const many = p.tickets.length > 1;
   const passUrl = (t: TicketView) => `${p.siteUrl}/t/${t.id}`;
-  const paid =
-    p.totalMinor > 0 ? `Paid: ${formatMoney(event.currency, p.totalMinor)}` : 'Free ticket';
+  const paid = p.comp
+    ? `Complimentary ${many ? 'tickets' : 'ticket'} from ${event.organizer.name}`
+    : p.totalMinor > 0
+      ? `Paid: ${formatMoney(event.currency, p.totalMinor)}`
+      : 'Free ticket';
 
   const inlineImages = await Promise.all(
     p.tickets.map(async (t, i) => ({
@@ -73,7 +78,9 @@ export async function ticketEmail(p: {
     )
     .join('');
 
-  const lead = `Hi ${first}, you’re confirmed. Show ${many ? 'these tickets' : 'this ticket'} at the door.`;
+  const lead = p.comp
+    ? `Hi ${first}, ${event.organizer.name} has sent you ${many ? `${p.tickets.length} tickets` : 'a ticket'}. Show ${many ? 'them' : 'it'} at the door.`
+    : `Hi ${first}, you’re confirmed. Show ${many ? 'these tickets' : 'this ticket'} at the door.`;
   const html = emailShell({
     siteUrl: p.siteUrl,
     preview: `${lead} ${when} at ${event.venue}.`,
@@ -92,7 +99,9 @@ export async function ticketEmail(p: {
   });
 
   const text = [
-    `Hi ${first}, you're confirmed for ${event.title}.`,
+    p.comp
+      ? `Hi ${first}, ${event.organizer.name} has sent you ${many ? 'tickets' : 'a ticket'} for ${event.title}.`
+      : `Hi ${first}, you're confirmed for ${event.title}.`,
     '',
     when,
     `${event.venue} (map: ${directionsUrl(event)})`,
@@ -104,7 +113,9 @@ export async function ticketEmail(p: {
 
   return {
     to: p.buyer.email,
-    subject: `Your ${many ? 'tickets' : 'ticket'} for ${event.title}`,
+    subject: p.comp
+      ? `${event.organizer.name} sent you ${many ? 'tickets' : 'a ticket'} for ${event.title}`
+      : `Your ${many ? 'tickets' : 'ticket'} for ${event.title}`,
     html,
     text,
     inlineImages,
