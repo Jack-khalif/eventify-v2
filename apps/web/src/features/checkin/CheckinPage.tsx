@@ -187,7 +187,13 @@ function Scanner({ door, list }: { door: Door; list: DoorList }) {
 
       <SyncBanner door={door} list={list} />
 
-      {cameraSupported() && <QrScanner onScan={onQr} paused={holding} />}
+      {cameraSupported() && (
+        <QrScanner
+          onScan={onQr}
+          paused={holding}
+          overlay={holding && result ? <ScanVerdict result={result} /> : null}
+        />
+      )}
 
       <LiveCodeForm onResult={show} guests={guests} transferred={list.transferred} />
 
@@ -293,19 +299,46 @@ const INVALID_TEXT = {
   ],
 } as const;
 
+/** Headline and detail for a scan result. */
+function verdictText(result: DoorResult): readonly [string, string] {
+  return result.kind === 'valid'
+    ? ['Valid', `${result.guest.name} · ${result.guest.tierName} ticket`]
+    : result.kind === 'used'
+      ? [
+          'Already used',
+          `${result.guest.name} checked in ${formatAgo(result.guest.checkedInAt!)}${
+            result.guest.checkedInDoor ? ` at ${result.guest.checkedInDoor}` : ''
+          }`,
+        ]
+      : INVALID_TEXT[result.reason];
+}
+
+/** The verdict over the camera view: a big tick on green, or a cross on red. */
+function ScanVerdict({ result }: { result: DoorResult }) {
+  const ok = result.kind === 'valid';
+  const [title, detail] = verdictText(result);
+  return (
+    <div
+      data-testid="scan-verdict"
+      className={cn(
+        'absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-4 text-center text-white',
+        ok ? 'bg-good' : 'bg-danger',
+      )}
+    >
+      {ok ? (
+        <Check size={88} strokeWidth={3} aria-hidden />
+      ) : (
+        <X size={88} strokeWidth={3} aria-hidden />
+      )}
+      <span className="text-2xl font-extrabold">{title}</span>
+      <span className="text-sm opacity-95">{detail}</span>
+    </div>
+  );
+}
+
 function ResultCard({ result }: { result: DoorResult }) {
   const ok = result.kind === 'valid';
-  const [title, detail] =
-    result.kind === 'valid'
-      ? ['Valid', `${result.guest.name} · ${result.guest.tierName} ticket`]
-      : result.kind === 'used'
-        ? [
-            'Already used',
-            `${result.guest.name} checked in ${formatAgo(result.guest.checkedInAt!)}${
-              result.guest.checkedInDoor ? ` at ${result.guest.checkedInDoor}` : ''
-            }`,
-          ]
-        : INVALID_TEXT[result.reason];
+  const [title, detail] = verdictText(result);
   return (
     <div
       className={cn(
