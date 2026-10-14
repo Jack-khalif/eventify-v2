@@ -26,6 +26,7 @@ import {
   filterEvents,
   ticketLookupStartSchema,
   ticketLookupVerifySchema,
+  ticketTransferRequestSchema,
   type OrderView,
 } from '@eventify/shared';
 import { organizerProfiles } from '@eventify/shared/fixtures';
@@ -58,6 +59,8 @@ import {
   retryPayment,
   ticketsForEmail,
   ticketsForPhone,
+  transferredAway,
+  transferTicket,
 } from './orders';
 import {
   adminMe,
@@ -237,7 +240,25 @@ export const handlers = [
   http.get('*/api/tickets/:id', async ({ params }) => {
     await delay();
     const ticket = await getTicket(String(params.id), allEvents());
-    return ticket ? HttpResponse.json(ticket) : notFound();
+    if (ticket) return HttpResponse.json(ticket);
+    const gone = transferredAway(String(params.id));
+    return gone
+      ? HttpResponse.json({ error: gone.error, message: gone.message }, { status: gone.status })
+      : notFound();
+  }),
+
+  // Passing a ticket on: whoever holds the link may. Nothing is emailed here.
+  http.post('*/api/tickets/:id/transfer', async ({ params, request }) => {
+    await delay();
+    const body = ticketTransferRequestSchema.safeParse(await request.json());
+    if (!body.success) return badRequest(body.error.issues[0]?.message ?? 'Check their details.');
+    const result = transferTicket(String(params.id), body.data, allEvents());
+    return 'error' in result
+      ? HttpResponse.json(
+          { error: result.error, message: result.message },
+          { status: result.status },
+        )
+      : HttpResponse.json(result);
   }),
 
   // Always "sent", whether or not the number has tickets, so nobody can probe which numbers bought.

@@ -14,6 +14,7 @@ import type {
   PayoutStatus,
   Role,
 } from '@eventify/shared';
+import { sql } from 'drizzle-orm';
 import {
   boolean,
   index,
@@ -283,12 +284,25 @@ export const tickets = pgTable(
     /** 1-based position in the order. */
     index: integer('index').notNull(),
     holderName: text('holder_name').notNull(),
+    /** Whose ticket it is when that isn't the buyer: set on a ticket someone passed on to them. */
+    holderEmail: text('holder_email'),
     /** Seeds the rotating live code. */
     secret: text('secret').notNull(),
     checkedInAt: instant('checked_in_at'),
     checkedInDoor: text('checked_in_door'),
+    /**
+     * Set once the holder passed this ticket on. A transfer issues a new ticket (new link, code,
+     * secret and QR) and this one stops working everywhere; the row is kept as the record.
+     */
+    transferredAt: instant('transferred_at'),
+    /** On a ticket issued by a transfer: the ticket it replaced. */
+    transferredFromId: text('transferred_from_id'),
   },
-  (t) => [index('tickets_order_idx').on(t.orderId), index('tickets_event_idx').on(t.eventId)],
+  (t) => [
+    index('tickets_order_idx').on(t.orderId),
+    index('tickets_event_idx').on(t.eventId),
+    index('tickets_holder_email_idx').on(sql`lower(${t.holderEmail})`),
+  ],
 );
 
 /** Every payment prompt sent for an order (a retry is a new one), for the admin overview. */

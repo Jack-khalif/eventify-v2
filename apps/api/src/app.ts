@@ -26,6 +26,7 @@ import {
   totpSignInSchema,
   ticketLookupStartSchema,
   ticketLookupVerifySchema,
+  ticketTransferRequestSchema,
   type AdminMe,
   type OrderView,
 } from '@eventify/shared';
@@ -96,6 +97,7 @@ import type { SmsSender } from './sms';
 import { addStaff, assignAgent, removeStaff, staffRows } from './staff';
 import { otpauthUrl } from './totp';
 import { ticketView, ticketViewsForEmail } from './tickets';
+import { transferredAway, transferTicket } from './transfers';
 
 export type AppDeps = {
   db: Db;
@@ -241,8 +243,26 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
   });
 
   app.get('/tickets/:id', async (c) => {
-    const ticket = await ticketView(db, deps.signingKey, c.req.param('id'));
-    return ticket ? c.json(ticket) : notFound(c);
+    const id = c.req.param('id');
+    const ticket = await ticketView(db, deps.signingKey, id);
+    if (ticket) return c.json(ticket);
+    const gone = await transferredAway(db, id);
+    return gone ? c.json({ error: gone.error, message: gone.message }, gone.status) : notFound(c);
+  });
+
+  // Passing a ticket on. Whoever holds the link may, as they may walk in with it.
+  app.post('/tickets/:id/transfer', async (c) => {
+    const stop = limited(c, 'transfers', 20, 10 * MINUTE);
+    if (stop) return stop;
+    const body = ticketTransferRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) {
+      return badRequest(c, body.error.issues[0]?.message ?? 'Check their details.');
+    }
+    const result = await transferTicket(deps, c.req.param('id'), body.data);
+    if (!result) return notFound(c);
+    return 'error' in result
+      ? c.json({ error: result.error, message: result.message }, result.status)
+      : c.json(result);
   });
 
   const tooManyCodes = (c: Context) =>

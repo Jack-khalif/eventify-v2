@@ -1,18 +1,28 @@
-import { formatDate, formatTimeRange } from '@eventify/shared';
+import {
+  displayStatus,
+  formatDate,
+  formatTimeRange,
+  type TicketTransferResult,
+} from '@eventify/shared';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { BackLink } from '../../components/BackLink';
 import { ErrorState, NotFoundState } from '../../components/PageStates';
-import { isNotFound } from '../../lib/api';
+import { ApiError, isNotFound, isTransferred } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { directionsUrl } from '../event/calendar';
 import { LivePass } from './LivePass';
 import { PassActions } from './PassActions';
+import { TransferDone, TransferTicket } from './TransferTicket';
 import { useTicket } from './useTickets';
 
 /** /t/:ticketId: the link in the SMS and email. Shows the Live Pass for one ticket. */
 export function TicketPage() {
   const { ticketId = '' } = useParams();
   const query = useTicket(ticketId);
+  const [transferred, setTransferred] = useState<(TicketTransferResult & { name: string }) | null>(
+    null,
+  );
   useDocumentTitle(query.data ? `Ticket · ${query.data.event.title}` : 'Ticket');
 
   if (query.isPending)
@@ -25,11 +35,21 @@ export function TicketPage() {
       />
     );
   }
-  if (query.isError) {
+  if (isTransferred(query.error) && !transferred) {
+    return (
+      <NotFoundState
+        title="Ticket transferred"
+        message={query.error instanceof ApiError ? query.error.message : ''}
+      />
+    );
+  }
+  if (query.isError && !transferred) {
     return <ErrorState onRetry={query.refetch}>Couldn't load your ticket.</ErrorState>;
   }
+  if (!query.data) return null;
 
   const t = query.data;
+  const transferable = !t.checkedInAt && displayStatus(t.event) !== 'ended';
   const e = t.event;
   return (
     <section className="mx-auto flex w-full max-w-[520px] flex-1 flex-col items-center gap-[18px] px-5 pt-4 pb-10">
@@ -45,14 +65,21 @@ export function TicketPage() {
           </a>
         </span>
       </div>
-      <LivePass ticket={t} />
-      <PassActions event={e} />
-      <p className="m-0 max-w-[360px] text-center text-xs text-muted">
-        Keep this link to yourself: anyone who has it can use your ticket.
-      </p>
-      <Link to={`/t/${t.id}/delivery`} className="text-[13px] font-bold text-accent-text">
-        Preview the SMS &amp; email →
-      </Link>
+      {transferred ? (
+        <TransferDone result={transferred} />
+      ) : (
+        <>
+          <LivePass ticket={t} />
+          <PassActions event={e} />
+          <p className="m-0 max-w-[360px] text-center text-xs text-muted">
+            Keep this link to yourself: anyone who has it can use your ticket.
+          </p>
+          {transferable && <TransferTicket ticket={t} onTransferred={setTransferred} />}
+          <Link to={`/t/${t.id}/delivery`} className="text-[13px] font-bold text-accent-text">
+            Preview the SMS &amp; email →
+          </Link>
+        </>
+      )}
       <Link to={`/e/${e.slug}`} className="text-[13px] text-muted">
         Event details
       </Link>

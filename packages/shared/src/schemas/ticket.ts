@@ -68,6 +68,24 @@ export const ticketViewSchema = z.object({
 });
 export type TicketView = z.infer<typeof ticketViewSchema>;
 
+/**
+ * POST /api/tickets/:id/transfer: pass the ticket to someone else. Holding the link is the
+ * permission, as it is for showing the ticket at the door.
+ */
+export const ticketTransferRequestSchema = z.object({
+  name: z.string().trim().min(2, 'Enter their name').max(80),
+  email: z.email('Enter a valid email'),
+});
+export type TicketTransferRequest = z.infer<typeof ticketTransferRequestSchema>;
+
+export const ticketTransferResultSchema = z.object({
+  /** Where the new ticket went. */
+  email: z.string(),
+  /** false when the email couldn't be sent just now; they still find it by signing in. */
+  emailed: z.boolean(),
+});
+export type TicketTransferResult = z.infer<typeof ticketTransferResultSchema>;
+
 /** "Find my tickets": step 1 sends a one-time SMS code, step 2 exchanges it for the tickets. */
 export const ticketLookupStartSchema = z.object({ phone: z.string().regex(/^\+\d{9,15}$/) });
 export const ticketLookupStartResultSchema = z.object({ sent: z.boolean() });

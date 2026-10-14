@@ -74,7 +74,7 @@ function guestsFor(event: PublicEvent): DoorGuest[] {
     ticketId: ticket.id,
     code: ticket.code,
     name: ticket.holderName,
-    phone: order.buyer.phone,
+    phone: ticket.holderEmail ? '' : order.buyer.phone,
     tierName: event.tiers.find((t) => t.id === order.tierId)?.name ?? '',
     checkedInAt: ticket.checkedInAt,
     checkedInDoor: ticket.checkedInDoor ?? null,

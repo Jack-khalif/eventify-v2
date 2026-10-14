@@ -1,4 +1,5 @@
 import {
+  formatDate,
   generatePassSecret,
   importSigningKey,
   isCheckoutError,
@@ -14,6 +15,8 @@ import {
   type CompRow,
   type OrderView,
   type PublicEvent,
+  type TicketTransferRequest,
+  type TicketTransferResult,
   type TicketView,
 } from '@eventify/shared';
 import { DEV_QR_PRIVATE_KEY } from './devKeys';
@@ -39,6 +42,11 @@ type StoredTicket = {
   secret: string;
   checkedInAt: string | null;
   checkedInDoor?: string | null;
+  /** Set on a ticket passed on to someone other than the buyer. */
+  holderEmail?: string;
+  transferredFromId?: string;
+  /** Set once passed on; the ticket stops working. */
+  transferredAt?: string;
 };
 type StoredComp = CompRow & { orderId: string; eventId: string; tierId: string };
 type Db = {
@@ -204,8 +212,8 @@ async function toTicketView(
     code: t.code,
     holderName: t.holderName,
     tierName: event.tiers.find((tier) => tier.id === order.tierId)?.name ?? '',
-    index: t.index,
-    count: order.quantity,
+    index: t.transferredFromId ? 1 : t.index,
+    count: t.transferredFromId ? 1 : order.quantity,
     event,
     passSecret: t.secret,
     qrPayload: await signTicketQr(await signingKey, t.id),
@@ -215,19 +223,35 @@ async function toTicketView(
 
 export const getTicket = (id: string, events: PublicEvent[]) => {
   const t = db.tickets[id];
-  return t ? toTicketView(t, events) : Promise.resolve(undefined);
+  return t && !t.transferredAt ? toTicketView(t, events) : Promise.resolve(undefined);
 };
 
-/** All tickets bought with this phone number, soonest event first. */
-export const ticketsForPhone = (phone: string, events: PublicEvent[]) =>
-  ticketsWhere((order) => order.buyer.phone === phone, events);
+/** Why a ticket link stopped working, if it was passed on; worded as the API words it. */
+export function transferredAway(id: string) {
+  const old = db.tickets[id];
+  if (!old?.transferredAt) return undefined;
+  const next = Object.values(db.tickets).find((t) => t.transferredFromId === id);
+  const [name = '', domain = ''] = (next?.holderEmail ?? '').split('@');
+  return {
+    status: 410 as const,
+    error: 'transferred',
+    message: `This ticket was transferred${next ? ` to ${name.slice(0, 1)}•••@${domain}` : ''} on ${formatDate(old.transferredAt)}, so it no longer works. They have a new ticket of their own.`,
+  };
+}
 
-async function ticketsWhere(matches: (order: OrderView) => boolean, events: PublicEvent[]) {
+/** Tickets bought with this phone number and still held by the buyer, soonest event first. */
+export const ticketsForPhone = (phone: string, events: PublicEvent[]) =>
+  ticketsWhere((order, t) => order.buyer.phone === phone && !t.holderEmail, events);
+
+async function ticketsWhere(
+  matches: (order: OrderView, ticket: StoredTicket) => boolean,
+  events: PublicEvent[],
+) {
   const views = await Promise.all(
     Object.values(db.tickets)
       .filter((t) => {
         const order = db.orders[t.orderId];
-        return order !== undefined && matches(order);
+        return order !== undefined && !t.transferredAt && matches(order, t);
       })
       .map((t) => toTicketView(t, events)),
   );
@@ -238,9 +262,9 @@ async function ticketsWhere(matches: (order: OrderView) => boolean, events: Publ
     );
 }
 
-/** All tickets bought with this email address (what a signed-in buyer sees), soonest event first. */
+/** All tickets held by this email address (what a signed-in buyer sees), soonest event first. */
 export const ticketsForEmail = (email: string, events: PublicEvent[]) =>
-  ticketsWhere((order) => order.buyer.email.toLowerCase() === email, events);
+  ticketsWhere((order, t) => (t.holderEmail ?? order.buyer.email).toLowerCase() === email, events);
 
 /** One paid ticket for the demo phone, so "Find my tickets" has something to show before any purchase. */
 export function seedDemoTicket(events: PublicEvent[]) {
@@ -266,14 +290,17 @@ export function seedDemoTicket(events: PublicEvent[]) {
 export function ticketsForEvent(eventId: string) {
   return Object.values(db.tickets).flatMap((ticket) => {
     const order = db.orders[ticket.orderId];
-    return order && order.eventId === eventId && order.status === 'paid' ? [{ ticket, order }] : [];
+    return order && order.eventId === eventId && order.status === 'paid' && !ticket.transferredAt
+      ? [{ ticket, order }]
+      : [];
   });
 }
 
 /** Record a door check-in on a ticket. The earliest one stands. */
 export function recordTicketCheckIn(ticketId: string, at: string, door: string) {
   const t = db.tickets[ticketId];
-  if (!t || (t.checkedInAt && Date.parse(t.checkedInAt) <= Date.parse(at))) return;
+  if (!t || t.transferredAt || (t.checkedInAt && Date.parse(t.checkedInAt) <= Date.parse(at)))
+    return;
   t.checkedInAt = at;
   t.checkedInDoor = door;
   save();
@@ -356,4 +383,53 @@ function withComps(event: PublicEvent): PublicEvent {
       sold: t.sold + issued.filter((c) => c.tierId === t.id).reduce((n, c) => n + c.quantity, 0),
     })),
   };
+}
+
+/** Pass a ticket on, as the API does: a new ticket for them, and this one stops working. */
+export function transferTicket(
+  id: string,
+  req: TicketTransferRequest,
+  events: PublicEvent[],
+  now = Date.now(),
+): TicketTransferResult | { status: 404 | 409 | 410 | 422; error: string; message: string } {
+  const t = db.tickets[id];
+  const order = t && db.orders[t.orderId];
+  const event = order && events.find((e) => e.id === order.eventId);
+  if (!t || !order || !event) return { status: 404, error: 'not_found', message: 'Not found' };
+  const gone = transferredAway(id);
+  if (gone) return gone;
+  if (t.checkedInAt) {
+    return {
+      status: 409,
+      error: 'checked_in',
+      message: 'This ticket has already been used at the door, so it can’t be passed on.',
+    };
+  }
+  if (Date.parse(event.endsAt) <= now) {
+    return { status: 409, error: 'event_ended', message: 'This event has ended.' };
+  }
+  if ((t.holderEmail ?? order.buyer.email).toLowerCase() === req.email.toLowerCase()) {
+    return {
+      status: 422,
+      error: 'same_holder',
+      message: 'This ticket is already theirs. Enter the email of the person taking it.',
+    };
+  }
+  db.sequence += 1;
+  const fresh: StoredTicket = {
+    id: randomToken(),
+    code: `EVT-${event.id.replace(/^evt_/, '').toUpperCase()}-${String(4820 + db.sequence).padStart(4, '0')}`,
+    orderId: order.id,
+    index: t.index,
+    holderName: req.name,
+    holderEmail: req.email,
+    secret: generatePassSecret(),
+    checkedInAt: null,
+    transferredFromId: t.id,
+  };
+  db.tickets[fresh.id] = fresh;
+  t.transferredAt = iso(now);
+  order.tickets = order.tickets.filter((x) => x.id !== t.id);
+  save();
+  return { email: req.email, emailed: true };
 }
