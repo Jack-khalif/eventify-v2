@@ -1,0 +1,29 @@
+# Eventify
+
+> Eventify (https://www.eventifyafrica.co.ke) is an event ticketing and discovery platform for Kenya and South Sudan. People find events and buy tickets with M-Pesa; organizers list events for free and only pay when tickets sell.
+
+## For people going to events
+
+- Discover events by city (Nairobi, Juba and beyond) or by category: Corporate, Campus, Music & Arts, Workshops and Free.
+- Checkout takes under a minute and is paid with M-Pesa from a phone. MTN Mobile Money and card are on the way.
+- No surprise fees: the price shown is the price you pay. Free events cost nothing.
+- Tickets arrive as an Express Entry Live Pass for queue-free check-in at the door. No account is needed to buy a ticket.
+
+## For organizers
+
+- Built for four kinds of organizer: corporate teams (conferences and launches), campus clubs and societies, independent artists (shows and listening sessions) and workshop hosts.
+- Listing an event is free, with no monthly cost; Eventify takes a share of ticket sales from the payout, nothing up front.
+- Every organizer gets a public profile page, a short event link and share buttons for WhatsApp, Instagram and X, plus a dashboard for sales, payouts and check-ins.
+
+## Links
+
+- [Browse events](https://www.eventifyafrica.co.ke/discover)
+- [Host an event](https://www.eventifyafrica.co.ke/organizer)
+- [Find my tickets](https://www.eventifyafrica.co.ke/tickets)
+- [Terms of Service](https://www.eventifyafrica.co.ke/terms)
+- [Privacy Policy](https://www.eventifyafrica.co.ke/privacy)
+
+## Contact
+
+- General: hello@eventifyafrica.co.ke
+- Support: support@eventifyafrica.co.ke

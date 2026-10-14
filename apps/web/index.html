@@ -2,9 +2,72 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/eventify-mark.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Eventify</title>
+    <title>Eventify — Discover events and sell tickets in Kenya &amp; South Sudan</title>
+    <meta
+      name="description"
+      content="Eventify is East Africa's ticketing platform. Find concerts, campus events, workshops and corporate events in Nairobi, Juba and beyond, and pay with M-Pesa. Organizers list events for free."
+    />
+    <!-- Google only shows a square icon (a multiple of 48px) next to search results. -->
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#0b1113" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Eventify" />
+    <meta
+      property="og:title"
+      content="Eventify — Discover events and sell tickets in Kenya &amp; South Sudan"
+    />
+    <meta
+      property="og:description"
+      content="Find concerts, campus events, workshops and corporate events, and pay with M-Pesa. Organizers list events for free."
+    />
+    <meta property="og:image" content="https://www.eventifyafrica.co.ke/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- Who we are, for search engines and AI assistants: the logo here is what Google shows for the brand. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.eventifyafrica.co.ke/#organization",
+            "name": "Eventify",
+            "url": "https://www.eventifyafrica.co.ke/",
+            "logo": "https://www.eventifyafrica.co.ke/icon-512.png",
+            "image": "https://www.eventifyafrica.co.ke/og-image.png",
+            "description": "Event ticketing and discovery platform for Kenya and South Sudan, with M-Pesa checkout.",
+            "email": "hello@eventifyafrica.co.ke",
+            "areaServed": [
+              { "@type": "Country", "name": "Kenya" },
+              { "@type": "Country", "name": "South Sudan" }
+            ],
+            "contactPoint": {
+              "@type": "ContactPoint",
+              "contactType": "customer support",
+              "email": "support@eventifyafrica.co.ke"
+            }
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.eventifyafrica.co.ke/#website",
+            "name": "Eventify",
+            "url": "https://www.eventifyafrica.co.ke/",
+            "publisher": { "@id": "https://www.eventifyafrica.co.ke/#organization" },
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://www.eventifyafrica.co.ke/discover?q={search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          }
+        ]
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -24,10 +87,62 @@
             : 'dark';
       }
       document.documentElement.dataset.theme = t;
+      // The app is running, so it will draw the page itself: hide the plain-HTML summary below.
+      document.documentElement.classList.add('js');
     </script>
+    <style>
+      html.js #crawler-summary {
+        display: none;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <!--
+      Crawlers that don't run JavaScript (most AI assistants) only see what's written here.
+      React replaces it when the app starts. Keep it in step with LandingPage.tsx.
+    -->
+    <div id="root">
+      <main id="crawler-summary">
+        <h1>Eventify — East Africa's best way to discover events and sell tickets</h1>
+        <p>
+          From sold-out concerts to campus hackathons and corporate launches, Eventify brings
+          ticketing to Kenya and South Sudan, built around how people actually pay: M-Pesa today,
+          with MTN Mobile Money and card on the way.
+        </p>
+        <ul>
+          <li>No surprise fees: the price shown is the price you pay.</li>
+          <li>Pay with M-Pesa from your phone; checkout takes under a minute.</li>
+          <li>
+            Free events cost nothing. Every event is free to list, and organizers only pay when
+            tickets sell.
+          </li>
+        </ul>
+        <h2>Discover what's near you</h2>
+        <p>
+          Search by city (Nairobi, Juba and beyond) or filter by Corporate, Campus, Music &amp;
+          Arts, Workshops and Free. <a href="/discover">Browse what's on</a>.
+        </p>
+        <h2>One platform, four kinds of organizer</h2>
+        <ul>
+          <li>Corporate: teams running conferences and launches.</li>
+          <li>Campus clubs: student clubs and societies hosting campus events, many free.</li>
+          <li>Independent artists: selling out shows and listening sessions.</li>
+          <li>Workshop hosts: building a track record one session at a time.</li>
+        </ul>
+        <p>
+          Every organizer gets a public profile page, a short event link and share buttons for
+          WhatsApp, Instagram and X. The organizer dashboard covers sales, payouts and check-ins,
+          and tickets come as an Express Entry Live Pass for queue-free check-in at the door.
+          <a href="/organizer">Host an event</a>.
+        </p>
+        <p>
+          <a href="/discover">Discover</a> · <a href="/tickets">Find my tickets</a> ·
+          <a href="/organizer">For organizers</a> · <a href="/privacy">Privacy Policy</a> ·
+          <a href="/terms">Terms of Service</a> · Contact:
+          <a href="mailto:hello@eventifyafrica.co.ke">hello@eventifyafrica.co.ke</a>
+        </p>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation } from 'react-router';
 import { hostCta } from '../../app/nav';
 import { buttonClass } from '../../components/ui';
 import { displayUrl, siteUrl } from '../../lib/site';
+import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useSession } from '../auth/useSession';
 
 const STATS: { figure: string; label: string }[] = [
@@ -68,6 +69,7 @@ const frame = 'overflow-hidden rounded-[20px] border-2 border-rule';
 
 /** The first page visitors see: what Eventify is, for buyers and for organizers. Events live at /discover. */
 export function LandingPage() {
+  useDocumentTitle(undefined);
   const cta = hostCta(useSession().user);
   const { search } = useLocation();
 

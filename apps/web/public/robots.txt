@@ -1,0 +1,11 @@
+# Search engines and AI assistants are welcome to read the public site.
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /account
+Disallow: /checkin/
+Disallow: /t/
+Disallow: /organizer/events/
+Disallow: /api/
+
+Sitemap: https://www.eventifyafrica.co.ke/sitemap.xml
