@@ -118,6 +118,7 @@ describe('Organizer dashboard', () => {
 
     await user.type(within(dialog).getByLabelText("Guest's name"), 'Wanjiru Kamau');
     await user.type(within(dialog).getByLabelText('Email'), 'wanjiru@example.com');
+    await user.type(within(dialog).getByLabelText('Phone (optional)'), '0712 345 678');
     await user.click(within(dialog).getByRole('button', { name: 'More' }));
     await user.click(within(dialog).getByRole('button', { name: 'Send tickets' }));
 
