@@ -1,5 +1,5 @@
 import { type DoorList, type DoorSyncRequest, type PublicEvent } from '@eventify/shared';
-import { and, asc, eq, gt, isNull, or } from 'drizzle-orm';
+import { and, asc, eq, gt, isNotNull, isNull, or } from 'drizzle-orm';
 import type { Db } from './db/client';
 import { eventDoors, events, orders, tickets, tiers } from './db/schema';
 import { loadEvents } from './events';
@@ -27,6 +27,11 @@ export async function doorList(
     .innerJoin(tiers, eq(orders.tierId, tiers.id))
     .where(and(eq(tickets.eventId, event.id), inUse))
     .orderBy(asc(tickets.code));
+  // Tickets passed on to someone else, so a door can say so when an old pass turns up.
+  const passedOn = await db
+    .select({ ticketId: tickets.id, code: tickets.code, passSecret: tickets.secret })
+    .from(tickets)
+    .where(and(eq(tickets.eventId, event.id), isNotNull(tickets.transferredAt)));
   const doors = await db
     .select()
     .from(eventDoors)
@@ -54,6 +59,7 @@ export async function doorList(
       checkedInDoor: t.checkedInDoor,
       passSecret: t.secret,
     })),
+    transferred: passedOn,
     verifyKey,
     downloadedAt: eatIso(new Date(now)),
   };

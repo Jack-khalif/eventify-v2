@@ -2,12 +2,14 @@ import {
   compRequestSchema,
   formatDate,
   MAX_COMPS_PER_REQUEST,
+  normalizePhone,
   type CompList,
   type CompRequest,
 } from '@eventify/shared';
 import { Gift } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { ErrorState } from '../../components/PageStates';
+import { isNotFound } from '../../lib/api';
 import { Button, Card, Dialog, SelectField, Stepper, Tag, TextField } from '../../components/ui';
 import { useComps, useIssueComps } from './useDashboard';
 
@@ -22,6 +24,9 @@ export function CompTickets({ eventId, canIssue }: { eventId: string; canIssue: 
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
   const issued = comps.data?.comps.reduce((sum, c) => sum + c.quantity, 0) ?? 0;
+
+  // Not on the server yet (see newerEndpoint): show nothing rather than an error.
+  if (isNotFound(comps.error)) return null;
 
   return (
     <Card className="flex min-w-0 flex-[1_1_320px] flex-col gap-3 p-5">
@@ -118,6 +123,7 @@ function IssueDialog({
   const issue = useIssueComps(eventId);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [tierId, setTierId] = useState(
     (tiers.find((t) => t.remaining !== 0) ?? tiers[0])?.id ?? '',
   );
@@ -128,7 +134,14 @@ function IssueDialog({
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const parsed = compRequestSchema.safeParse({ name, email: email.trim(), tierId, quantity });
+    const parsed = compRequestSchema.safeParse({
+      name,
+      email: email.trim(),
+      // Blank is fine; something that isn't a number is sent as is so it's flagged.
+      phone: phone.trim() ? (normalizePhone(phone) ?? phone) : null,
+      tierId,
+      quantity,
+    });
     if (!parsed.success) {
       const next: FieldErrors = {};
       for (const issue of parsed.error.issues) {
@@ -175,6 +188,17 @@ function IssueDialog({
           onChange={(e) => setEmail(e.target.value)}
           error={errors.email}
           hint="Their tickets go here."
+        />
+        <TextField
+          label="Phone (optional)"
+          type="tel"
+          inputMode="tel"
+          autoComplete="off"
+          placeholder="07XX XXX XXX"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          error={errors.phone}
+          hint="Lets them find the tickets by phone too, and the door search for them by number."
         />
         <SelectField
           label="Tier"

@@ -296,6 +296,12 @@ export function ticketsForEvent(eventId: string) {
   });
 }
 
+/** Tickets for an event that were passed on, so the door can say so when an old pass turns up. */
+export const transferredForEvent = (eventId: string) =>
+  Object.values(db.tickets)
+    .filter((t) => t.transferredAt && db.orders[t.orderId]?.eventId === eventId)
+    .map((t) => ({ ticketId: t.id, code: t.code, passSecret: t.secret }));
+
 /** Record a door check-in on a ticket. The earliest one stands. */
 export function recordTicketCheckIn(ticketId: string, at: string, door: string) {
   const t = db.tickets[ticketId];
@@ -346,7 +352,7 @@ export function issueComps(event: PublicEvent, req: CompRequest, now = Date.now(
     quantity: req.quantity,
     totalMinor: 0,
     currency: event.currency,
-    buyer: { name: req.name, phone: '', email: req.email },
+    buyer: { name: req.name, phone: req.phone ?? '', email: req.email },
     paymentMethod: null,
     status: 'paid',
     failureReason: null,
@@ -433,3 +439,13 @@ export function transferTicket(
   save();
   return { email: req.email, emailed: true };
 }
+
+/** "Send it again" from an old ticket's link. Nothing is emailed here; it reports success. */
+export function resendTransfer(oldId: string): TicketTransferResult | undefined {
+  if (!db.tickets[oldId]?.transferredAt) return undefined;
+  const next = Object.values(db.tickets).find((t) => t.transferredFromId === oldId);
+  return next?.holderEmail ? { email: next.holderEmail, emailed: true } : undefined;
+}
+
+/** Whether an order is complimentary tickets from the organizer. */
+export const isCompOrder = (orderId: string) => (db.comps ?? []).some((c) => c.orderId === orderId);

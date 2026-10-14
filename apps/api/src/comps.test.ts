@@ -1,4 +1,5 @@
 import {
+  attendeeListSchema,
   compListSchema,
   eventDashboardSchema,
   organizerHomeSchema,
@@ -199,8 +200,26 @@ describe('complimentary tickets', () => {
 
   it('can add guests after sales close, but not after the event', async () => {
     const token = await organizer();
-    const guestList = comp({ tierId: 'tier_tiny_guest', quantity: 1, email: 'press@example.com' });
+    const guestList = comp({
+      tierId: 'tier_tiny_guest',
+      quantity: 1,
+      name: 'Press Desk',
+      email: 'press@example.com',
+      phone: '+254700111222',
+    });
     expect((await send('/organizer/events/evt_tiny/comps', token, guestList)).status).toBe(201);
+    // With a phone number the door can find them by it.
+    const door = (await (await send('/checkin/tiny-0123456789ab')).json()) as {
+      guests: { name: string; phone: string }[];
+    };
+    expect(door.guests.find((g) => g.name === 'Press Desk')!.phone).toBe('+254700111222');
+    const badPhone = await send(
+      '/organizer/events/evt_tiny/comps',
+      token,
+      comp({ quantity: 1, phone: '0712' }),
+    );
+    expect(badPhone.status).toBe(400);
+    expect(await badPhone.json()).toMatchObject({ message: 'Enter a valid phone number' });
 
     const endsAt = new Date('2026-11-01T23:00:00+03:00');
     await database.db
@@ -239,5 +258,20 @@ describe('complimentary tickets', () => {
       .update(organizers)
       .set({ status: 'active' })
       .where(eq(organizers.id, 'org_amani'));
+  });
+
+  it('lists everyone with a ticket for the organizer’s spreadsheet and door sheet', async () => {
+    const token = await organizer();
+    const list = await get('/organizer/events/evt_tiny/attendees', attendeeListSchema, token);
+    expect(list.event).toMatchObject({ id: 'evt_tiny', title: 'Tiny Gig', venue: 'A Small Room' });
+    expect(list.attendees.map((a) => [a.name, a.tierName, a.kind, a.phone])).toEqual([
+      ['Press Desk', 'Guest list', 'comp', '+254700111222'],
+      ['Wanjiru Kamau', 'Entry', 'comp', ''],
+      ['Wanjiru Kamau', 'Entry', 'comp', ''],
+    ]);
+    expect(list.attendees[1]).toMatchObject({ email: 'Wanjiru@Example.com', checkedInAt: null });
+
+    expect((await send('/organizer/events/evt_tiny/attendees')).status).toBe(401);
+    expect((await send('/organizer/events/evt_hack/attendees', token)).status).toBe(404);
   });
 });

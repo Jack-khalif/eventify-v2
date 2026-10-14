@@ -1,6 +1,7 @@
 import { Camera, ScanLine } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../components/ui';
+import { createScanFilter } from './scanRepeat';
 
 /** Chrome and Android have a built-in QR reader; Safari doesn't, so jsQR (loaded on demand) fills in. */
 type BarcodeDetectorLike = { detect(source: CanvasImageSource): Promise<{ rawValue: string }[]> };
@@ -11,8 +12,6 @@ declare global {
 }
 
 const SCAN_EVERY_MS = 200;
-/** The same QR held in front of the camera is reported once, not five times a second. */
-const REPEAT_AFTER_MS = 3_000;
 const MAX_FRAME_SIDE = 640;
 
 type CameraState = 'off' | 'starting' | 'on' | 'denied' | 'failed';
@@ -38,8 +37,19 @@ async function makeReader(): Promise<(video: HTMLVideoElement) => Promise<string
   };
 }
 
-/** Rear camera that reports each QR it reads. `paused` holds off while a result is on screen. */
-export function QrScanner({ onScan, paused }: { onScan: (text: string) => void; paused: boolean }) {
+/**
+ * Rear camera that reports each QR it reads. `paused` holds off while a result is on screen, and
+ * `overlay` (the verdict) covers the camera view meanwhile, where door staff are already looking.
+ */
+export function QrScanner({
+  onScan,
+  paused,
+  overlay,
+}: {
+  onScan: (text: string) => void;
+  paused: boolean;
+  overlay?: ReactNode;
+}) {
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const [state, setState] = useState<CameraState>('off');
@@ -58,17 +68,13 @@ export function QrScanner({ onScan, paused }: { onScan: (text: string) => void; 
     if (state !== 'on') return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
-    let last = { text: '', at: 0 };
+    const shouldReport = createScanFilter();
     void makeReader().then((read) => {
       const tick = async () => {
         if (cancelled) return;
-        if (!latest.current.paused && video.current) {
-          const text = await read(video.current).catch(() => null);
-          const now = Date.now();
-          if (text && (text !== last.text || now - last.at > REPEAT_AFTER_MS)) {
-            last = { text, at: now };
-            latest.current.onScan(text);
-          }
+        const text = video.current && (await read(video.current).catch(() => null));
+        if (text && shouldReport(text, Date.now(), latest.current.paused)) {
+          latest.current.onScan(text);
         }
         timer = setTimeout(tick, SCAN_EVERY_MS);
       };
@@ -124,6 +130,7 @@ export function QrScanner({ onScan, paused }: { onScan: (text: string) => void; 
         ) : (
           <ScanLine size={48} strokeWidth={1.6} aria-hidden />
         )}
+        {live && overlay}
       </div>
       {state === 'denied' ? (
         <p role="alert" className="m-0 text-center text-[13px] font-semibold text-danger">

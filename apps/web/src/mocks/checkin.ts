@@ -1,4 +1,5 @@
 import {
+  type AttendeeList,
   generatePassSecret,
   toEatIso,
   type DoorGuest,
@@ -8,7 +9,7 @@ import {
 } from '@eventify/shared';
 import { doors as sampleDoors, guests as sampleGuests } from '@eventify/shared/fixtures';
 import { DEV_QR_PUBLIC_KEY } from './devKeys';
-import { recordTicketCheckIn, ticketsForEvent } from './orders';
+import { isCompOrder, recordTicketCheckIn, ticketsForEvent, transferredForEvent } from './orders';
 
 /**
  * In-browser stand-in for door check-in until the backend exists: hands out the guest list for
@@ -100,6 +101,7 @@ export function doorList(event: PublicEvent, checkinCode: string, now = Date.now
     },
     doors: [...names],
     guests: guestsFor(event),
+    transferred: transferredForEvent(event.id),
     verifyKey: { kty: 'OKP', crv: 'Ed25519', x: DEV_QR_PUBLIC_KEY.x! },
     downloadedAt: toEatIso(now),
   };
@@ -134,3 +136,35 @@ export function syncDoor(
 
 /** Check-ins recorded through scanners for this event. */
 export const scannerCheckIns = (eventId: string) => db.log[eventId] ?? [];
+
+/** The organizer's guest list, as the API gives it: everyone holding a ticket, by name. */
+export function attendeeList(event: PublicEvent): AttendeeList {
+  const emails = new Map(
+    ticketsForEvent(event.id).map(({ ticket, order }) => [
+      ticket.id,
+      { email: ticket.holderEmail ?? order.buyer.email, comp: isCompOrder(order.id) },
+    ]),
+  );
+  return {
+    event: {
+      id: event.id,
+      slug: event.slug,
+      title: event.title,
+      venue: event.venue,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+    },
+    attendees: guestsFor(event)
+      .map((g) => ({
+        ticketId: g.ticketId,
+        code: g.code,
+        name: g.name,
+        email: emails.get(g.ticketId)?.email ?? '',
+        phone: g.phone,
+        tierName: g.tierName,
+        kind: emails.get(g.ticketId)?.comp ? ('comp' as const) : ('sale' as const),
+        checkedInAt: g.checkedInAt,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'en', { sensitivity: 'base' })),
+  };
+}

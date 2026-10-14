@@ -1,7 +1,9 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createEvent } from '../../mocks/events';
+import { server } from '../../mocks/node';
 import { renderApp } from '../../test/render';
 import { signInAs } from '../../test/signIn';
 
@@ -116,6 +118,7 @@ describe('Organizer dashboard', () => {
 
     await user.type(within(dialog).getByLabelText("Guest's name"), 'Wanjiru Kamau');
     await user.type(within(dialog).getByLabelText('Email'), 'wanjiru@example.com');
+    await user.type(within(dialog).getByLabelText('Phone (optional)'), '0712 345 678');
     await user.click(within(dialog).getByRole('button', { name: 'More' }));
     await user.click(within(dialog).getByRole('button', { name: 'Send tickets' }));
 
@@ -172,6 +175,67 @@ describe('Organizer dashboard', () => {
     const after = (await screen.findByRole('heading', { name: 'Branded merch' })).parentElement!;
     expect(await within(after).findByText('In production')).toBeInTheDocument();
     expect(within(after).getByText('Ready Thursday.')).toBeInTheDocument();
+  });
+
+  it('leaves out cards the API doesn’t know about yet, mid-release', async () => {
+    const notYet = () =>
+      HttpResponse.json({ error: 'not_found', message: 'Not found' }, { status: 404 });
+    server.use(
+      http.get('*/api/organizer/events/:id/comps', notYet),
+      http.get('*/api/organizer/events/:id/merch', notYet),
+    );
+    renderApp('/organizer');
+    expect(await screen.findByText('231 / 412 checked in')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Complimentary tickets' })).toBeNull();
+      expect(screen.queryByRole('heading', { name: 'Branded merch' })).toBeNull();
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('downloads the guest list as a spreadsheet', async () => {
+    const files: Blob[] = [];
+    URL.createObjectURL = vi.fn((blob: Blob) => (files.push(blob), 'blob:guest-list'));
+    URL.revokeObjectURL = vi.fn();
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const user = userEvent.setup();
+    renderApp('/organizer');
+    await user.click(await screen.findByRole('button', { name: 'Download spreadsheet' }));
+
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe(
+      'sauti-sessions-guest-list.csv',
+    );
+    const lines = (await files[0]!.text()).replace('\uFEFF', '').split('\r\n');
+    expect(lines[0]).toBe('Name,Ticket code,Tier,Type,Email,Phone,Checked in');
+    expect(lines.length).toBeGreaterThan(2);
+  });
+
+  it('lays the guest list out for printing, with a box to tick per guest', async () => {
+    const print = vi.fn();
+    window.print = print;
+    const user = userEvent.setup();
+    renderApp('/organizer');
+    await user.click(await screen.findByRole('link', { name: 'Print door list' }));
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Sauti Sessions: Afro-house Listening Night',
+      }),
+    ).toBeInTheDocument();
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows.length).toBeGreaterThan(0);
+    // Phone numbers are cut short on paper; nobody is left without a box or a tick.
+    expect(screen.queryByText(/\+254\d{9}/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^•••• \d{3}$/).length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(
+        within(row).queryByLabelText('Not checked in') ?? within(row).queryByText('✓'),
+      ).not.toBeNull();
+    }
+    await user.click(screen.getByRole('button', { name: 'Print or save as PDF' }));
+    expect(print).toHaveBeenCalled();
   });
 
   it('sends the organizer to support once tickets have been issued', async () => {

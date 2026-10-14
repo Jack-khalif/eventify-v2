@@ -7,9 +7,13 @@ import {
 import { Send } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Button, Dialog, TextField } from '../../components/ui';
-import { useTransferTicket } from './useTickets';
+import { isNotFound } from '../../lib/api';
+import { useResendTransfer, useTransferTicket } from './useTickets';
 
 type FieldErrors = Partial<Record<keyof TicketTransferRequest, string>>;
+
+/** How a transfer from this screen went, and which ticket was passed on. */
+export type TransferOutcome = TicketTransferResult & { name: string; ticketId: string };
 
 /**
  * "Transfer ticket" under a pass: the holder names who it's for, they get a new ticket by email
@@ -20,7 +24,7 @@ export function TransferTicket({
   onTransferred,
 }: {
   ticket: TicketView;
-  onTransferred: (result: TicketTransferResult & { name: string }) => void;
+  onTransferred: (result: TransferOutcome) => void;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -49,7 +53,7 @@ function TransferDialog({
 }: {
   ticket: TicketView;
   onClose: () => void;
-  onTransferred: (result: TicketTransferResult & { name: string }) => void;
+  onTransferred: (result: TransferOutcome) => void;
 }) {
   const transfer = useTransferTicket(ticket.id);
   const [name, setName] = useState('');
@@ -69,7 +73,8 @@ function TransferDialog({
     }
     setErrors({});
     transfer.mutate(parsed.data, {
-      onSuccess: (result) => onTransferred({ ...result, name: parsed.data.name }),
+      onSuccess: (result) =>
+        onTransferred({ ...result, name: parsed.data.name, ticketId: ticket.id }),
     });
   };
 
@@ -113,7 +118,10 @@ function TransferDialog({
         />
         {transfer.error && (
           <p role="alert" className="m-0 font-semibold text-danger">
-            {transfer.error.message}
+            {isNotFound(transfer.error)
+              ? // An old API during a release; it's back within minutes.
+                'Transfers aren’t available just yet. Try again in a few minutes.'
+              : transfer.error.message}
           </p>
         )}
       </form>
@@ -122,27 +130,68 @@ function TransferDialog({
 }
 
 /** What the old pass's page shows once it has been passed on in this visit. */
-export function TransferDone({ result }: { result: TicketTransferResult & { name: string } }) {
+export function TransferDone({ result }: { result: TransferOutcome }) {
+  const resend = useResendTransfer(result.ticketId);
+  const emailed = resend.data?.emailed ?? result.emailed;
   return (
     <div
       role="status"
-      className="flex w-full max-w-[360px] flex-col gap-2 rounded-[22px] border-2 border-rule p-5 text-center"
+      className="flex w-full max-w-[360px] flex-col items-center gap-2 rounded-[22px] border-2 border-rule p-5 text-center"
     >
       <span className="text-xl font-extrabold">Ticket transferred</span>
       <span className="text-sm text-muted">
-        {result.emailed ? (
+        {emailed ? (
           <>
             We've emailed {result.name}'s new ticket to{' '}
             <strong className="text-fg">{result.email}</strong>.
           </>
         ) : (
           <>
-            We couldn't email {result.name} just now. They'll find the ticket by signing in with{' '}
-            <strong className="text-fg">{result.email}</strong> and opening Tickets.
+            We couldn't email {result.name} just now. Try again below, or they'll find the ticket by
+            signing in with <strong className="text-fg">{result.email}</strong> and opening Tickets.
           </>
         )}{' '}
         This pass no longer works.
       </span>
+      {!emailed && <ResendButton resend={resend} />}
     </div>
+  );
+}
+
+/** On an old ticket's page: "Didn't get it? Send their ticket again." */
+export function ResendTransfer({ ticketId }: { ticketId: string }) {
+  const resend = useResendTransfer(ticketId);
+  if (resend.data?.emailed) {
+    return (
+      <p role="status" className="m-0 text-sm text-good">
+        Sent again to {resend.data.email}.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <span className="text-sm text-muted">Didn't they get it?</span>
+      <ResendButton resend={resend} />
+    </div>
+  );
+}
+
+function ResendButton({ resend }: { resend: ReturnType<typeof useResendTransfer> }) {
+  return (
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => resend.mutate()}
+        disabled={resend.isPending}
+      >
+        {resend.isPending ? 'Sending…' : 'Send their ticket again'}
+      </Button>
+      {(resend.error || resend.data?.emailed === false) && (
+        <span role="alert" className="text-sm font-semibold text-danger">
+          {resend.error?.message ?? 'Still couldn’t send it. Try again in a little while.'}
+        </span>
+      )}
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import { LIVE_CODE_ALPHABET, LIVE_CODE_LENGTH, verifyLiveCode, verifyTicketQr } from './passes';
-import type { DoorGuest } from './schemas';
+import type { DoorGuest, DoorTransferred } from './schemas';
 
 /**
  * What the door scanner decides, entirely on the device so it works without internet.
@@ -9,21 +9,28 @@ import type { DoorGuest } from './schemas';
 export type DoorResult =
   | { kind: 'valid'; guest: DoorGuest }
   | { kind: 'used'; guest: DoorGuest }
-  | { kind: 'invalid'; reason: 'not_a_ticket' | 'other_event' | 'wrong_code' };
+  | { kind: 'invalid'; reason: 'not_a_ticket' | 'other_event' | 'wrong_code' | 'transferred' };
 
 const resultFor = (guest: DoorGuest): DoorResult =>
   guest.checkedInAt ? { kind: 'used', guest } : { kind: 'valid', guest };
 
-/** A scanned backup QR: forged or unreadable → not a ticket; genuine but not on this list → other event. */
+/**
+ * A scanned backup QR: forged or unreadable → not a ticket; one that was passed on → transferred;
+ * genuine but not on this list → other event.
+ */
 export async function checkQr(
   payload: string,
   guests: readonly DoorGuest[],
   verifyKey: CryptoKey,
+  transferred: readonly DoorTransferred[] = [],
 ): Promise<DoorResult> {
   const ticketId = await verifyTicketQr(verifyKey, payload);
   if (!ticketId) return { kind: 'invalid', reason: 'not_a_ticket' };
   const guest = guests.find((g) => g.ticketId === ticketId);
-  return guest ? resultFor(guest) : { kind: 'invalid', reason: 'other_event' };
+  if (guest) return resultFor(guest);
+  return transferred.some((t) => t.ticketId === ticketId)
+    ? { kind: 'invalid', reason: 'transferred' }
+    : { kind: 'invalid', reason: 'other_event' };
 }
 
 const CODE_PATTERN = new RegExp(`^[${LIVE_CODE_ALPHABET}]{${LIVE_CODE_LENGTH}}$`);
@@ -31,16 +38,25 @@ const CODE_PATTERN = new RegExp(`^[${LIVE_CODE_ALPHABET}]{${LIVE_CODE_LENGTH}}$`
 /** "abc 234" → "ABC234". */
 export const normalizeLiveCode = (code: string) => code.replace(/\s+/g, '').toUpperCase();
 
-/** A live code read off a guest's Live Pass, checked against every ticket's secret. */
+/**
+ * A live code read off a guest's Live Pass, checked against every ticket's secret, then against
+ * tickets that were passed on (an old pass still shows a code).
+ */
 export async function checkLiveCode(
   code: string,
   guests: readonly DoorGuest[],
   now: number = Date.now(),
+  transferred: readonly DoorTransferred[] = [],
 ): Promise<DoorResult> {
   const wanted = normalizeLiveCode(code);
   if (!CODE_PATTERN.test(wanted)) return { kind: 'invalid', reason: 'wrong_code' };
   for (const guest of guests) {
     if (await verifyLiveCode(guest.passSecret, wanted, now)) return resultFor(guest);
+  }
+  for (const t of transferred) {
+    if (await verifyLiveCode(t.passSecret, wanted, now)) {
+      return { kind: 'invalid', reason: 'transferred' };
+    }
   }
   return { kind: 'invalid', reason: 'wrong_code' };
 }

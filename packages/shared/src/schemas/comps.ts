@@ -10,6 +10,14 @@ export const compRequestSchema = z.object({
   quantity: z.int().min(1).max(MAX_COMPS_PER_REQUEST),
   name: z.string().trim().min(2, 'Enter their name').max(80),
   email: z.email('Enter a valid email'),
+  /**
+   * Optional, E.164 (normalise with normalizePhone()). With it the guest can also find the tickets
+   * by phone, and door staff can search for them by number.
+   */
+  phone: z
+    .string()
+    .regex(/^\+\d{9,15}$/, 'Enter a valid phone number')
+    .nullish(),
 });
 export type CompRequest = z.infer<typeof compRequestSchema>;
 

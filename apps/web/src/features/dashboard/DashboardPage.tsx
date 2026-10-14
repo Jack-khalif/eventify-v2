@@ -22,6 +22,7 @@ import { displayUrl, siteUrl } from '../../lib/site';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useSession } from '../auth/useSession';
 import { CompTickets } from './CompTickets';
+import { GuestList } from './GuestList';
 import { MerchRequests } from './MerchRequests';
 import { useDeleteEvent, useEventDashboard, useOrganizerHome } from './useDashboard';
 
@@ -274,6 +275,7 @@ function EventNumbers({
       <div className="flex flex-wrap items-start gap-5">
         <CompTickets eventId={d.eventId} canIssue={canIssue} />
         <MerchRequests eventId={d.eventId} canRequest={canIssue} />
+        <GuestList eventId={d.eventId} issued={issuedOf(d)} />
       </div>
 
       <DeleteEvent d={d} onDeleted={onDeleted} />

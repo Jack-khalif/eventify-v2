@@ -181,6 +181,10 @@ describe('transferring a ticket', () => {
 
     // The door has the new ticket under Wanjiru, and not the old one, even from a stale device.
     const door = await get('/checkin/tiny-0123456789ab', doorListSchema);
+    // It keeps the old one aside, so an old pass is turned away as transferred.
+    expect(door.transferred).toEqual([
+      { ticketId: mine!.id, code: before.code, passSecret: before.passSecret },
+    ]);
     expect(door.guests.map((g) => g.ticketId).sort()).toEqual([kept!.id, newId].sort());
     expect(door.guests.find((g) => g.ticketId === newId)).toMatchObject({
       name: 'Wanjiru Kamau',
@@ -242,7 +246,19 @@ describe('transferring a ticket', () => {
     expect(await res.json()).toEqual({ email: 'wanjiru@example.com', emailed: false });
     expect((await send(`/tickets/${first!.id}`)).status).toBe(410);
 
+    // Once mail is back, the old link can send it again.
     mailerFails = false;
+    const resend = () => send(`/tickets/${first!.id}/transfer/resend`, undefined, {});
+    const again = await resend();
+    expect(again.status).toBe(200);
+    expect(await again.json()).toEqual({ email: 'wanjiru@example.com', emailed: true });
+    expect(emails).toHaveLength(1);
+    expect(emails[0]).toMatchObject({
+      to: 'wanjiru@example.com',
+      subject: 'Amina Otieno sent you a ticket for Tiny Gig',
+    });
+    expect((await send(`/tickets/${second!.id}/transfer/resend`, undefined, {})).status).toBe(404);
+
     await database.db
       .update(events)
       .set({ endsAt: new Date(clock - MINUTE) })

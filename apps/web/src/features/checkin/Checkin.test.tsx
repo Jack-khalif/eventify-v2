@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { scannerCheckIns } from '../../mocks/checkin';
 import { allEvents } from '../../mocks/events';
 import { server } from '../../mocks/node';
-import { seedDemoTicket, ticketsForPhone } from '../../mocks/orders';
+import { seedDemoTicket, ticketsForPhone, transferTicket } from '../../mocks/orders';
 import { DEMO_TICKET_PHONE } from '../../mocks/testPhones';
 import { renderApp } from '../../test/render';
 import { signInAs } from '../../test/signIn';
@@ -69,6 +69,26 @@ describe('Door check-in', () => {
     const sideGate = (await screen.findByText('Side Gate')).closest('li')!;
     expect(within(sideGate).getByText('39')).toBeInTheDocument();
     expect(screen.getByText('232 / 412 checked in')).toBeInTheDocument();
+  });
+
+  it('turns away a pass its holder transferred to someone else, and says why', async () => {
+    const user = userEvent.setup();
+    const [ticket] = await ticketsForPhone(DEMO_TICKET_PHONE, allEvents());
+    transferTicket(
+      ticket!.id,
+      { name: 'Wanjiru Kamau', email: 'wanjiru@example.com' },
+      allEvents(),
+      Date.parse('2026-09-29T10:00:00+03:00'),
+    );
+    renderApp(URL);
+    await pickDoor(user);
+
+    await user.type(screen.getByLabelText('Live code'), await liveCode(ticket!.passSecret));
+    await user.click(screen.getByRole('button', { name: 'Check' }));
+    expect(await screen.findByText('Ticket transferred')).toBeInTheDocument();
+    // The new holder is on the list instead.
+    await user.type(screen.getByRole('searchbox', { name: 'Search guests' }), 'wanjiru');
+    expect(screen.getByRole('button', { name: 'Check in Wanjiru Kamau' })).toBeInTheDocument();
   });
 
   it('admits a Live Pass code once, then flags it as used', async () => {

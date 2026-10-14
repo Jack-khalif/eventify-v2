@@ -49,8 +49,8 @@ export async function issueComps(
         totalMinor: 0,
         currency: event.currency,
         buyerName: req.name,
-        // Comps are sent by email only; nobody gave us a phone number.
-        buyerPhone: '',
+        // Empty when the organizer didn't give one: the guest then finds the tickets by email.
+        buyerPhone: req.phone ?? '',
         buyerEmail: req.email,
         paymentMethod: null,
         status: 'awaiting_payment',
