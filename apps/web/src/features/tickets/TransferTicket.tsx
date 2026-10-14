@@ -7,6 +7,7 @@ import {
 import { Send } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Button, Dialog, TextField } from '../../components/ui';
+import { isNotFound } from '../../lib/api';
 import { useTransferTicket } from './useTickets';
 
 type FieldErrors = Partial<Record<keyof TicketTransferRequest, string>>;
@@ -113,7 +114,10 @@ function TransferDialog({
         />
         {transfer.error && (
           <p role="alert" className="m-0 font-semibold text-danger">
-            {transfer.error.message}
+            {isNotFound(transfer.error)
+              ? // An old API during a release; it's back within minutes.
+                'Transfers aren’t available just yet. Try again in a few minutes.'
+              : transfer.error.message}
           </p>
         )}
       </form>
