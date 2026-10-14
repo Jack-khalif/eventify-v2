@@ -8,6 +8,7 @@ import { resetAdmin } from '../mocks/admin';
 import { resetAuth } from '../mocks/auth';
 import { resetCheckIns } from '../mocks/checkin';
 import { resetEvents } from '../mocks/events';
+import { resetMerch } from '../mocks/merch';
 import { resetOrders } from '../mocks/orders';
 import { resetOrganizers } from '../mocks/organizers';
 import { resetRates } from '../mocks/rates';
@@ -38,6 +39,7 @@ afterEach(() => {
   resetFollowingForTests();
   resetOrders();
   resetEvents();
+  resetMerch();
   resetCheckIns();
   resetAdmin();
   resetRates();

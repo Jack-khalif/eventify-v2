@@ -35,6 +35,7 @@ import {
   events,
   eventViews,
   images,
+  merchRequests,
   orders,
   organizerApplications,
   organizers,
@@ -428,6 +429,7 @@ export async function removeEvent(tx: Db, event: { id: string; coverImageUrl: st
   await tx.delete(rateApprovals).where(eq(rateApprovals.eventId, event.id));
   await tx.delete(rateChanges).where(eq(rateChanges.eventId, event.id));
   await tx.delete(payouts).where(eq(payouts.eventId, event.id));
+  await tx.delete(merchRequests).where(eq(merchRequests.eventId, event.id));
   await tx.delete(events).where(eq(events.id, event.id));
   const poster = /^\/api\/images\/([\w-]+)$/.exec(event.coverImageUrl ?? '')?.[1];
   if (poster) await tx.delete(images).where(eq(images.id, poster));

@@ -129,6 +129,51 @@ describe('Organizer dashboard', () => {
     expect(within(stat('Tickets sold')).getByText('412')).toBeInTheDocument();
   });
 
+  it('sends a merch request to the print queue and shows each step the team takes', async () => {
+    const user = userEvent.setup();
+    const first = renderApp('/organizer');
+    const card = (await screen.findByRole('heading', { name: 'Branded merch' })).parentElement!;
+    await user.click(await within(card).findByRole('button', { name: 'Request merch' }));
+    const dialog = screen.getByRole('dialog', { name: 'Request branded merch' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Send request' }));
+    expect(within(dialog).getByText('Pick at least one item')).toBeInTheDocument();
+
+    await user.type(within(dialog).getByLabelText('Wristbands'), '500');
+    await user.type(within(dialog).getByLabelText('Banners'), '2');
+    await user.type(
+      within(dialog).getByLabelText('Branding notes'),
+      'Logo from the poster, black on teal.',
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Send request' }));
+    expect(await within(card).findByRole('status')).toHaveTextContent('Request sent.');
+    const list = within(card).getByRole('list', { name: 'Merch requests' });
+    expect(within(list).getByText('2 Banners · 500 Wristbands')).toBeInTheDocument();
+    expect(within(list).getByText('Received')).toBeInTheDocument();
+    first.unmount();
+
+    // A Super Admin picks it up from the print queue.
+    signInAs('superAdmin');
+    const queue = renderApp('/admin/merch');
+    await user.click(
+      await screen.findByRole('button', {
+        name: "Update Amani Wanjiru's request for Sauti Sessions: Afro-house Listening Night",
+      }),
+    );
+    const update = screen.getByRole('dialog');
+    await user.selectOptions(within(update).getByLabelText('Status'), 'In production');
+    await user.type(within(update).getByLabelText('Note to the organizer'), 'Ready Thursday.');
+    await user.click(within(update).getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('In production')).toBeInTheDocument();
+    queue.unmount();
+
+    signInAs('organizer');
+    renderApp('/organizer');
+    const after = (await screen.findByRole('heading', { name: 'Branded merch' })).parentElement!;
+    expect(await within(after).findByText('In production')).toBeInTheDocument();
+    expect(within(after).getByText('Ready Thursday.')).toBeInTheDocument();
+  });
+
   it('sends the organizer to support once tickets have been issued', async () => {
     renderApp('/organizer');
     const section = (await screen.findByRole('heading', { name: 'Delete this event' }))

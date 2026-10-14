@@ -85,6 +85,13 @@
       "when": 1791969190031,
       "tag": "0011_ticket_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1791969644806,
+      "tag": "0012_merch_requests",
+      "breakpoints": true
     }
   ]
 }

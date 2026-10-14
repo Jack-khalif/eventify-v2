@@ -2,6 +2,7 @@ import {
   adminAgentRowSchema,
   adminApplicationRowSchema,
   adminApprovalRowSchema,
+  adminMerchRowSchema,
   adminMeSchema,
   adminOrganizerDetailSchema,
   adminOrganizerRowSchema,
@@ -10,6 +11,7 @@ import {
   rateChangeResultSchema,
   staffRowSchema,
   type AddStaffRequest,
+  type MerchStatusChange,
   type OrganizerStatusChange,
   type OverviewQuery,
   type RateChangeRequest,
@@ -141,6 +143,23 @@ export function useMarkPaid() {
         { reference },
         adminPayoutRowSchema,
       ),
+    onSuccess: invalidate,
+  });
+}
+
+/** Organizers' merch requests waiting to be printed. Super Admin only. */
+export function useMerchQueue() {
+  return useQuery({
+    queryKey: [ADMIN, 'merch'],
+    queryFn: () => apiGet('/api/admin/merch', z.array(adminMerchRowSchema)),
+  });
+}
+
+export function useSetMerchStatus() {
+  const invalidate = useInvalidateAdmin();
+  return useMutation({
+    mutationFn: ({ id, ...change }: MerchStatusChange & { id: string }) =>
+      apiPost(`/api/admin/merch/${encodeURIComponent(id)}/status`, change, adminMerchRowSchema),
     onSuccess: invalidate,
   });
 }
