@@ -114,6 +114,11 @@ describe('Live Pass', () => {
       await screen.findByRole('heading', { level: 1, name: 'Ticket transferred' }),
     ).toBeInTheDocument();
     expect(screen.getByText(/transferred to w•••@example\.com on/)).toBeInTheDocument();
+    // …and can send the new holder their ticket again if it never arrived.
+    await user.click(screen.getByRole('button', { name: 'Send their ticket again' }));
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      'Sent again to wanjiru@example.com.',
+    );
   });
 
   it('explains when the link is wrong', async () => {

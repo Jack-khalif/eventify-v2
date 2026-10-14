@@ -100,7 +100,7 @@ import type { SmsSender } from './sms';
 import { addStaff, assignAgent, removeStaff, staffRows } from './staff';
 import { otpauthUrl } from './totp';
 import { ticketView, ticketViewsForEmail } from './tickets';
-import { transferredAway, transferTicket } from './transfers';
+import { resendTransfer, transferredAway, transferTicket } from './transfers';
 
 export type AppDeps = {
   db: Db;
@@ -251,6 +251,22 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     if (ticket) return c.json(ticket);
     const gone = await transferredAway(db, id);
     return gone ? c.json({ error: gone.error, message: gone.message }, gone.status) : notFound(c);
+  });
+
+  // Sending a transferred ticket's email again, from the old link. A few times an hour at most.
+  app.post('/tickets/:id/transfer/resend', async (c) => {
+    const id = c.req.param('id');
+    if (!withinLimit(`resend:${id}`, 3, 60 * MINUTE)) {
+      return c.json(
+        { error: 'rate_limited', message: 'We’ve sent it a few times already. Try again later.' },
+        429,
+      );
+    }
+    const result = await resendTransfer(deps, id);
+    if (!result) return notFound(c);
+    return 'error' in result
+      ? c.json({ error: result.error, message: result.message }, result.status)
+      : c.json(result);
   });
 
   // Passing a ticket on. Whoever holds the link may, as they may walk in with it.

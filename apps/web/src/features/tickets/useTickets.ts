@@ -114,3 +114,15 @@ export function useTransferTicket(ticketId: string) {
     },
   });
 }
+
+/** From the link of a ticket that was passed on: email the new holder their ticket again. */
+export function useResendTransfer(oldTicketId: string) {
+  return useMutation({
+    mutationFn: () =>
+      apiPost(
+        `/api/tickets/${encodeURIComponent(oldTicketId)}/transfer/resend`,
+        {},
+        ticketTransferResultSchema,
+      ),
+  });
+}

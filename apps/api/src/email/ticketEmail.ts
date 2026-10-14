@@ -49,7 +49,12 @@ export async function ticketEmail(
       }
     | {
         /** A ticket passed on by its holder. Its new holder isn't told the order: that link is the buyer's. */
-        transfer: { from: string; ticketId: string };
+        transfer: {
+          from: string;
+          ticketId: string;
+          /** Set when the holder asks for it to be sent again, so it isn't taken for a duplicate. */
+          resendKey?: string;
+        };
       }
   ),
 ): Promise<Email> {
@@ -66,7 +71,7 @@ export async function ticketEmail(
           opening: `Hi ${first}, ${p.transfer.from} has passed you a ticket for ${event.title}.`,
           subject: `${p.transfer.from} sent you a ticket for ${event.title}`,
           footer: `Transferred to you by ${p.transfer.from}`,
-          key: `ticket-transfer/${p.transfer.ticketId}`,
+          key: `ticket-transfer/${p.transfer.ticketId}${p.transfer.resendKey ? `/${p.transfer.resendKey}` : ''}`,
         }
       : p.comp
         ? {
