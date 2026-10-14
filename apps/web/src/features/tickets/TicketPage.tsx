@@ -1,9 +1,4 @@
-import {
-  displayStatus,
-  formatDate,
-  formatTimeRange,
-  type TicketTransferResult,
-} from '@eventify/shared';
+import { displayStatus, formatDate, formatTimeRange } from '@eventify/shared';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { BackLink } from '../../components/BackLink';
@@ -13,16 +8,19 @@ import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { directionsUrl } from '../event/calendar';
 import { LivePass } from './LivePass';
 import { PassActions } from './PassActions';
-import { TransferDone, TransferTicket } from './TransferTicket';
+import {
+  ResendTransfer,
+  TransferDone,
+  TransferTicket,
+  type TransferOutcome,
+} from './TransferTicket';
 import { useTicket } from './useTickets';
 
 /** /t/:ticketId: the link in the SMS and email. Shows the Live Pass for one ticket. */
 export function TicketPage() {
   const { ticketId = '' } = useParams();
   const query = useTicket(ticketId);
-  const [transferred, setTransferred] = useState<(TicketTransferResult & { name: string }) | null>(
-    null,
-  );
+  const [transferred, setTransferred] = useState<TransferOutcome | null>(null);
   useDocumentTitle(query.data ? `Ticket · ${query.data.event.title}` : 'Ticket');
 
   if (query.isPending)
@@ -37,10 +35,13 @@ export function TicketPage() {
   }
   if (isTransferred(query.error) && !transferred) {
     return (
-      <NotFoundState
-        title="Ticket transferred"
-        message={query.error instanceof ApiError ? query.error.message : ''}
-      />
+      <section className="mx-auto flex w-full max-w-[520px] flex-col items-start gap-4 px-5 py-12">
+        <h1 className="m-0 text-4xl">Ticket transferred</h1>
+        <p className="m-0 text-muted">
+          {query.error instanceof ApiError ? query.error.message : ''}
+        </p>
+        <ResendTransfer ticketId={ticketId} />
+      </section>
     );
   }
   if (query.isError && !transferred) {

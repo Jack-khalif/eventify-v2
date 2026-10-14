@@ -246,7 +246,19 @@ describe('transferring a ticket', () => {
     expect(await res.json()).toEqual({ email: 'wanjiru@example.com', emailed: false });
     expect((await send(`/tickets/${first!.id}`)).status).toBe(410);
 
+    // Once mail is back, the old link can send it again.
     mailerFails = false;
+    const resend = () => send(`/tickets/${first!.id}/transfer/resend`, undefined, {});
+    const again = await resend();
+    expect(again.status).toBe(200);
+    expect(await again.json()).toEqual({ email: 'wanjiru@example.com', emailed: true });
+    expect(emails).toHaveLength(1);
+    expect(emails[0]).toMatchObject({
+      to: 'wanjiru@example.com',
+      subject: 'Amina Otieno sent you a ticket for Tiny Gig',
+    });
+    expect((await send(`/tickets/${second!.id}/transfer/resend`, undefined, {})).status).toBe(404);
+
     await database.db
       .update(events)
       .set({ endsAt: new Date(clock - MINUTE) })

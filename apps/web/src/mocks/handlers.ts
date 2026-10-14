@@ -58,6 +58,7 @@ import {
   getOrder,
   getTicket,
   issueComps,
+  resendTransfer,
   retryPayment,
   ticketsForEmail,
   ticketsForPhone,
@@ -248,6 +249,12 @@ export const handlers = [
     return gone
       ? HttpResponse.json({ error: gone.error, message: gone.message }, { status: gone.status })
       : notFound();
+  }),
+
+  http.post('*/api/tickets/:id/transfer/resend', async ({ params }) => {
+    await delay();
+    const result = resendTransfer(String(params.id));
+    return result ? HttpResponse.json(result) : notFound();
   }),
 
   // Passing a ticket on: whoever holds the link may. Nothing is emailed here.

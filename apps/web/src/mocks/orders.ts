@@ -439,3 +439,10 @@ export function transferTicket(
   save();
   return { email: req.email, emailed: true };
 }
+
+/** "Send it again" from an old ticket's link. Nothing is emailed here; it reports success. */
+export function resendTransfer(oldId: string): TicketTransferResult | undefined {
+  if (!db.tickets[oldId]?.transferredAt) return undefined;
+  const next = Object.values(db.tickets).find((t) => t.transferredFromId === oldId);
+  return next?.holderEmail ? { email: next.holderEmail, emailed: true } : undefined;
+}

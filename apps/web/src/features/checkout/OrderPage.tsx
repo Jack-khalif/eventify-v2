@@ -5,7 +5,6 @@ import {
   type PaymentFailure,
   type PublicEvent,
   SUPPORT_EMAIL,
-  type TicketTransferResult,
 } from '@eventify/shared';
 import { CircleAlert, Clock, Smartphone } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -17,7 +16,7 @@ import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useEvent } from '../event/useEvent';
 import { LivePass } from '../tickets/LivePass';
 import { PassActions } from '../tickets/PassActions';
-import { TransferDone, TransferTicket } from '../tickets/TransferTicket';
+import { TransferDone, TransferTicket, type TransferOutcome } from '../tickets/TransferTicket';
 import { useTicket } from '../tickets/useTickets';
 import type { CheckoutState } from './CheckoutPage';
 import { TestModeHint } from './TestModeHint';
@@ -268,9 +267,7 @@ function Closed({
 function Success({ order }: { order: OrderView }) {
   const [first, ...rest] = order.tickets;
   const pass = useTicket(first?.id ?? '');
-  const [transferred, setTransferred] = useState<(TicketTransferResult & { name: string }) | null>(
-    null,
-  );
+  const [transferred, setTransferred] = useState<TransferOutcome | null>(null);
   const done = transferred && <TransferDone result={transferred} />;
   if (!first) {
     // Every ticket in the order has been passed on: they belong to other people now.

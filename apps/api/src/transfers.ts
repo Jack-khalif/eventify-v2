@@ -118,21 +118,67 @@ export async function transferTicket(
   );
   if (!result || 'error' in result) return result;
 
-  let emailed = false;
-  try {
-    const view = (await ticketView(db, deps.signingKey, result.newId))!;
-    await deps.mailer(
-      await ticketEmail({
-        buyer: { name: req.name, email: req.email },
-        totalMinor: 0,
-        tickets: [view],
-        siteUrl: deps.siteUrl,
-        transfer: { from: result.from, ticketId: result.newId },
-      }),
-    );
-    emailed = true;
-  } catch (error) {
-    console.error(`Transfer email for ticket ${result.newId} failed`, error);
-  }
+  const emailed = await emailTransfer(deps, result.newId, result.from);
   return { email: req.email, emailed };
+}
+
+/**
+ * Email a transferred ticket to its new holder, trying twice before giving up. True when it went.
+ * Never throws: the transfer has happened either way.
+ */
+async function emailTransfer(
+  deps: TransferDeps,
+  ticketId: string,
+  from: string,
+  resendKey?: string,
+): Promise<boolean> {
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const view = await ticketView(deps.db, deps.signingKey, ticketId);
+      const [row] = await deps.db.select().from(tickets).where(eq(tickets.id, ticketId));
+      if (!view || !row?.holderEmail) return false;
+      await deps.mailer(
+        await ticketEmail({
+          buyer: { name: row.holderName, email: row.holderEmail },
+          totalMinor: 0,
+          tickets: [view],
+          siteUrl: deps.siteUrl,
+          transfer: { from, ticketId, resendKey },
+        }),
+      );
+      return true;
+    } catch (error) {
+      console.error(`Transfer email for ticket ${ticketId} failed (try ${attempt})`, error);
+    }
+  }
+  return false;
+}
+
+/**
+ * "Send it again", from the link of the ticket that was passed on: emails the new holder their
+ * ticket once more. Only while that ticket is still theirs (not passed on again). Undefined when
+ * there is no such transfer.
+ */
+export async function resendTransfer(
+  deps: TransferDeps,
+  oldId: string,
+): Promise<TicketTransferResult | TransferFailure | undefined> {
+  const [old] = await deps.db.select().from(tickets).where(eq(tickets.id, oldId));
+  if (!old?.transferredAt) return undefined;
+  const [next] = await deps.db.select().from(tickets).where(eq(tickets.transferredFromId, oldId));
+  if (!next?.holderEmail) return undefined;
+  if (next.transferredAt) {
+    return {
+      status: 409,
+      error: 'passed_on_again',
+      message: 'They have passed the ticket on to someone else since, so it can’t be resent.',
+    };
+  }
+  const emailed = await emailTransfer(
+    deps,
+    next.id,
+    old.holderName,
+    `resend-${Math.floor(deps.now() / 60_000)}`,
+  );
+  return { email: next.holderEmail, emailed };
 }
