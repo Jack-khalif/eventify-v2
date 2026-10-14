@@ -1,4 +1,5 @@
 import {
+  attendeeListSchema,
   compListSchema,
   eventDashboardSchema,
   organizerHomeSchema,
@@ -257,5 +258,20 @@ describe('complimentary tickets', () => {
       .update(organizers)
       .set({ status: 'active' })
       .where(eq(organizers.id, 'org_amani'));
+  });
+
+  it('lists everyone with a ticket for the organizer’s spreadsheet and door sheet', async () => {
+    const token = await organizer();
+    const list = await get('/organizer/events/evt_tiny/attendees', attendeeListSchema, token);
+    expect(list.event).toMatchObject({ id: 'evt_tiny', title: 'Tiny Gig', venue: 'A Small Room' });
+    expect(list.attendees.map((a) => [a.name, a.tierName, a.kind, a.phone])).toEqual([
+      ['Press Desk', 'Guest list', 'comp', '+254700111222'],
+      ['Wanjiru Kamau', 'Entry', 'comp', ''],
+      ['Wanjiru Kamau', 'Entry', 'comp', ''],
+    ]);
+    expect(list.attendees[1]).toMatchObject({ email: 'Wanjiru@Example.com', checkedInAt: null });
+
+    expect((await send('/organizer/events/evt_tiny/attendees')).status).toBe(401);
+    expect((await send('/organizer/events/evt_hack/attendees', token)).status).toBe(404);
   });
 });

@@ -193,6 +193,51 @@ describe('Organizer dashboard', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
+  it('downloads the guest list as a spreadsheet', async () => {
+    const files: Blob[] = [];
+    URL.createObjectURL = vi.fn((blob: Blob) => (files.push(blob), 'blob:guest-list'));
+    URL.revokeObjectURL = vi.fn();
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const user = userEvent.setup();
+    renderApp('/organizer');
+    await user.click(await screen.findByRole('button', { name: 'Download spreadsheet' }));
+
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe(
+      'sauti-sessions-guest-list.csv',
+    );
+    const lines = (await files[0]!.text()).replace('\uFEFF', '').split('\r\n');
+    expect(lines[0]).toBe('Name,Ticket code,Tier,Type,Email,Phone,Checked in');
+    expect(lines.length).toBeGreaterThan(2);
+  });
+
+  it('lays the guest list out for printing, with a box to tick per guest', async () => {
+    const print = vi.fn();
+    window.print = print;
+    const user = userEvent.setup();
+    renderApp('/organizer');
+    await user.click(await screen.findByRole('link', { name: 'Print door list' }));
+
+    expect(
+      await screen.findByRole('heading', {
+        level: 1,
+        name: 'Sauti Sessions: Afro-house Listening Night',
+      }),
+    ).toBeInTheDocument();
+    const rows = within(screen.getByRole('table')).getAllByRole('row').slice(1);
+    expect(rows.length).toBeGreaterThan(0);
+    // Phone numbers are cut short on paper; nobody is left without a box or a tick.
+    expect(screen.queryByText(/\+254\d{9}/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^•••• \d{3}$/).length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(
+        within(row).queryByLabelText('Not checked in') ?? within(row).queryByText('✓'),
+      ).not.toBeNull();
+    }
+    await user.click(screen.getByRole('button', { name: 'Print or save as PDF' }));
+    expect(print).toHaveBeenCalled();
+  });
+
   it('sends the organizer to support once tickets have been issued', async () => {
     renderApp('/organizer');
     const section = (await screen.findByRole('heading', { name: 'Delete this event' }))

@@ -446,3 +446,6 @@ export function resendTransfer(oldId: string): TicketTransferResult | undefined 
   const next = Object.values(db.tickets).find((t) => t.transferredFromId === oldId);
   return next?.holderEmail ? { email: next.holderEmail, emailed: true } : undefined;
 }
+
+/** Whether an order is complimentary tickets from the organizer. */
+export const isCompOrder = (orderId: string) => (db.comps ?? []).some((c) => c.orderId === orderId);

@@ -1,4 +1,5 @@
 import {
+  attendeeListSchema,
   compListSchema,
   compRequestSchema,
   createEventRequestSchema,
@@ -119,5 +120,17 @@ export function useRequestMerch(eventId: string) {
     mutationFn: (req: MerchRequest) =>
       apiPost(merchPath(eventId), merchRequestSchema.parse(req), merchListSchema),
     onSuccess: (list) => queryClient.setQueryData(['my-organizer', 'merch', eventId], list),
+  });
+}
+
+/** Everyone holding a ticket, for the spreadsheet download and the printed door list. */
+export function useAttendees(eventId: string, { enabled = true } = {}) {
+  return useQuery({
+    queryKey: ['my-organizer', 'attendees', eventId],
+    queryFn: () =>
+      apiGet(`/api/organizer/events/${encodeURIComponent(eventId)}/attendees`, attendeeListSchema),
+    enabled,
+    // Always fresh: it's downloaded or printed to use at the door.
+    staleTime: 0,
   });
 }

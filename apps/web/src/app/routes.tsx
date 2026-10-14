@@ -17,6 +17,7 @@ import { CheckinPage } from '../features/checkin/CheckinPage';
 import { CheckoutPage } from '../features/checkout/CheckoutPage';
 import { CreateEventPage } from '../features/create-event/CreateEventPage';
 import { OrderPage } from '../features/checkout/OrderPage';
+import { GuestListPrintPage } from '../features/dashboard/GuestListPrintPage';
 import { DiscoverPage } from '../features/discover/DiscoverPage';
 import { EventPage } from '../features/event/EventPage';
 import { OrganizerPage } from '../features/organizer/OrganizerPage';
@@ -61,6 +62,8 @@ export const routes: RouteObject[] = [
   // Signing in and signing up have a page of their own (AuthShell), without the site header.
   { path: 'login', element: <LoginPage /> },
   { path: 'organizer/apply', element: <ApplyPage /> },
+  // Laid out for paper, so without the site header.
+  { path: 'organizer/events/:id/guest-list', element: <GuestListPrintPage /> },
   {
     element: <AppLayout />,
     children: [

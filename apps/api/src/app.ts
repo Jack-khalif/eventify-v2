@@ -71,6 +71,7 @@ import {
   type AccountRow,
   type OpenedSession,
 } from './auth';
+import { attendeeList } from './attendees';
 import { compList, issueComps } from './comps';
 import { doorList, eventForCheckinCode, syncDoor, type VerifyKey } from './checkin';
 import type { Db } from './db/client';
@@ -625,6 +626,14 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
       },
       403,
     );
+
+  // The guest list, for the organizer's spreadsheet and printed door list. Any standing will do.
+  app.get('/organizer/events/:id/attendees', async (c) => {
+    const organizer = await organizerOf(c);
+    if (organizer instanceof Response) return organizer;
+    const list = await attendeeList(db, organizer, c.req.param('id'));
+    return list ? c.json(list) : notFound(c);
+  });
 
   // Complimentary tickets: issued and emailed like a purchase, at no charge.
   app.get('/organizer/events/:id/comps', async (c) => {

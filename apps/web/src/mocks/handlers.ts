@@ -81,7 +81,7 @@ import {
   setOrganizerStatus,
   type AdminError,
 } from './admin';
-import { doorList, scannerCheckIns, syncDoor } from './checkin';
+import { attendeeList, doorList, scannerCheckIns, syncDoor } from './checkin';
 import {
   allEvents,
   createEvent,
@@ -463,6 +463,14 @@ export const handlers = [
     const id = String(params.id);
     const dashboard = eventDashboard(organizer.id, id, scannerCheckIns(id));
     return dashboard ? HttpResponse.json(dashboard) : notFound();
+  }),
+
+  http.get('*/api/organizer/events/:id/attendees', async ({ params, request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    const event = allEvents().find((e) => e.id === params.id && e.organizerId === organizer.id);
+    return event ? HttpResponse.json(attendeeList(event)) : notFound();
   }),
 
   http.get('*/api/organizer/events/:id/comps', async ({ params, request }) => {
