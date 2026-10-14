@@ -27,6 +27,11 @@ const guests: DoorGuest[] = [
   guest('tkt_0533', 'Nyandeng Deng', '+211922456781'),
 ];
 
+/** Amina's first ticket, which she passed on before the door list was downloaded. */
+const passedOn = [
+  { ticketId: 'tkt_0399', code: 'EVT-SAUTI-0399', passSecret: generatePassSecret() },
+];
+
 let keys: CryptoKeyPair;
 beforeAll(async () => {
   keys = (await crypto.subtle.generateKey({ name: 'Ed25519' }, false, [
@@ -65,9 +70,25 @@ describe('checkQr', () => {
       reason: 'other_event',
     });
   });
+
+  it('says so when the ticket was passed on to someone else', async () => {
+    const qr = await signTicketQr(keys.privateKey, 'tkt_0399');
+    expect(await checkQr(qr, guests, keys.publicKey, passedOn)).toEqual({
+      kind: 'invalid',
+      reason: 'transferred',
+    });
+  });
 });
 
 describe('checkLiveCode', () => {
+  it('says so when the pass showing the code was passed on', async () => {
+    const code = await liveCode(passedOn[0]!.passSecret, t0);
+    expect(await checkLiveCode(code, guests, t0, passedOn)).toEqual({
+      kind: 'invalid',
+      reason: 'transferred',
+    });
+  });
+
   it('finds the guest whose pass shows the code, allowing for a few seconds of clock drift', async () => {
     const code = await liveCode(guests[2]!.passSecret, t0);
     expect(await checkLiveCode(code.toLowerCase(), guests, t0 + 6_000)).toMatchObject({

@@ -181,6 +181,10 @@ describe('transferring a ticket', () => {
 
     // The door has the new ticket under Wanjiru, and not the old one, even from a stale device.
     const door = await get('/checkin/tiny-0123456789ab', doorListSchema);
+    // It keeps the old one aside, so an old pass is turned away as transferred.
+    expect(door.transferred).toEqual([
+      { ticketId: mine!.id, code: before.code, passSecret: before.passSecret },
+    ]);
     expect(door.guests.map((g) => g.ticketId).sort()).toEqual([kept!.id, newId].sort());
     expect(door.guests.find((g) => g.ticketId === newId)).toMatchObject({
       name: 'Wanjiru Kamau',

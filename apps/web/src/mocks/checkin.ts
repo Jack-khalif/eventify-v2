@@ -8,7 +8,7 @@ import {
 } from '@eventify/shared';
 import { doors as sampleDoors, guests as sampleGuests } from '@eventify/shared/fixtures';
 import { DEV_QR_PUBLIC_KEY } from './devKeys';
-import { recordTicketCheckIn, ticketsForEvent } from './orders';
+import { recordTicketCheckIn, ticketsForEvent, transferredForEvent } from './orders';
 
 /**
  * In-browser stand-in for door check-in until the backend exists: hands out the guest list for
@@ -100,6 +100,7 @@ export function doorList(event: PublicEvent, checkinCode: string, now = Date.now
     },
     doors: [...names],
     guests: guestsFor(event),
+    transferred: transferredForEvent(event.id),
     verifyKey: { kty: 'OKP', crv: 'Ed25519', x: DEV_QR_PUBLIC_KEY.x! },
     downloadedAt: toEatIso(now),
   };
