@@ -1,10 +1,13 @@
 import {
   MERCH_ITEM_LABEL,
+  MERCH_STATUS_LABEL,
   SUPPORT_EMAIL,
   toEatIso,
   type AdminMerchRow,
+  type MerchLine,
   type MerchRequest,
   type MerchRequestRow,
+  type MerchStatus,
   type MerchStatusChange,
 } from '@eventify/shared';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
@@ -19,6 +22,10 @@ type MerchRow = typeof merchRequests.$inferSelect;
 type AdminError = { status: 404; error: string; message: string };
 
 const eatIso = (d: Date) => toEatIso(d.getTime());
+
+const merchLines = (items: MerchLine[]) =>
+  items.map((l) => `${l.quantity.toLocaleString('en-US')} × ${MERCH_ITEM_LABEL[l.item]}`);
+const merchSummary = (items: MerchLine[]) => merchLines(items).join(', ');
 
 const toRow = (r: MerchRow): MerchRequestRow => ({
   id: r.id,
@@ -76,9 +83,7 @@ export async function requestMerch(
     updatedAt: at,
   });
 
-  const lines = req.items.map(
-    (l) => `${l.quantity.toLocaleString('en-US')} × ${MERCH_ITEM_LABEL[l.item]}`,
-  );
+  const lines = merchLines(req.items);
   try {
     await deps.mailer({
       to: SUPPORT_EMAIL,
@@ -143,22 +148,79 @@ export async function merchQueue(db: Db): Promise<AdminMerchRow[]> {
   return rows.map(toAdminRow);
 }
 
-/** Move a request along the queue. The note, if any, replaces what the organizer last saw. */
+/**
+ * Move a request along the queue. The note, if any, replaces what the organizer last saw. Whoever
+ * asked for the merch is emailed when the status or the note changes; that never fails the change.
+ */
 export async function setMerchStatus(
-  { db, now }: { db: Db; now: () => number },
+  deps: { db: Db; mailer: Mailer; siteUrl: string; now: () => number },
   id: string,
   change: MerchStatusChange,
 ): Promise<AdminMerchRow | AdminError> {
-  const [updated] = await db
+  const { db, now } = deps;
+  const [before] = await db.select().from(merchRequests).where(eq(merchRequests.id, id));
+  if (!before) return { status: 404, error: 'not_found', message: 'Not found' };
+  await db
     .update(merchRequests)
     .set({
       status: change.status,
       ...(change.note && { opsNote: change.note }),
       updatedAt: new Date(now()),
     })
-    .where(eq(merchRequests.id, id))
-    .returning();
-  if (!updated) return { status: 404, error: 'not_found', message: 'Not found' };
+    .where(eq(merchRequests.id, id));
   const [row] = await adminRows(db).where(eq(merchRequests.id, id));
-  return toAdminRow(row!);
+  const updated = toAdminRow(row!);
+  if (updated.status !== before.status || updated.opsNote !== before.opsNote) {
+    await tellOrganizer(deps, updated, updated.status !== before.status);
+  }
+  return updated;
+}
+
+const STATUS_LINE: Record<MerchStatus, string> = {
+  received: 'We have your request and will be in touch about artwork and a quote.',
+  in_production: 'It’s being printed.',
+  ready: 'It’s ready for you to collect.',
+  delivered: 'It’s been handed over. Enjoy the event!',
+  cancelled: 'It has been cancelled.',
+};
+
+/** "Your merch for Sauti Sessions is in production", with the team's note and a dashboard link. */
+async function tellOrganizer(
+  deps: { mailer: Mailer; siteUrl: string },
+  r: AdminMerchRow,
+  statusChanged: boolean,
+) {
+  const status = MERCH_STATUS_LABEL[r.status];
+  const what = merchSummary(r.items);
+  const link = `${deps.siteUrl}/organizer?event=${encodeURIComponent(r.event.id)}`;
+  const lead = statusChanged
+    ? `Your merch request for ${r.event.title} is now: ${status}. ${STATUS_LINE[r.status]}`
+    : `There’s an update on your merch request for ${r.event.title}.`;
+  try {
+    await deps.mailer({
+      to: r.organizer.email,
+      subject: statusChanged
+        ? `Merch for ${r.event.title}: ${status}`
+        : `Merch for ${r.event.title}: a note from Eventify`,
+      text: [
+        lead,
+        '',
+        what,
+        ...(r.opsNote ? ['', `From Eventify: ${r.opsNote}`] : []),
+        '',
+        `See it on your dashboard: ${link}`,
+      ].join('\n'),
+      html: emailShell({
+        siteUrl: deps.siteUrl,
+        preview: lead,
+        content: `
+          <p style="margin:0 0 10px">${escapeHtml(lead)}</p>
+          <p style="margin:0 0 10px;font-weight:700">${escapeHtml(what)}</p>
+          ${r.opsNote ? `<p style="margin:0 0 14px;white-space:pre-wrap"><strong>From Eventify:</strong> ${escapeHtml(r.opsNote)}</p>` : ''}
+          <a href="${escapeHtml(link)}">See it on your dashboard</a>`,
+      }),
+    });
+  } catch (error) {
+    console.error(`Telling ${r.organizer.handle} about merch request ${r.id} failed`, error);
+  }
 }

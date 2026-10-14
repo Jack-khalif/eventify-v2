@@ -24,7 +24,7 @@ export function MerchQueuePage() {
     <AdminPage title="Print queue" width="max-w-[1000px]">
       <p className="-mt-2 m-0 text-sm text-muted">
         Branded merch organizers have asked for. Move each one along as it's quoted, printed and
-        handed over; the organizer sees the status and your note on their dashboard.
+        handed over; the organizer is emailed each change and sees it on their dashboard.
       </p>
       <QueryView query={query} label="print queue">
         {(rows) =>
@@ -130,7 +130,7 @@ function StatusDialog({ request, onClose }: { request: AdminMerchRow; onClose: (
           maxLength={500}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          hint="Shown on their dashboard."
+          hint="Emailed to them and shown on their dashboard."
         />
         {save.error && (
           <p role="alert" className="m-0 font-semibold text-danger">
