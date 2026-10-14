@@ -5,9 +5,10 @@ import {
   type PaymentFailure,
   type PublicEvent,
   SUPPORT_EMAIL,
+  type TicketTransferResult,
 } from '@eventify/shared';
 import { CircleAlert, Clock, Smartphone } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { ErrorState, NotFoundState } from '../../components/PageStates';
 import { Button, buttonClass } from '../../components/ui';
@@ -16,6 +17,7 @@ import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useEvent } from '../event/useEvent';
 import { LivePass } from '../tickets/LivePass';
 import { PassActions } from '../tickets/PassActions';
+import { TransferDone, TransferTicket } from '../tickets/TransferTicket';
 import { useTicket } from '../tickets/useTickets';
 import type { CheckoutState } from './CheckoutPage';
 import { TestModeHint } from './TestModeHint';
@@ -266,8 +268,31 @@ function Closed({
 function Success({ order }: { order: OrderView }) {
   const [first, ...rest] = order.tickets;
   const pass = useTicket(first?.id ?? '');
+  const [transferred, setTransferred] = useState<(TicketTransferResult & { name: string }) | null>(
+    null,
+  );
+  const done = transferred && <TransferDone result={transferred} />;
+  if (!first) {
+    // Every ticket in the order has been passed on: they belong to other people now.
+    return (
+      <Centered>
+        {done}
+        <div className="flex max-w-[380px] flex-col gap-2">
+          <h1 className="m-0 text-2xl tracking-[-0.02em]">Your tickets were transferred</h1>
+          <p className="m-0 text-[15px] text-muted">
+            Whoever you passed them to got their own by email. The ones from this order no longer
+            work.
+          </p>
+        </div>
+        <Link to="/discover" className="text-[13px] text-muted">
+          Back to Discover
+        </Link>
+      </Centered>
+    );
+  }
   return (
     <section className="mx-auto flex w-full max-w-[520px] flex-1 flex-col items-center gap-[18px] px-5 pt-8 pb-10">
+      {done}
       <div className="flex flex-col gap-1 text-center">
         <h1 className="m-0 text-[26px] tracking-[-0.02em]">You're going! 🎉</h1>
         <p className="m-0 text-[13px] text-muted">
@@ -310,6 +335,9 @@ function Success({ order }: { order: OrderView }) {
         </ul>
       )}
       {pass.data && <PassActions event={pass.data.event} />}
+      {pass.data && !pass.data.checkedInAt && (
+        <TransferTicket ticket={pass.data} onTransferred={setTransferred} />
+      )}
       {first && (
         <Link to={`/t/${first.id}/delivery`} className="text-[13px] font-bold text-accent-text">
           Preview the SMS &amp; email →

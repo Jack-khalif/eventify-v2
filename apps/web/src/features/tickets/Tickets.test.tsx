@@ -10,7 +10,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEV_QR_PUBLIC_KEY } from '../../mocks/devKeys';
-import { seedDemoTicket, ticketsForPhone } from '../../mocks/orders';
+import { seedDemoTicket, ticketsForEmail, ticketsForPhone } from '../../mocks/orders';
 import { DEMO_TICKET_PHONE, TEST_LOOKUP_CODE } from '../../mocks/testPhones';
 import { renderApp } from '../../test/render';
 
@@ -75,6 +75,45 @@ describe('Live Pass', () => {
     } finally {
       delete (navigator as { share?: unknown }).share;
     }
+  });
+
+  it('transfers the ticket to someone else, after which this pass stops working', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderApp(`/t/${ticket.id}`);
+    await user.click(await screen.findByRole('button', { name: 'Transfer ticket' }));
+    const dialog = screen.getByRole('dialog', { name: 'Transfer this ticket' });
+    expect(within(dialog).getByText(ticket.code)).toBeInTheDocument();
+
+    // Not back to the person who already holds it.
+    await user.type(within(dialog).getByLabelText('Their name'), 'Amina');
+    await user.type(within(dialog).getByLabelText('Their email'), 'amina@example.com');
+    await user.click(within(dialog).getByRole('button', { name: 'Transfer ticket' }));
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('already theirs');
+
+    await user.clear(within(dialog).getByLabelText('Their name'));
+    await user.type(within(dialog).getByLabelText('Their name'), 'Wanjiru Kamau');
+    await user.clear(within(dialog).getByLabelText('Their email'));
+    await user.type(within(dialog).getByLabelText('Their email'), 'wanjiru@example.com');
+    await user.click(within(dialog).getByRole('button', { name: 'Transfer ticket' }));
+
+    expect(await screen.findByRole('status')).toHaveTextContent(
+      "We've emailed Wanjiru Kamau's new ticket to wanjiru@example.com.",
+    );
+    expect(screen.queryByRole('article', { name: /^Live Pass/ })).not.toBeInTheDocument();
+
+    // Wanjiru has a new ticket; Amina's phone lookup no longer finds the old one.
+    const [theirs] = await ticketsForEmail('wanjiru@example.com', publicEvents());
+    expect(theirs).toMatchObject({ holderName: 'Wanjiru Kamau', index: 1, count: 1 });
+    expect(theirs!.code).not.toBe(ticket.code);
+    expect(await ticketsForPhone(DEMO_TICKET_PHONE, publicEvents())).toEqual([]);
+
+    // Opening the old link later says where it went.
+    unmount();
+    renderApp(`/t/${ticket.id}`);
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Ticket transferred' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/transferred to w•••@example\.com on/)).toBeInTheDocument();
   });
 
   it('explains when the link is wrong', async () => {

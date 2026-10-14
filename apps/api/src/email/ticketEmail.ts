@@ -31,27 +31,58 @@ const ticketLine = (t: TicketView) =>
 
 /**
  * The ticket email from the design's delivery screen: event, when and where, then each ticket's
- * code, backup QR and Live Pass link. One email covers every ticket in the order.
+ * code, backup QR and Live Pass link. One email covers every ticket in the order, or the one
+ * ticket someone passed on.
  */
-export async function ticketEmail(p: {
-  buyer: { name: string; email: string };
-  orderId: string;
-  totalMinor: number;
-  /** Complimentary tickets the organizer sent, rather than ones the guest bought. */
-  comp?: boolean;
-  tickets: TicketView[];
-  siteUrl: string;
-}): Promise<Email> {
+export async function ticketEmail(
+  p: {
+    /** Whoever the tickets are for. */
+    buyer: { name: string; email: string };
+    totalMinor: number;
+    tickets: TicketView[];
+    siteUrl: string;
+  } & (
+    | {
+        orderId: string;
+        /** Complimentary tickets the organizer sent, rather than ones the guest bought. */
+        comp?: boolean;
+      }
+    | {
+        /** A ticket passed on by its holder. Its new holder isn't told the order: that link is the buyer's. */
+        transfer: { from: string; ticketId: string };
+      }
+  ),
+): Promise<Email> {
   const event = p.tickets[0]!.event;
   const first = p.buyer.name.trim().split(/\s+/)[0]!;
   const when = `${formatDate(event.startsAt)} · ${formatTimeRange(event.startsAt, event.endsAt)}`;
   const many = p.tickets.length > 1;
   const passUrl = (t: TicketView) => `${p.siteUrl}/t/${t.id}`;
-  const paid = p.comp
-    ? `Complimentary ${many ? 'tickets' : 'ticket'} from ${event.organizer.name}`
-    : p.totalMinor > 0
-      ? `Paid: ${formatMoney(event.currency, p.totalMinor)}`
-      : 'Free ticket';
+  const tickets = many ? 'tickets' : 'ticket';
+  const words =
+    'transfer' in p
+      ? {
+          lead: `Hi ${first}, ${p.transfer.from} has passed a ticket on to you. Show it at the door.`,
+          opening: `Hi ${first}, ${p.transfer.from} has passed you a ticket for ${event.title}.`,
+          subject: `${p.transfer.from} sent you a ticket for ${event.title}`,
+          footer: `Transferred to you by ${p.transfer.from}`,
+          key: `ticket-transfer/${p.transfer.ticketId}`,
+        }
+      : p.comp
+        ? {
+            lead: `Hi ${first}, ${event.organizer.name} has sent you ${many ? `${p.tickets.length} tickets` : 'a ticket'}. Show ${many ? 'them' : 'it'} at the door.`,
+            opening: `Hi ${first}, ${event.organizer.name} has sent you ${many ? 'tickets' : 'a ticket'} for ${event.title}.`,
+            subject: `${event.organizer.name} sent you ${many ? 'tickets' : 'a ticket'} for ${event.title}`,
+            footer: `Complimentary ${tickets} from ${event.organizer.name} · Order ${p.orderId}`,
+            key: `ticket-email/${p.orderId}`,
+          }
+        : {
+            lead: `Hi ${first}, you’re confirmed. Show ${many ? 'these tickets' : 'this ticket'} at the door.`,
+            opening: `Hi ${first}, you're confirmed for ${event.title}.`,
+            subject: `Your ${tickets} for ${event.title}`,
+            footer: `${p.totalMinor > 0 ? `Paid: ${formatMoney(event.currency, p.totalMinor)}` : 'Free ticket'} · Order ${p.orderId}`,
+            key: `ticket-email/${p.orderId}`,
+          };
 
   const inlineImages = await Promise.all(
     p.tickets.map(async (t, i) => ({
@@ -78,14 +109,11 @@ export async function ticketEmail(p: {
     )
     .join('');
 
-  const lead = p.comp
-    ? `Hi ${first}, ${event.organizer.name} has sent you ${many ? `${p.tickets.length} tickets` : 'a ticket'}. Show ${many ? 'them' : 'it'} at the door.`
-    : `Hi ${first}, you’re confirmed. Show ${many ? 'these tickets' : 'this ticket'} at the door.`;
   const html = emailShell({
     siteUrl: p.siteUrl,
-    preview: `${lead} ${when} at ${event.venue}.`,
+    preview: `${words.lead} ${when} at ${event.venue}.`,
     content: `
-          <div style="font-size:14px;color:${MUTED};padding-bottom:10px">${escapeHtml(lead)}</div>
+          <div style="font-size:14px;color:${MUTED};padding-bottom:10px">${escapeHtml(words.lead)}</div>
           <div style="font-size:18px;font-weight:800;color:${INK};padding-bottom:8px">${escapeHtml(event.title)}</div>
           <div style="font-size:13px;line-height:1.5;color:${MUTED}">
             ${escapeHtml(when)}<br>
@@ -93,32 +121,28 @@ export async function ticketEmail(p: {
           </div>
           ${ticketBlocks}
           <div style="font-size:12px;line-height:1.5;color:${MUTED};padding-top:14px">
-            ${escapeHtml(paid)} · Order ${escapeHtml(p.orderId)}<br>
+            ${escapeHtml(words.footer)}<br>
             The Live Pass link is your ticket, so only share it with whoever is using it.
           </div>`,
   });
 
   const text = [
-    p.comp
-      ? `Hi ${first}, ${event.organizer.name} has sent you ${many ? 'tickets' : 'a ticket'} for ${event.title}.`
-      : `Hi ${first}, you're confirmed for ${event.title}.`,
+    words.opening,
     '',
     when,
     `${event.venue} (map: ${directionsUrl(event)})`,
     '',
     ...p.tickets.flatMap((t) => [`${t.code} · ${ticketLine(t)}`, `Live Pass: ${passUrl(t)}`, '']),
-    `${paid} · Order ${p.orderId}`,
+    words.footer,
     'The Live Pass link is your ticket, so only share it with whoever is using it.',
   ].join('\n');
 
   return {
     to: p.buyer.email,
-    subject: p.comp
-      ? `${event.organizer.name} sent you ${many ? 'tickets' : 'a ticket'} for ${event.title}`
-      : `Your ${many ? 'tickets' : 'ticket'} for ${event.title}`,
+    subject: words.subject,
     html,
     text,
     inlineImages,
-    idempotencyKey: `ticket-email/${p.orderId}`,
+    idempotencyKey: words.key,
   };
 }

@@ -3,6 +3,7 @@ import { and, asc, eq, gt, isNull, or } from 'drizzle-orm';
 import type { Db } from './db/client';
 import { eventDoors, events, orders, tickets, tiers } from './db/schema';
 import { loadEvents } from './events';
+import { inUse } from './tickets';
 import { eatIso } from './time';
 
 export type VerifyKey = DoorList['verifyKey'];
@@ -24,7 +25,7 @@ export async function doorList(
     .from(tickets)
     .innerJoin(orders, eq(tickets.orderId, orders.id))
     .innerJoin(tiers, eq(orders.tierId, tiers.id))
-    .where(eq(tickets.eventId, event.id))
+    .where(and(eq(tickets.eventId, event.id), inUse))
     .orderBy(asc(tickets.code));
   const doors = await db
     .select()
@@ -46,7 +47,8 @@ export async function doorList(
       ticketId: t.id,
       code: t.code,
       name: t.holderName,
-      phone,
+      // The buyer's number means nothing for a ticket they passed on to someone else.
+      phone: t.holderEmail ? '' : phone,
       tierName,
       checkedInAt: t.checkedInAt && eatIso(t.checkedInAt),
       checkedInDoor: t.checkedInDoor,
@@ -61,8 +63,8 @@ export async function doorList(
 const MAX_CLOCK_AHEAD_MS = 5 * 60_000;
 
 /**
- * Merge a device's check-ins and hand back the merged list. Tickets for other events are ignored,
- * and when two devices checked the same ticket in, the earlier one stands.
+ * Merge a device's check-ins and hand back the merged list. Tickets for other events, and tickets
+ * since passed on, are ignored; when two devices checked the same ticket in, the earlier one stands.
  */
 export async function syncDoor(
   db: Db,
@@ -84,6 +86,8 @@ export async function syncDoor(
         and(
           eq(tickets.id, c.ticketId),
           eq(tickets.eventId, event.id),
+          // A device that hadn't synced since a transfer can't check in the ticket it replaced.
+          inUse,
           or(isNull(tickets.checkedInAt), gt(tickets.checkedInAt, at)),
         ),
       );
