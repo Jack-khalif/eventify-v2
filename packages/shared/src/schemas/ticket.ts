@@ -99,6 +99,18 @@ export const ticketLookupResultSchema = z.object({ tickets: z.array(ticketViewSc
 export const doorGuestSchema = guestSchema.extend({ passSecret: z.string().min(16) });
 export type DoorGuest = z.infer<typeof doorGuestSchema>;
 
+/**
+ * A ticket for this event that was passed on to someone else. Door devices keep these so an old
+ * pass is turned away as "transferred" rather than as an unknown ticket. Its secret is dead, so
+ * sending it does no harm.
+ */
+export const doorTransferredSchema = z.object({
+  ticketId: idSchema,
+  code: ticketCodeSchema,
+  passSecret: z.string().min(16),
+});
+export type DoorTransferred = z.infer<typeof doorTransferredSchema>;
+
 /** Public half of the key that signs backup QRs (a JWK). */
 export const qrVerifyKeySchema = z.object({
   kty: z.literal('OKP'),
@@ -123,6 +135,8 @@ export const doorListSchema = z.object({
   /** Door names already in use, offered when a new device picks its door. */
   doors: z.array(z.string()),
   guests: z.array(doorGuestSchema),
+  /** Defaults so a device's saved list, or an older API's, still reads. */
+  transferred: z.array(doorTransferredSchema).default([]),
   verifyKey: qrVerifyKeySchema,
   downloadedAt: dateTimeSchema,
 });

@@ -9,6 +9,7 @@ import {
   normalizeLiveCode,
   searchGuests,
   type DoorGuest,
+  type DoorTransferred,
   type DoorList,
   type DoorResult,
 } from '@eventify/shared';
@@ -128,8 +129,10 @@ function Scanner({ door, list }: { door: Door; list: DoorList }) {
   const verifyKey = useMemo(() => importVerifyKey(list.verifyKey), [list.verifyKey]);
   // Scans resolve asynchronously; always judge them against the latest guest list.
   const latestGuests = useRef(guests);
+  const latestTransferred = useRef(list.transferred);
   useEffect(() => {
     latestGuests.current = guests;
+    latestTransferred.current = list.transferred;
   });
 
   useEffect(() => {
@@ -146,7 +149,7 @@ function Scanner({ door, list }: { door: Door; list: DoorList }) {
   };
 
   const onQr = async (text: string) =>
-    show(await checkQr(text, latestGuests.current, await verifyKey));
+    show(await checkQr(text, latestGuests.current, await verifyKey, latestTransferred.current));
 
   return (
     <div className="mx-auto flex w-full max-w-[520px] flex-col gap-4 px-5 pt-4 pb-12">
@@ -186,7 +189,7 @@ function Scanner({ door, list }: { door: Door; list: DoorList }) {
 
       {cameraSupported() && <QrScanner onScan={onQr} paused={holding} />}
 
-      <LiveCodeForm onResult={show} guests={guests} />
+      <LiveCodeForm onResult={show} guests={guests} transferred={list.transferred} />
 
       <div aria-live="polite" className="empty:hidden">
         {result && <ResultCard result={result} />}
@@ -237,9 +240,11 @@ function SyncBanner({ door, list }: { door: Door; list: DoorList }) {
 
 function LiveCodeForm({
   guests,
+  transferred,
   onResult,
 }: {
   guests: DoorGuest[];
+  transferred: DoorTransferred[];
   onResult: (r: DoorResult) => void;
 }) {
   const [code, setCode] = useState('');
@@ -249,7 +254,7 @@ function LiveCodeForm({
     if (!code.trim()) return;
     setChecking(true);
     try {
-      onResult(await checkLiveCode(code, guests));
+      onResult(await checkLiveCode(code, guests, Date.now(), transferred));
       setCode('');
     } finally {
       setChecking(false);
@@ -278,6 +283,10 @@ function LiveCodeForm({
 const INVALID_TEXT = {
   not_a_ticket: ['Not a ticket', "This QR code isn't an Eventify ticket."],
   other_event: ['Wrong event', 'This ticket is for a different event.'],
+  transferred: [
+    'Ticket transferred',
+    'This ticket was passed on to someone else and no longer works. The new holder has their own.',
+  ],
   wrong_code: [
     'Code not recognised',
     'Check the code on their Live Pass and try again. It changes every few seconds.',

@@ -296,6 +296,12 @@ export function ticketsForEvent(eventId: string) {
   });
 }
 
+/** Tickets for an event that were passed on, so the door can say so when an old pass turns up. */
+export const transferredForEvent = (eventId: string) =>
+  Object.values(db.tickets)
+    .filter((t) => t.transferredAt && db.orders[t.orderId]?.eventId === eventId)
+    .map((t) => ({ ticketId: t.id, code: t.code, passSecret: t.secret }));
+
 /** Record a door check-in on a ticket. The earliest one stands. */
 export function recordTicketCheckIn(ticketId: string, at: string, door: string) {
   const t = db.tickets[ticketId];
