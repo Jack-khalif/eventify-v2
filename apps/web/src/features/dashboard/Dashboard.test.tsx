@@ -1,7 +1,9 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createEvent } from '../../mocks/events';
+import { server } from '../../mocks/node';
 import { renderApp } from '../../test/render';
 import { signInAs } from '../../test/signIn';
 
@@ -172,6 +174,22 @@ describe('Organizer dashboard', () => {
     const after = (await screen.findByRole('heading', { name: 'Branded merch' })).parentElement!;
     expect(await within(after).findByText('In production')).toBeInTheDocument();
     expect(within(after).getByText('Ready Thursday.')).toBeInTheDocument();
+  });
+
+  it('leaves out cards the API doesn’t know about yet, mid-release', async () => {
+    const notYet = () =>
+      HttpResponse.json({ error: 'not_found', message: 'Not found' }, { status: 404 });
+    server.use(
+      http.get('*/api/organizer/events/:id/comps', notYet),
+      http.get('*/api/organizer/events/:id/merch', notYet),
+    );
+    renderApp('/organizer');
+    expect(await screen.findByText('231 / 412 checked in')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Complimentary tickets' })).toBeNull();
+      expect(screen.queryByRole('heading', { name: 'Branded merch' })).toBeNull();
+    });
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('sends the organizer to support once tickets have been issued', async () => {

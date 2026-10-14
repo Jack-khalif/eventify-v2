@@ -8,6 +8,7 @@ import {
 import { Gift } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { ErrorState } from '../../components/PageStates';
+import { isNotFound } from '../../lib/api';
 import { Button, Card, Dialog, SelectField, Stepper, Tag, TextField } from '../../components/ui';
 import { useComps, useIssueComps } from './useDashboard';
 
@@ -22,6 +23,9 @@ export function CompTickets({ eventId, canIssue }: { eventId: string; canIssue: 
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
   const issued = comps.data?.comps.reduce((sum, c) => sum + c.quantity, 0) ?? 0;
+
+  // Not on the server yet (see newerEndpoint): show nothing rather than an error.
+  if (isNotFound(comps.error)) return null;
 
   return (
     <Card className="flex min-w-0 flex-[1_1_320px] flex-col gap-3 p-5">

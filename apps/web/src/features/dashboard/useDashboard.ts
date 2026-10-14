@@ -12,7 +12,7 @@ import {
   type MerchRequest,
 } from '@eventify/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiDelete, apiGet, apiPost } from '../../lib/api';
+import { apiDelete, apiGet, apiPost, isNotFound } from '../../lib/api';
 
 /** Signed-in organizer and their events. ("organizer" keys are public profiles.) */
 export function useOrganizerHome() {
@@ -67,6 +67,16 @@ export function useDeleteEvent() {
   });
 }
 
+/**
+ * For a dashboard card whose endpoint is newer than the rest. The web app goes live a few minutes
+ * before the API on each release, and until then the old API answers 404; the card hides and asks
+ * again each minute, so it appears by itself once the API catches up.
+ */
+const newerEndpoint = {
+  refetchInterval: (query: { state: { error: unknown } }) =>
+    isNotFound(query.state.error) ? 60_000 : false,
+} as const;
+
 const compsPath = (eventId: string) => `/api/organizer/events/${encodeURIComponent(eventId)}/comps`;
 
 /** Complimentary tickets issued for an event, and the tiers they can come from. */
@@ -74,6 +84,7 @@ export function useComps(eventId: string) {
   return useQuery({
     queryKey: ['my-organizer', 'comps', eventId],
     queryFn: () => apiGet(compsPath(eventId), compListSchema),
+    ...newerEndpoint,
   });
 }
 
@@ -98,6 +109,7 @@ export function useMerch(eventId: string) {
   return useQuery({
     queryKey: ['my-organizer', 'merch', eventId],
     queryFn: () => apiGet(merchPath(eventId), merchListSchema),
+    ...newerEndpoint,
   });
 }
 

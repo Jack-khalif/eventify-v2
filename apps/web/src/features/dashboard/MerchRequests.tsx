@@ -9,6 +9,7 @@ import {
 import { Shirt } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { ErrorState } from '../../components/PageStates';
+import { isNotFound } from '../../lib/api';
 import { Button, Card, Dialog, Tag, TextAreaField, TextField } from '../../components/ui';
 import { MERCH_STATUS, merchSummary } from '../admin/format';
 import { useMerch, useRequestMerch } from './useDashboard';
@@ -21,6 +22,9 @@ export function MerchRequests({ eventId, canRequest }: { eventId: string; canReq
   const merch = useMerch(eventId);
   const [open, setOpen] = useState(false);
   const [sent, setSent] = useState(false);
+
+  // Not on the server yet (see newerEndpoint): show nothing rather than an error.
+  if (isNotFound(merch.error)) return null;
 
   return (
     <Card className="flex min-w-0 flex-[1_1_320px] flex-col gap-3 p-5">
