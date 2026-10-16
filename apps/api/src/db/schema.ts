@@ -28,6 +28,9 @@ import {
   timestamp,
 } from 'drizzle-orm/pg-core';
 
+/** Why a payment was sent back. */
+export type RefundReason = 'late' | 'duplicate' | 'amount_mismatch';
+
 /** Enum-like columns are text typed from the shared schemas, so adding a value needs no migration. */
 const instant = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 
@@ -319,6 +322,19 @@ export const paymentAttempts = pgTable(
     /** null while the buyer hasn't answered (or never did before the hold ran out). */
     outcome: text('outcome').$type<'paid' | PaymentFailure>(),
     resolvedAt: instant('resolved_at'),
+    /** Paystack's own words for the outcome (its gateway response), for support. */
+    detail: text('detail'),
+    /** Card prompts: Paystack's checkout page for this attempt. */
+    paymentUrl: text('payment_url'),
+    /** When we last asked the provider about it ourselves, so reads don't hammer its API. */
+    checkedAt: instant('checked_at'),
+    /**
+     * Money that came in but bought nothing: a payment after the order closed with no tickets left,
+     * a second payment for an order already paid, or an amount that doesn't match the order.
+     */
+    refundReason: text('refund_reason').$type<RefundReason>(),
+    /** due = still to be sent back (a failed request is retried), requested = Paystack has it. */
+    refundStatus: text('refund_status').$type<'due' | 'requested'>(),
   },
   (t) => [index('payment_attempts_order_idx').on(t.orderId)],
 );

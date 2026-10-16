@@ -5,7 +5,7 @@ import type { Currency } from './enums';
  * Fee rates are integers in basis points: 450 = 4.5%.
  */
 
-export const CURRENCY_LABEL: Record<Currency, string> = { KES: 'KSh', SSP: 'SSP' };
+export const CURRENCY_LABEL: Record<Currency, string> = { KES: 'KSh', USD: 'US$', SSP: 'SSP' };
 
 export const DEFAULT_RATE_BPS = 500;
 export const MIN_RATE_BPS = 100;

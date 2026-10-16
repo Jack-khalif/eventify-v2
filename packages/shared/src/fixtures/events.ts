@@ -150,8 +150,8 @@ export const events: Event[] = [
     organizerId: 'org_deng',
     description: [],
     tiers: [
-      { name: 'Regular', note: 'Laptop required', price: 20000 },
-      { name: 'Student', note: 'Valid student ID', price: 8000 },
+      { name: 'Regular', note: 'Laptop required', price: 15 },
+      { name: 'Student', note: 'Valid student ID', price: 6 },
     ],
   }),
   event({
@@ -188,9 +188,9 @@ export const events: Event[] = [
     organizerId: 'org_ssict',
     description: [],
     tiers: [
-      { name: 'Regular', note: 'Full-day pass', price: 45000 },
-      { name: 'Student', note: 'Valid student ID', price: 15000 },
-      { name: 'VIP', note: 'Speaker dinner', price: 120000 },
+      { name: 'Regular', note: 'Full-day pass', price: 35 },
+      { name: 'Student', note: 'Valid student ID', price: 12 },
+      { name: 'VIP', note: 'Speaker dinner', price: 90 },
     ],
   }),
   event({

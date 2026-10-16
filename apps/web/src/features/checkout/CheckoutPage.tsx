@@ -78,7 +78,9 @@ function CheckoutForm({ event: e }: { event: PublicEvent }) {
   );
   const isFree = selection.isFree;
   const cannotPay = !isFree && methods.length === 0;
-  const phoneCountry = e.currency === 'SSP' ? 'SS' : 'KE';
+  // Shilling events are Kenyan; dollar (and older SSP) events are in South Sudan.
+  const phoneCountry = e.currency === 'KES' ? 'KE' : 'SS';
+  const card = !isFree && method === 'card';
   const totalLabel = selection.totalLabel;
 
   const submit = (ev: FormEvent) => {
@@ -259,7 +261,7 @@ function CheckoutForm({ event: e }: { event: PublicEvent }) {
             <legend className="mb-3 p-0 text-base font-extrabold">Payment method</legend>
             {cannotPay && (
               <p role="note" className="m-0 rounded-xl bg-surface p-3.5 text-sm">
-                Online payment for South Sudan events is coming soon with MTN Mobile Money.
+                Online payment isn't available for this event yet. Ask the organizer how to pay.
               </p>
             )}
             {METHODS.map((m) => {
@@ -322,10 +324,22 @@ function CheckoutForm({ event: e }: { event: PublicEvent }) {
           block
           disabled={!selection.canBuy || cannotPay || createOrder.isPending}
           className="justify-between"
-          aria-label={isFree ? 'Reserve spot' : `Send payment prompt for ${totalLabel}`}
+          aria-label={
+            isFree
+              ? 'Reserve spot'
+              : card
+                ? `Pay ${totalLabel} by card`
+                : `Send payment prompt for ${totalLabel}`
+          }
         >
           <span>
-            {createOrder.isPending ? 'Sending…' : isFree ? 'Reserve spot' : 'Send payment prompt'}
+            {createOrder.isPending
+              ? 'Sending…'
+              : isFree
+                ? 'Reserve spot'
+                : card
+                  ? 'Pay by card'
+                  : 'Send payment prompt'}
           </span>
           <span>{isFree ? '→' : `${totalLabel} →`}</span>
         </Button>

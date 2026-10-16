@@ -27,7 +27,7 @@ describe('Admin overview', () => {
     expect(screen.getByText('4.87%')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /PayLink Kenya/ })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('radio', { name: 'SSP' }));
+    await user.click(screen.getByRole('radio', { name: 'US$' }));
     expect(await screen.findByRole('link', { name: /Deng Training Co\./ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /PayLink Kenya/ })).not.toBeInTheDocument();
   });

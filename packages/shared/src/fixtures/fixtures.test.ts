@@ -57,6 +57,6 @@ describe('fixtures match the shared schemas', () => {
     expect(priceLabel(bySlug('sauti-sessions'))).toBe('From KSh 600');
     expect(priceLabel(bySlug('ieee-hackathon'))).toBe('Free');
     expect(priceLabel(bySlug('pwani-taarab'))).toBe('KSh 1,500');
-    expect(priceLabel(bySlug('juba-tech-summit'))).toBe('From SSP 15,000');
+    expect(priceLabel(bySlug('juba-tech-summit'))).toBe('From US$ 12');
   });
 });

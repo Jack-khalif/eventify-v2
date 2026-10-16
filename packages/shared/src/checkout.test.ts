@@ -22,8 +22,9 @@ const req = (patch: Partial<CheckoutRequest>): CheckoutRequest => ({
 });
 
 describe('availablePaymentMethods', () => {
-  it('offers M-Pesa for Kenyan shillings only (MoMo and card are not live yet)', () => {
-    expect(availablePaymentMethods('KES')).toEqual(['mpesa']);
+  it('offers M-Pesa and card for shillings, card for dollars, and nothing for SSP yet', () => {
+    expect(availablePaymentMethods('KES')).toEqual(['mpesa', 'card']);
+    expect(availablePaymentMethods('USD')).toEqual(['card']);
     expect(availablePaymentMethods('SSP')).toEqual([]);
   });
 });
@@ -65,10 +66,13 @@ describe('validateCheckout', () => {
 
   it('refuses methods that are not live or do not match the currency', () => {
     expect(
-      validateCheckout(bySlug('sauti-sessions'), req({ paymentMethod: 'card' }), now),
+      validateCheckout(bySlug('sauti-sessions'), req({ paymentMethod: 'momo' }), now),
     ).toMatchObject({
       error: 'payment_method_unavailable',
     });
+    expect(
+      validateCheckout(bySlug('sauti-sessions'), req({ paymentMethod: 'card' }), now),
+    ).not.toHaveProperty('error');
     expect(
       validateCheckout(
         bySlug('juba-tech-summit'),

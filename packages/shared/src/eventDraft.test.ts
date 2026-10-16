@@ -101,8 +101,8 @@ describe('payout and price label', () => {
   });
 
   it('prices in the city currency', () => {
-    const tiers = [newTierDraft('Regular', '20000'), newTierDraft('Student', '8000')];
-    expect(draftPriceLabel(draft({ city: 'Juba', tiers }))).toBe('From SSP 8,000');
+    const tiers = [newTierDraft('Regular', '20'), newTierDraft('Student', '8')];
+    expect(draftPriceLabel(draft({ city: 'Juba', tiers }))).toBe('From US$ 8');
     expect(draftPriceLabel(draft({ tiers: [newTierDraft('RSVP', '0')] }))).toBe('Free');
   });
 });

@@ -27,7 +27,8 @@ async function openCheckout(url = '/e/sauti-sessions/checkout?tier=tier_sauti_re
   return result;
 }
 
-const payButton = () => screen.getByRole('button', { name: /Send payment prompt|Reserve spot/ });
+const payButton = () =>
+  screen.getByRole('button', { name: /Send payment prompt|Reserve spot|by card/ });
 
 describe('Checkout form', () => {
   it('carries the tier and quantity chosen on the event page', async () => {
@@ -69,11 +70,13 @@ describe('Checkout form', () => {
     expect(screen.getByLabelText('Phone number')).toHaveAttribute('aria-invalid', 'true');
   });
 
-  it('offers M-Pesa and marks MoMo and card as coming soon', async () => {
+  it('offers M-Pesa first and card, and marks MoMo as coming soon', async () => {
     await openCheckout();
     expect(screen.getByRole('radio', { name: /M-Pesa/ })).toBeChecked();
     expect(screen.getByRole('radio', { name: /MTN Mobile Money/ })).toBeDisabled();
-    expect(screen.getByRole('radio', { name: /Card/ })).toBeDisabled();
+    expect(screen.getByRole('radio', { name: /Card/ })).toBeEnabled();
+    await userEvent.click(screen.getByRole('radio', { name: /Card/ }));
+    expect(payButton()).toHaveAccessibleName('Pay KSh 2,400 by card');
   });
 
   it('skips payment for free events', async () => {
@@ -90,10 +93,16 @@ describe('Checkout form', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('cannot take payment for South Sudan events yet', async () => {
+  it('sells South Sudan events in US dollars, by card', async () => {
     await openCheckout('/e/juba-tech-summit/checkout');
-    expect(screen.getByRole('note')).toHaveTextContent('coming soon with MTN Mobile Money');
-    expect(payButton()).toBeDisabled();
+    expect(screen.getByRole('radio', { name: /Card/ })).toBeChecked();
+    expect(screen.getByRole('radio', { name: /M-Pesa/ })).toBeDisabled();
+    expect(screen.getByLabelText('Phone number')).toHaveAttribute(
+      'placeholder',
+      '+211 9XX XXX XXX',
+    );
+    expect(payButton()).toHaveAccessibleName('Pay US$ 35 by card');
+    expect(payButton()).toBeEnabled();
   });
 
   it('shows the server’s reason when the order is refused', async () => {
@@ -109,6 +118,76 @@ describe('Checkout form', () => {
     await fillDetails();
     await userEvent.click(payButton());
     expect(await screen.findByRole('alert')).toHaveTextContent('Regular tickets just sold out.');
+  });
+});
+
+describe('Card payments', () => {
+  async function payByCard(phone?: string) {
+    const result = await openCheckout();
+    await fillDetails(phone);
+    await userEvent.click(screen.getByRole('radio', { name: /Card/ }));
+    await userEvent.click(payButton());
+    // The mock has no card page to visit, so it goes straight to confirming.
+    await screen.findByRole('heading', { name: 'Confirming your card payment' });
+    return result;
+  }
+
+  it('confirms the payment, then shows the tickets', async () => {
+    await payByCard();
+    advance(5_000);
+    expect(await screen.findByRole('heading', { name: "You're going! 🎉" })).toBeInTheDocument();
+  });
+
+  it('explains a card failure in card terms', async () => {
+    await payByCard('0712 340 000');
+    advance(5_000);
+    expect(
+      await screen.findByRole('heading', { name: "Your card didn't have enough funds" }),
+    ).toBeInTheDocument();
+  });
+
+  it('waits for confirmation when Paystack sends the buyer back, with a way back to the card page', async () => {
+    const { router } = await payByCard();
+    const orderUrl = router.state.location.pathname;
+    const orderId = orderUrl.split('/').pop()!;
+    server.use(
+      http.get('*/api/orders/:id', async () => {
+        const { getOrder } = await import('../../mocks/orders');
+        const { publicEvents } = await import('@eventify/shared/fixtures');
+        const order = getOrder(orderId, publicEvents(), START)!;
+        return HttpResponse.json({ ...order, paymentUrl: 'https://checkout.paystack.com/abc' });
+      }),
+    );
+    await router.navigate(`${orderUrl}?trxref=pay-1&reference=pay-1`);
+    expect(await screen.findByRole('link', { name: 'Back to the card page' })).toHaveAttribute(
+      'href',
+      'https://checkout.paystack.com/abc',
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Confirming your card payment' }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('Refunds', () => {
+  it('tells the buyer when a late payment was refunded', async () => {
+    const result = await openCheckout();
+    await fillDetails();
+    await userEvent.click(payButton());
+    await screen.findByRole('heading', { name: 'Check your phone to confirm payment' });
+    const orderId = result.router.state.location.pathname.split('/').pop()!;
+    server.use(
+      http.get('*/api/orders/:id', async () => {
+        const { getOrder } = await import('../../mocks/orders');
+        const { publicEvents } = await import('@eventify/shared/fixtures');
+        const order = getOrder(orderId, publicEvents(), START)!;
+        return HttpResponse.json({ ...order, status: 'refunded' });
+      }),
+    );
+    expect(
+      await screen.findByRole('heading', { name: "We've refunded your payment" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Your payment of KSh 2,400 came through after/)).toBeInTheDocument();
   });
 });
 

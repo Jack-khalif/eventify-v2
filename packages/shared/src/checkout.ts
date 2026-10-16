@@ -1,13 +1,13 @@
 import { ENABLED_PAYMENT_METHODS, type Currency, type PaymentMethod } from './enums';
-import { toDarajaMsisdn } from './phone';
+import { isKenyanMobile } from './phone';
 import { tierRemaining, type CheckoutRequest, type PublicEvent, type TicketTier } from './schemas';
 import { tierAvailability } from './tiers';
 
-/** Which currencies each method can charge. M-Pesa is Kenyan shillings only. */
+/** Which currencies each method can charge. M-Pesa is Kenyan shillings only; Paystack cards take KES and USD. */
 export const METHOD_CURRENCIES: Record<PaymentMethod, readonly Currency[]> = {
   mpesa: ['KES'],
   momo: ['SSP'],
-  card: ['KES', 'SSP'],
+  card: ['KES', 'USD'],
 };
 
 /** Methods a buyer can actually use for this currency today. */
@@ -62,7 +62,7 @@ export function validateCheckout(
       message: 'That payment method isn’t available for this event.',
     };
   }
-  if (req.paymentMethod === 'mpesa' && !toDarajaMsisdn(req.buyer.phone)) {
+  if (req.paymentMethod === 'mpesa' && !isKenyanMobile(req.buyer.phone)) {
     return {
       status: 422,
       error: 'invalid_phone',

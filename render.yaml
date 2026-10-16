@@ -31,3 +31,8 @@ services:
         sync: false
       - key: EMAIL_FROM
         sync: false
+      # paystack once the live key is in; leave unset (off) until then.
+      - key: PAYMENTS
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false

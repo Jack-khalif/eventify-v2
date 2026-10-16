@@ -6,9 +6,9 @@ import {
   type PublicEvent,
   SUPPORT_EMAIL,
 } from '@eventify/shared';
-import { CircleAlert, Clock, Smartphone } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { CircleAlert, Clock, CreditCard, RotateCcw, Smartphone } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { ErrorState, NotFoundState } from '../../components/PageStates';
 import { Button, buttonClass } from '../../components/ui';
 import { isNotFound } from '../../lib/api';
@@ -30,6 +30,10 @@ const METHOD_LABEL = { mpesa: 'M-Pesa', momo: 'MTN MoMo', card: 'card' } as cons
 
 /** Buyer-facing copy for each failure. Not in the design; written in its voice. */
 const FAILURES: Record<PaymentFailure, { title: string; body: string }> = {
+  declined: {
+    title: 'Your card was declined',
+    body: 'No money was taken. Try again with another card, or ask your bank to allow the payment.',
+  },
   insufficient_funds: {
     title: "Your M-Pesa balance wasn't enough",
     body: 'Top up or use a different number, then try again. Your tickets are still held for you.',
@@ -50,6 +54,28 @@ const FAILURES: Record<PaymentFailure, { title: string; body: string }> = {
     title: "The payment didn't go through",
     body: `No tickets were issued. If money left your account, send the M-Pesa message to ${SUPPORT_EMAIL} and we'll sort it out.`,
   },
+};
+
+/** Card payments fail for the same reasons in different words. */
+const CARD_FAILURES: Partial<Record<PaymentFailure, { title: string; body: string }>> = {
+  insufficient_funds: {
+    title: "Your card didn't have enough funds",
+    body: 'No money was taken. Try another card, or use M-Pesa if this event offers it.',
+  },
+  unknown: {
+    title: "The payment didn't go through",
+    body: `No tickets were issued. If your card was charged, email ${SUPPORT_EMAIL} with your order link and we'll sort it out.`,
+  },
+};
+
+const failureCopy = (order: OrderView) => {
+  const reason = order.failureReason ?? 'unknown';
+  return (order.paymentMethod === 'card' && CARD_FAILURES[reason]) || FAILURES[reason];
+};
+
+/** After "Try again" on a card order, the new attempt has its own checkout page to go to. */
+const goToCardPage = (order: OrderView) => {
+  if (order.paymentMethod === 'card' && order.paymentUrl) window.location.assign(order.paymentUrl);
 };
 
 /** /e/:slug/checkout/:orderId: waiting for M-Pesa, then success or a way to recover. Survives refresh. */
@@ -87,7 +113,11 @@ export function OrderPage() {
   switch (o.status) {
     case 'pending':
     case 'awaiting_payment':
-      return <Waiting event={e} order={o} />;
+      return o.paymentMethod === 'card' ? (
+        <CardWaiting event={e} order={o} />
+      ) : (
+        <Waiting event={e} order={o} />
+      );
     case 'failed':
       return <Failed event={e} order={o} />;
     case 'paid':
@@ -107,6 +137,15 @@ export function OrderPage() {
           icon={<CircleAlert size={40} />}
           title="Order cancelled"
           body="Nothing was charged."
+          event={e}
+        />
+      );
+    case 'refunded':
+      return (
+        <Closed
+          icon={<RotateCcw size={40} />}
+          title="We've refunded your payment"
+          body={`Your payment of ${formatMoney(o.currency, o.totalMinor)} came through after your order closed, and the tickets had gone by then. We've sent it back and emailed you the details.`}
           event={e}
         />
       );
@@ -201,8 +240,78 @@ function Waiting({ event, order }: { event: PublicEvent; order: OrderView }) {
   );
 }
 
+/**
+ * Card orders: the buyer pays on Paystack's page, so we send them there, and when Paystack sends
+ * them back (with ?reference=… on the link) we wait while the payment is confirmed.
+ */
+function CardWaiting({ event, order }: { event: PublicEvent; order: OrderView }) {
+  const [params] = useSearchParams();
+  const url = order.paymentUrl;
+  const back = !url || params.has('reference') || params.has('trxref');
+  const change = useChangeDetails(event, order);
+  const total = formatMoney(order.currency, order.totalMinor);
+
+  useEffect(() => {
+    if (url && !back) window.location.assign(url);
+  }, [url, back]);
+
+  return (
+    <Centered>
+      <div className="relative flex size-[120px] items-center justify-center">
+        <div className="absolute inset-0 animate-[ev-pulse_1.8s_ease-out_infinite] rounded-full bg-accent-soft" />
+        <div className="relative flex size-[88px] items-center justify-center rounded-full bg-accent text-accent-ink">
+          <CreditCard size={40} aria-hidden />
+        </div>
+      </div>
+      <div className="flex max-w-[360px] flex-col gap-2">
+        <h1 className="m-0 text-2xl tracking-[-0.02em]">
+          {back ? 'Confirming your card payment' : 'Taking you to the card page'}
+        </h1>
+        <p className="m-0 text-[15px] leading-normal text-muted">
+          {back
+            ? 'This usually takes a few seconds. Keep this page open.'
+            : `You'll pay ${total} on Paystack's secure page, then come straight back here.`}
+        </p>
+      </div>
+      <div
+        role="status"
+        className="flex items-center gap-2.5 rounded-full border-2 border-hair px-[18px] py-2.5"
+      >
+        <span className="size-[9px] animate-ev-spin rounded-full bg-accent" aria-hidden />
+        <span className="font-mono text-sm font-bold">
+          {back ? 'waiting for confirmation' : 'opening the card page'}
+        </span>
+      </div>
+      <div className="flex gap-2.5">
+        {url && (
+          <a
+            href={url}
+            className={buttonClass({
+              variant: 'outline',
+              size: 'sm',
+              className: 'text-fg hover:text-fg',
+            })}
+          >
+            {back ? 'Back to the card page' : 'Continue to card payment'}
+          </a>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="border-transparent text-muted"
+          onClick={change.run}
+          disabled={change.isPending}
+        >
+          Cancel
+        </Button>
+      </div>
+      <TestModeHint />
+    </Centered>
+  );
+}
+
 function Failed({ event, order }: { event: PublicEvent; order: OrderView }) {
-  const copy = FAILURES[order.failureReason ?? 'unknown'];
+  const copy = failureCopy(order);
   const retry = useOrderAction('retry');
   const change = useChangeDetails(event, order);
   return (
@@ -215,7 +324,11 @@ function Failed({ event, order }: { event: PublicEvent; order: OrderView }) {
         <p className="m-0 text-[15px] leading-normal text-muted">{copy.body}</p>
       </div>
       <div className="flex flex-wrap justify-center gap-2.5">
-        <Button size="md" onClick={() => retry.mutate(order.id)} disabled={retry.isPending}>
+        <Button
+          size="md"
+          onClick={() => retry.mutate(order.id, { onSuccess: goToCardPage })}
+          disabled={retry.isPending}
+        >
           {retry.isPending
             ? 'Sending…'
             : `Try again · ${formatMoney(order.currency, order.totalMinor)}`}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatPhone, normalizePhone, toDarajaMsisdn } from './phone';
+import { formatPhone, isKenyanMobile, normalizePhone } from './phone';
 
 describe('normalizePhone', () => {
   it.each([
@@ -23,10 +23,11 @@ describe('normalizePhone', () => {
   });
 });
 
-describe('toDarajaMsisdn', () => {
-  it('strips the plus for Kenyan numbers only', () => {
-    expect(toDarajaMsisdn('+254712345678')).toBe('254712345678');
-    expect(toDarajaMsisdn('+211922456781')).toBeNull();
+describe('isKenyanMobile', () => {
+  it('accepts Kenyan mobile numbers only', () => {
+    expect(isKenyanMobile('+254712345678')).toBe(true);
+    expect(isKenyanMobile('+254112345678')).toBe(true);
+    expect(isKenyanMobile('+211922456781')).toBe(false);
   });
 });
 

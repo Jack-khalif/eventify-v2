@@ -4,18 +4,29 @@ import {
   isCheckoutError,
   ORDER_HOLD_MINUTES,
   randomToken,
+  tierAvailability,
   toEatIso,
   validateCheckout,
   type CheckoutRequest,
   type OrderView,
-  type PaymentFailure,
   type PublicEvent,
 } from '@eventify/shared';
-import { and, asc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, inArray, isNull, sql } from 'drizzle-orm';
+import { randomBytes } from 'node:crypto';
 import type { Db } from './db/client';
-import { events, orders, organizers, paymentAttempts, tickets, tiers } from './db/schema';
+import {
+  events,
+  orders,
+  organizers,
+  paymentAttempts,
+  tickets,
+  tiers,
+  type RefundReason,
+} from './db/schema';
+import { refundEmail } from './email/refundEmail';
+import type { Mailer } from './email/mailer';
 import { publishedEvent } from './events';
-import type { PaymentProvider } from './payments';
+import type { PaymentCheck, PaymentProvider } from './payments';
 import { heldByBuyer } from './tickets';
 
 export type OrderRow = typeof orders.$inferSelect;
@@ -26,6 +37,10 @@ export type OrderDeps = {
   db: Db;
   /** null = paid tickets can't be bought yet. */
   payments: PaymentProvider | null;
+  /** For refund emails. */
+  mailer: Mailer;
+  /** Web app origin: card buyers come back to their order page here. */
+  siteUrl: string;
   now: () => number;
 };
 
@@ -40,6 +55,17 @@ const OPEN = ['awaiting_payment', 'failed'] as const;
 const isOpen = (o: OrderRow) => o.status === 'awaiting_payment' || o.status === 'failed';
 
 const eatIso = (d: Date) => toEatIso(d.getTime());
+
+/** The newest prompt for an order. */
+const latestAttempt = async (db: Db, orderId: string) =>
+  (
+    await db
+      .select()
+      .from(paymentAttempts)
+      .where(eq(paymentAttempts.orderId, orderId))
+      .orderBy(desc(paymentAttempts.requestedAt))
+      .limit(1)
+  )[0];
 
 async function toOrderView(db: Db, o: OrderRow): Promise<OrderView> {
   // Tickets passed on to someone else belong to them now, not to whoever has the order link.
@@ -64,23 +90,25 @@ async function toOrderView(db: Db, o: OrderRow): Promise<OrderView> {
     failureReason: o.failureReason,
     paymentRequestedAt: o.paymentRequestedAt && eatIso(o.paymentRequestedAt),
     holdExpiresAt: eatIso(o.holdExpiresAt),
+    paymentUrl:
+      o.paymentMethod === 'card' && o.status === 'awaiting_payment'
+        ? ((await latestAttempt(db, o.id))?.paymentUrl ?? null)
+        : null,
     rateBps: o.rateBps,
     createdAt: eatIso(o.createdAt),
     tickets: issued.map((t) => ({ id: t.id, code: t.code, holderName: t.holderName })),
   };
 }
 
-/** Note that a payment prompt went out, so the admin overview can count attempts and outcomes. */
-const recordAttempt = (tx: Db, orderId: string, at: number) =>
-  tx
-    .insert(paymentAttempts)
-    .values({ id: `pay_${randomToken(12)}`, orderId, requestedAt: new Date(at) });
-
-const resolveAttempt = (tx: Db, orderId: string, outcome: 'paid' | PaymentFailure, at: number) =>
-  tx
-    .update(paymentAttempts)
-    .set({ outcome, resolvedAt: new Date(at) })
-    .where(and(eq(paymentAttempts.orderId, orderId), isNull(paymentAttempts.outcome)));
+/**
+ * Note that a payment prompt is going out. Its id is the reference Paystack knows it by, so it is
+ * letters, digits and dashes only (Paystack refuses underscores).
+ */
+async function recordAttempt(tx: Db, orderId: string, at: number) {
+  const id = `pay-${randomBytes(12).toString('hex')}`;
+  await tx.insert(paymentAttempts).values({ id, orderId, requestedAt: new Date(at) });
+  return id;
+}
 
 /** The code printed on ticket number `n` of an event: letters and digits only, e.g. EVT-SAUTI-0412. */
 export function ticketCode(eventId: string, n: number) {
@@ -150,10 +178,12 @@ async function withHeldAsSold(tx: Db, event: PublicEvent, at: number): Promise<P
 }
 
 export async function createOrder(
-  { db, payments, now }: OrderDeps,
+  deps: OrderDeps,
   req: CheckoutRequest,
 ): Promise<OrderView | Failure> {
+  const { db, payments, now } = deps;
   const at = now();
+  let attemptId: string | null = null;
   const result = await db.transaction(async (tx): Promise<OrderRow | Failure> => {
     const event = await lockEventForSale(tx, req.eventId, at);
     if (!event) return { status: 404, error: 'not_found', message: 'Not found' };
@@ -219,18 +249,21 @@ export async function createOrder(
       })
       .returning();
     if (free) return markPaid(tx, order!, at);
-    await recordAttempt(tx, order!.id, at);
+    attemptId = await recordAttempt(tx, order!.id, at);
     return order!;
   });
-  return isFailure(result) ? result : toOrderView(db, result);
+  if (isFailure(result)) return result;
+  // Only once the tickets are safely held: the provider is a network call away.
+  if (attemptId) await sendPrompt(deps, result, attemptId);
+  return (await withOrder(deps, result.id))!;
 }
 
 /**
- * Read an order under a row lock after `change` has had its say, having first moved it on the way
- * the payment provider and the hold timer would have by now.
+ * Read an order under a row lock after `change` has had its say, having first released it if its
+ * hold has run out. Payments are brought up to date separately, by syncPayment and webhooks.
  */
 async function withOrder(
-  { db, payments, now }: OrderDeps,
+  { db, now }: OrderDeps,
   id: string,
   change?: (tx: Db, order: OrderRow, at: number) => Promise<OrderRow>,
 ): Promise<OrderView | undefined> {
@@ -238,40 +271,305 @@ async function withOrder(
   const row = await db.transaction(async (tx) => {
     let [o] = await tx.select().from(orders).where(eq(orders.id, id)).for('update');
     if (!o) return undefined;
-
     if (isOpen(o) && at >= o.holdExpiresAt.getTime()) {
       [o] = await tx.update(orders).set({ status: 'expired' }).where(eq(orders.id, id)).returning();
-    } else if (o.status === 'awaiting_payment' && o.paymentRequestedAt && payments) {
-      const state = payments({ ...o, paymentRequestedAt: o.paymentRequestedAt }, at);
-      if (state) await resolveAttempt(tx, id, state, at);
-      if (state === 'paid') o = await markPaid(tx, o, at);
-      else if (state) {
-        [o] = await tx
-          .update(orders)
-          .set({ status: 'failed', failureReason: state })
-          .where(eq(orders.id, id))
-          .returning();
-      }
     }
     return change ? change(tx, o!, at) : o!;
   });
   return row && toOrderView(db, row);
 }
 
-export const getOrder = (deps: OrderDeps, id: string) => withOrder(deps, id);
+// ── Payments ────────────────────────────────────────────────────────────────
+//
+// The rules, in one place:
+// 1. Every prompt (first try or "Resend prompt") is a payment_attempts row whose id is the
+//    provider's reference, and it is sent only after the tickets are held and committed.
+// 2. A provider's answer, by webhook or by our own check, is applied by settle(): once per
+//    attempt, and only after the provider confirms it (webhook bodies are never trusted alone).
+// 3. A failure only fails the order if it is about the newest prompt; an M-Pesa prompt nobody has
+//    answered within the provider's timeout counts as timed out.
+// 4. Money for an order still holding its tickets issues them. Money that arrives after the hold
+//    ended still buys them if the event is on and enough are left; otherwise it is refunded and
+//    the order is marked refunded.
+// 5. A second payment for a paid order, or one that doesn't match the order's total, is refunded.
+
+type Deps = OrderDeps & { payments: PaymentProvider };
+
+/** Ask the provider for a payment. A refusal fails the attempt (and the order) straight away. */
+async function sendPrompt(deps: OrderDeps, o: OrderRow, attemptId: string) {
+  const { db, payments, siteUrl } = deps;
+  if (!payments) return;
+  const [event] = await db
+    .select({ slug: events.slug })
+    .from(events)
+    .where(eq(events.id, o.eventId));
+  const result = await payments.request({
+    reference: attemptId,
+    method: o.paymentMethod === 'card' ? 'card' : 'mpesa',
+    amountMinor: o.totalMinor,
+    currency: o.currency,
+    email: o.buyerEmail,
+    phone: o.buyerPhone,
+    orderId: o.id,
+    returnUrl: `${siteUrl}/e/${event!.slug}/checkout/${o.id}`,
+  });
+  if (result.ok) {
+    if (result.paymentUrl) {
+      await db
+        .update(paymentAttempts)
+        .set({ paymentUrl: result.paymentUrl })
+        .where(eq(paymentAttempts.id, attemptId));
+    }
+    return;
+  }
+  console.warn(`Payment request for ${o.id} refused: ${result.detail}`);
+  await settle({ ...deps, payments }, attemptId, {
+    state: 'failed',
+    failure: result.failure,
+    detail: result.detail,
+  });
+}
+
+export type Settled = { orderId: string; paid: boolean };
+
+/**
+ * Apply what the provider says about one prompt (rules 2–5). Safe to call any number of times for
+ * the same answer. Returns null when nothing changed.
+ */
+async function settle(deps: Deps, reference: string, check: PaymentCheck): Promise<Settled | null> {
+  if (check.state === 'pending') return null;
+  const { db, now } = deps;
+  const at = now();
+  const done = await db.transaction(async (tx) => {
+    const [attempt] = await tx
+      .select()
+      .from(paymentAttempts)
+      .where(eq(paymentAttempts.id, reference))
+      .for('update');
+    if (!attempt) return null;
+    let [o] = await tx.select().from(orders).where(eq(orders.id, attempt.orderId)).for('update');
+    if (!o) return null;
+
+    if (check.state === 'failed') {
+      if (attempt.outcome) return null;
+      await tx
+        .update(paymentAttempts)
+        .set({ outcome: check.failure, detail: check.detail, resolvedAt: new Date(at) })
+        .where(eq(paymentAttempts.id, reference));
+      const newest =
+        !o.paymentRequestedAt || attempt.requestedAt.getTime() >= o.paymentRequestedAt.getTime();
+      if (o.status === 'awaiting_payment' && newest) {
+        await tx
+          .update(orders)
+          .set({ status: 'failed', failureReason: check.failure })
+          .where(eq(orders.id, o.id));
+      }
+      return { orderId: o.id, paid: false, refund: null };
+    }
+
+    // Paid. A prompt we had already given up on (timed out) can still turn out to be paid.
+    if (attempt.outcome === 'paid') return null;
+    let refund: RefundReason | null = null;
+    if (check.amountMinor !== o.totalMinor || check.currency !== o.currency) {
+      console.error(
+        `Payment ${reference} for order ${o.id} was ${check.currency} ${check.amountMinor}, expected ${o.currency} ${o.totalMinor}`,
+      );
+      refund = 'amount_mismatch';
+    } else if (o.status === 'paid') {
+      refund = 'duplicate';
+    } else if (isOpen(o) && at < o.holdExpiresAt.getTime()) {
+      o = await markPaid(tx, o, at);
+    } else if (await stillAvailable(tx, o, at)) {
+      o = await markPaid(tx, o, at);
+    } else {
+      refund = 'late';
+      [o] = await tx
+        .update(orders)
+        .set({ status: 'refunded' })
+        .where(eq(orders.id, o.id))
+        .returning();
+    }
+    await tx
+      .update(paymentAttempts)
+      .set({
+        outcome: 'paid',
+        detail: 'Paid',
+        resolvedAt: new Date(at),
+        refundReason: refund,
+        refundStatus: refund && 'due',
+      })
+      .where(eq(paymentAttempts.id, reference));
+    return { orderId: o!.id, paid: o!.status === 'paid', refund };
+  });
+  if (!done) return null;
+  if (done.refund) await sendRefund(deps, reference);
+  return { orderId: done.orderId, paid: done.paid };
+}
+
+/** Can an order whose hold has ended still have its tickets? Only if the event is on and they're left. */
+async function stillAvailable(tx: Db, o: OrderRow, at: number) {
+  const event = await lockEventForSale(tx, o.eventId, at);
+  if (!event || displayStatus(event, new Date(at)) !== 'live') return false;
+  const tier = event.tiers.find((t) => t.id === o.tierId);
+  if (!tier) return false;
+  const a = tierAvailability(tier, new Date(at));
+  return a.status === 'on_sale' && (a.remaining === null || a.remaining >= o.quantity);
+}
+
+/** Send one refund that's due, then tell the buyer. Left due (and retried later) if the provider says no. */
+async function sendRefund(deps: Deps, attemptId: string) {
+  const { db, payments } = deps;
+  const [row] = await db
+    .select({ attempt: paymentAttempts, order: orders, title: events.title })
+    .from(paymentAttempts)
+    .innerJoin(orders, eq(paymentAttempts.orderId, orders.id))
+    .innerJoin(events, eq(orders.eventId, events.id))
+    .where(and(eq(paymentAttempts.id, attemptId), eq(paymentAttempts.refundStatus, 'due')));
+  if (!row) return;
+  if (!(await payments.refund(attemptId))) return;
+  await db
+    .update(paymentAttempts)
+    .set({ refundStatus: 'requested' })
+    .where(eq(paymentAttempts.id, attemptId));
+  try {
+    await deps.mailer(
+      refundEmail({
+        buyer: { name: row.order.buyerName, email: row.order.buyerEmail },
+        attemptId,
+        eventTitle: row.title,
+        amountMinor: row.order.totalMinor,
+        currency: row.order.currency,
+        reason: row.attempt.refundReason!,
+        siteUrl: deps.siteUrl,
+      }),
+    );
+  } catch (error) {
+    console.error(`Refund email for ${attemptId} failed`, error);
+  }
+}
+
+/** Try again any refunds the provider turned down or we couldn't reach it for. */
+export async function retryDueRefunds(deps: OrderDeps) {
+  const { db, payments } = deps;
+  if (!payments) return;
+  const due = await db
+    .select({ id: paymentAttempts.id })
+    .from(paymentAttempts)
+    .where(eq(paymentAttempts.refundStatus, 'due'));
+  for (const { id } of due) await sendRefund({ ...deps, payments }, id);
+}
+
+/**
+ * Ask the provider about an order's newest open prompt ourselves, in case its webhook is slow or
+ * lost. Throttled per prompt; card prompts are checked as soon as the buyer is back with us.
+ */
+async function syncPayment(deps: OrderDeps, orderId: string) {
+  const { db, payments, now } = deps;
+  if (!payments) return;
+  const [row] = await db
+    .select({ o: orders, a: paymentAttempts })
+    .from(orders)
+    .innerJoin(paymentAttempts, eq(paymentAttempts.orderId, orders.id))
+    .where(
+      and(
+        eq(orders.id, orderId),
+        eq(orders.status, 'awaiting_payment'),
+        isNull(paymentAttempts.outcome),
+      ),
+    )
+    .orderBy(desc(paymentAttempts.requestedAt))
+    .limit(1);
+  if (!row) return;
+  const { o, a } = row;
+  const at = now();
+  const card = o.paymentMethod === 'card';
+  const age = at - a.requestedAt.getTime();
+  if (age < (card ? 0 : payments.checkAfterMs)) return;
+  if (a.checkedAt && at - a.checkedAt.getTime() < payments.checkEveryMs) return;
+
+  await db
+    .update(paymentAttempts)
+    .set({ checkedAt: new Date(at) })
+    .where(eq(paymentAttempts.id, a.id));
+  let check = await payments.check(
+    {
+      reference: a.id,
+      buyerPhone: o.buyerPhone,
+      requestedAt: a.requestedAt,
+      amountMinor: o.totalMinor,
+      currency: o.currency,
+    },
+    at,
+  );
+  if (
+    check.state === 'pending' &&
+    !card &&
+    payments.promptTimeoutMs !== null &&
+    age >= payments.promptTimeoutMs
+  ) {
+    check = { state: 'failed', failure: 'timeout', detail: 'No answer to the prompt in time' };
+  }
+  await settle({ ...deps, payments }, a.id, check);
+}
+
+/**
+ * A webhook from the provider. Returns null if it isn't genuine; otherwise what came of it, once
+ * the provider has confirmed the payment's state directly.
+ */
+export async function paymentWebhook(
+  deps: OrderDeps,
+  rawBody: string,
+  header: (name: string) => string | undefined,
+): Promise<{ settled: Settled | null } | null> {
+  const { db, payments } = deps;
+  const reference = payments?.webhookReference?.(rawBody, header);
+  if (!payments || !reference) return null;
+  const [row] = await db
+    .select({ o: orders, a: paymentAttempts })
+    .from(paymentAttempts)
+    .innerJoin(orders, eq(paymentAttempts.orderId, orders.id))
+    .where(eq(paymentAttempts.id, reference));
+  // Not one of ours (another integration on the same Paystack account): nothing to do.
+  if (!row) return { settled: null };
+  const check = await payments.check(
+    {
+      reference,
+      buyerPhone: row.o.buyerPhone,
+      requestedAt: row.a.requestedAt,
+      amountMinor: row.o.totalMinor,
+      currency: row.o.currency,
+    },
+    deps.now(),
+  );
+  const settled = await settle({ ...deps, payments }, reference, check);
+  await retryDueRefunds(deps);
+  return { settled };
+}
+
+export async function getOrder(deps: OrderDeps, id: string) {
+  await syncPayment(deps, id);
+  return withOrder(deps, id);
+}
 
 /** "Resend prompt" / "Try again": a fresh payment request for the same order while the hold lasts. */
-export const retryPayment = (deps: OrderDeps, id: string) =>
-  withOrder(deps, id, async (tx, o, at) => {
+export async function retryPayment(deps: OrderDeps, id: string) {
+  let attemptId: string | null = null;
+  let row: OrderRow | null = null;
+  const order = await withOrder(deps, id, async (tx, o, at) => {
     if (!isOpen(o)) return o;
-    await recordAttempt(tx, o.id, at);
+    attemptId = await recordAttempt(tx, o.id, at);
     const [next] = await tx
       .update(orders)
       .set({ status: 'awaiting_payment', failureReason: null, paymentRequestedAt: new Date(at) })
       .where(eq(orders.id, o.id))
       .returning();
+    row = next!;
     return next!;
   });
+  if (!attemptId || !row) return order;
+  await sendPrompt(deps, row, attemptId);
+  return withOrder(deps, id);
+}
 
 export const cancelOrder = (deps: OrderDeps, id: string) =>
   withOrder(deps, id, async (tx, o) => {
