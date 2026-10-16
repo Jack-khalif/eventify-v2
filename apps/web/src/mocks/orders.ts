@@ -156,6 +156,8 @@ export function createOrder(event: PublicEvent, req: CheckoutRequest, now = Date
     failureReason: null,
     paymentRequestedAt: free ? null : iso(now),
     holdExpiresAt: iso(now + ORDER_HOLD_MINUTES * 60_000),
+    // The mock simulates cards like M-Pesa, with no checkout page to visit.
+    paymentUrl: null,
     // The rate in force when the order is placed; later rate changes don't touch it.
     rateBps: eventRate(event.organizer.id, event.id),
     createdAt: iso(now),
@@ -358,6 +360,7 @@ export function issueComps(event: PublicEvent, req: CompRequest, now = Date.now(
     failureReason: null,
     paymentRequestedAt: null,
     holdExpiresAt: iso(now),
+    paymentUrl: null,
     rateBps: 0,
     createdAt: iso(now),
     tickets: [],

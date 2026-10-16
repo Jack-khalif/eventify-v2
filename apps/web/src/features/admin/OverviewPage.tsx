@@ -21,7 +21,7 @@ import { count, FAILURE_LABEL, formatMoneyList } from './format';
 import { QueryView } from './QueryView';
 import { useOverview } from './useAdmin';
 
-const CURRENCIES = (['KES', 'SSP'] as const).map((c) => ({ value: c, label: CURRENCY_LABEL[c] }));
+const CURRENCIES = (['KES', 'USD'] as const).map((c) => ({ value: c, label: CURRENCY_LABEL[c] }));
 
 /** Filters live in the URL, so a view can be shared and Back works. */
 function useFilters() {

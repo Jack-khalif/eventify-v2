@@ -8,15 +8,18 @@ export const CATEGORIES = ['Corporate', 'Campus', 'Music & Arts', 'Workshops'] a
 export const categorySchema = z.enum(CATEGORIES);
 export type Category = z.infer<typeof categorySchema>;
 
-/** ISO 4217 codes. Display labels ("KSh") live in money.ts. */
-export const currencySchema = z.enum(['KES', 'SSP']);
+/**
+ * ISO 4217 codes. Display labels ("KSh") live in money.ts. South Sudan events sell in US dollars
+ * (by card through Paystack); SSP stays only for events created before that.
+ */
+export const currencySchema = z.enum(['KES', 'USD', 'SSP']);
 export type Currency = z.infer<typeof currencySchema>;
 
 export const CITY_CURRENCY: Record<City, Currency> = {
   Nairobi: 'KES',
   Mombasa: 'KES',
   Kisumu: 'KES',
-  Juba: 'SSP',
+  Juba: 'USD',
 };
 
 /** Placeholder cover styles from the design, used until an organizer uploads a poster. */
@@ -37,8 +40,8 @@ export type OrganizerStatus = z.infer<typeof organizerStatusSchema>;
 export const paymentMethodSchema = z.enum(['mpesa', 'momo', 'card']);
 export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
 
-/** Only M-Pesa is live at launch; the others render as "coming soon". */
-export const ENABLED_PAYMENT_METHODS: readonly PaymentMethod[] = ['mpesa'];
+/** M-Pesa and card (both through Paystack); MTN MoMo renders as "coming soon". */
+export const ENABLED_PAYMENT_METHODS: readonly PaymentMethod[] = ['mpesa', 'card'];
 
 export const orderStatusSchema = z.enum([
   'pending',
@@ -47,6 +50,8 @@ export const orderStatusSchema = z.enum([
   'failed',
   'expired',
   'cancelled',
+  /** The money came in after the order closed and no tickets were left, so it was sent back. */
+  'refunded',
 ]);
 export type OrderStatus = z.infer<typeof orderStatusSchema>;
 

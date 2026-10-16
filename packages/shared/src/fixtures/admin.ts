@@ -124,5 +124,5 @@ export const mpesaDaily = {
     ),
     wrong_pin: Array.from({ length: HISTORY_DAYS }, (_, i) => Math.round(0.7 * wave(17, i))),
     timeout: Array.from({ length: HISTORY_DAYS }, (_, i) => Math.round(0.9 * wave(19, i))),
-  } satisfies Record<Exclude<PaymentFailure, 'unknown'>, number[]>,
+  } satisfies Record<Exclude<PaymentFailure, 'unknown' | 'declined'>, number[]>,
 };

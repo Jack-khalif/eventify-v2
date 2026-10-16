@@ -47,6 +47,7 @@ export const FAILURE_LABEL: Record<PaymentFailure, string> = {
   cancelled_by_user: 'Cancelled on phone',
   wrong_pin: 'Wrong PIN',
   timeout: 'No response',
+  declined: 'Card declined',
   unknown: 'Other',
 };
 

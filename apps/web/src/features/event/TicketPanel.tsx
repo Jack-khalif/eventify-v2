@@ -1,4 +1,5 @@
 import {
+  availablePaymentMethods,
   ENABLED_PAYMENT_METHODS,
   formatDate,
   formatMoney,
@@ -134,11 +135,11 @@ export function TicketPanel({
         <CheckoutButton selection={selection} size="aside" />
         <div className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Payment methods">
           {PAYMENT_BADGES.map(({ method, label }) =>
-            ENABLED_PAYMENT_METHODS.includes(method) ? (
+            availablePaymentMethods(event.currency).includes(method) ? (
               <Tag key={method} shape="square">
                 {label}
               </Tag>
-            ) : (
+            ) : ENABLED_PAYMENT_METHODS.includes(method) ? null : (
               <Tag key={method} shape="square" tone="outline" title="Coming soon">
                 {label} · soon
               </Tag>

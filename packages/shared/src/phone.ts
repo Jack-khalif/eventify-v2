@@ -25,10 +25,8 @@ export function normalizePhone(input: string, defaultCountry: PhoneCountry = 'KE
   return rule.national.test(national) ? `+${rule.code}${national}` : null;
 }
 
-/** Daraja wants 2547XXXXXXXX: no plus sign, Kenyan numbers only. */
-export function toDarajaMsisdn(e164: string): string | null {
-  return /^\+254(7|1)\d{8}$/.test(e164) ? e164.slice(1) : null;
-}
+/** M-Pesa only reaches Kenyan mobile numbers (+2547… or +2541…). */
+export const isKenyanMobile = (e164: string) => /^\+254(7|1)\d{8}$/.test(e164);
 
 /** "+254712345678" → "+254 712 345 678", for showing a number back to the buyer. */
 export function formatPhone(e164: string): string {

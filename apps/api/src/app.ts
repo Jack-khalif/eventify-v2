@@ -82,7 +82,14 @@ import { organizerProfile, publishedEvent, publishedEvents } from './events';
 import { loadImage } from './images';
 import { merchFor, merchQueue, requestMerch, setMerchStatus } from './merch';
 import { startLookup, verifyLookup } from './lookup';
-import { cancelOrder, createOrder, getOrder, isFailure, retryPayment } from './orders';
+import {
+  cancelOrder,
+  createOrder,
+  getOrder,
+  isFailure,
+  paymentWebhook,
+  retryPayment,
+} from './orders';
 import {
   applyToHost,
   signUpOrganizer,
@@ -244,6 +251,15 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     const order = await cancelOrder(deps, c.req.param('id'));
     if (!order) return notFound(c);
     return order.status === 'cancelled' ? c.json(order) : orderConflict(c, order);
+  });
+
+  // Paystack reports payments here (dashboard → Settings → API Keys & Webhooks → Webhook URL).
+  // The signature is checked against the exact body, so it is read as text before anything else.
+  app.post('/webhooks/paystack', async (c) => {
+    const result = await paymentWebhook(deps, await c.req.text(), (name) => c.req.header(name));
+    if (!result) return c.json({ error: 'unauthorized', message: 'Not a genuine webhook' }, 401);
+    if (result.settled?.paid) await sendTicketEmail(deps, result.settled.orderId);
+    return c.json({ ok: true });
   });
 
   app.get('/tickets/:id', async (c) => {

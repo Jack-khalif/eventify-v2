@@ -90,12 +90,12 @@ describe('Event page', () => {
     ).toBeInTheDocument();
   });
 
-  it('marks MoMo and card as coming soon (M-Pesa only at launch)', async () => {
+  it('lists M-Pesa and card, and marks MoMo as coming soon', async () => {
     await openEvent('sauti-sessions');
     const methods = within(tickets()).getByLabelText('Payment methods');
     expect(within(methods).getByText('M-PESA')).toBeInTheDocument();
     expect(within(methods).getByText('MTN MOMO · soon')).toBeInTheDocument();
-    expect(within(methods).getByText('Card · soon')).toBeInTheDocument();
+    expect(within(methods).queryByText('Card · soon')).not.toBeInTheDocument();
   });
 
   it('shows a mobile buy bar in place of the tab bar', async () => {

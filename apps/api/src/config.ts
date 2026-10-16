@@ -6,7 +6,9 @@ export type Config = {
   siteUrl: string;
   resendApiKey: string | null;
   emailFrom: string;
-  payments: 'simulated' | 'off';
+  /** paystack = real money; simulated = pretend (phone's last digits pick the outcome); off = free tickets only. */
+  payments: 'paystack' | 'simulated' | 'off';
+  paystackSecretKey: string | null;
   /** Africa's Talking account for the "Find my tickets" SMS; null means there isn't one. */
   sms: { username: string; apiKey: string; senderId: string | null } | null;
   /** JWK JSON for signing ticket QRs; null means make a throwaway key (development only). */
@@ -26,8 +28,13 @@ export type Config = {
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const production = env.NODE_ENV === 'production';
   const payments = env.PAYMENTS || (production ? 'off' : 'simulated');
-  if (payments !== 'simulated' && payments !== 'off') {
-    throw new Error(`PAYMENTS must be "simulated" or "off", not "${payments}"`);
+  if (payments !== 'paystack' && payments !== 'simulated' && payments !== 'off') {
+    throw new Error(`PAYMENTS must be "paystack", "simulated" or "off", not "${payments}"`);
+  }
+  if (payments === 'paystack' && !env.PAYSTACK_SECRET_KEY) {
+    throw new Error(
+      'PAYMENTS=paystack needs PAYSTACK_SECRET_KEY (Paystack dashboard → Settings → API Keys)',
+    );
   }
   if (production && !env.DATABASE_URL) throw new Error('DATABASE_URL is required in production');
   if (production && !env.QR_PRIVATE_KEY) {
@@ -41,6 +48,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     resendApiKey: env.RESEND_API_KEY || null,
     emailFrom: env.EMAIL_FROM || 'Eventify <onboarding@resend.dev>',
     payments,
+    paystackSecretKey: env.PAYSTACK_SECRET_KEY || null,
     sms:
       env.AT_USERNAME && env.AT_API_KEY
         ? { username: env.AT_USERNAME, apiKey: env.AT_API_KEY, senderId: env.AT_SENDER_ID || null }

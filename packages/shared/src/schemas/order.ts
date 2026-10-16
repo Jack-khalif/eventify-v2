@@ -22,12 +22,16 @@ export const checkoutRequestSchema = z.object({
 });
 export type CheckoutRequest = z.infer<typeof checkoutRequestSchema>;
 
-/** Why a payment failed, mapped from Daraja result codes (1 = insufficient funds, 1032 = cancelled, 2001 = wrong PIN, 1037 = timeout). */
+/**
+ * Why a payment failed, read from Paystack's gateway response (see apps/api/src/paystack.ts).
+ * `declined` is a card the bank refused; the rest apply to M-Pesa, and insufficient_funds to cards too.
+ */
 export const paymentFailureSchema = z.enum([
   'insufficient_funds',
   'cancelled_by_user',
   'wrong_pin',
   'timeout',
+  'declined',
   'unknown',
 ]);
 export type PaymentFailure = z.infer<typeof paymentFailureSchema>;
@@ -47,6 +51,8 @@ export const orderSchema = z.object({
   paymentRequestedAt: dateTimeSchema.nullable(),
   /** Tickets are held for the buyer until this time, then released. */
   holdExpiresAt: dateTimeSchema,
+  /** Card orders: Paystack's page where the buyer enters their card, while the payment is open. */
+  paymentUrl: z.url().nullable(),
   /** The organizer's rate at the time of sale; later rate changes never touch it. */
   rateBps: rateBpsSchema,
   createdAt: dateTimeSchema,
