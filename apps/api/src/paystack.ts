@@ -91,7 +91,10 @@ export function paystackPayments(secretKey: string): PaymentProvider {
         });
         const data = answer.data ?? {};
         if (!answer.status || data.status === 'failed') {
-          const detail = text(data.gateway_response) || answer.message || 'Charge refused';
+          // Paystack's own reason is in data.message when there's no gateway response (e.g. a test-mode
+          // charge to a number other than its test number); answer.message is only "Charge attempted".
+          const detail =
+            text(data.gateway_response) || text(data.message) || answer.message || 'Charge refused';
           return { ok: false, failure: failureFrom(detail, 'mpesa'), detail };
         }
         return { ok: true, paymentUrl: null };
@@ -112,7 +115,7 @@ export function paystackPayments(secretKey: string): PaymentProvider {
         // Not found yet: a card buyer who hasn't opened the page, or a charge still being set up.
         if (httpStatus === 404 || !answer.status || !answer.data) return { state: 'pending' };
         const data = answer.data;
-        const detail = text(data.gateway_response);
+        const detail = text(data.gateway_response) || text(data.message);
         switch (data.status) {
           case 'success':
             return {

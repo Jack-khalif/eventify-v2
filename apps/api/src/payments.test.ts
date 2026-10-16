@@ -452,6 +452,42 @@ describe('Paystack', () => {
     });
   });
 
+  it("reports Paystack's own reason when it refuses an M-Pesa charge", async () => {
+    // What test mode answers for any number but its test number (seen 2026-10-16).
+    vi.stubGlobal(
+      'fetch',
+      async () =>
+        new Response(
+          JSON.stringify({
+            status: false,
+            message: 'Charge attempted',
+            data: {
+              status: 'failed',
+              message:
+                'Declined. Please use the test mobile money number since you are doing a test transaction.',
+            },
+          }),
+          { status: 400 },
+        ),
+    );
+    const result = await paystackPayments('sk_test_secret').request({
+      reference: 'pay-1',
+      method: 'mpesa',
+      amountMinor: 150000,
+      currency: 'KES',
+      email: 'a@example.com',
+      phone: '+254712345678',
+      orderId: 'ord_1',
+      returnUrl: 'https://tickets.test/e/x/checkout/ord_1',
+    });
+    expect(result).toEqual({
+      ok: false,
+      failure: 'unknown',
+      detail:
+        'Declined. Please use the test mobile money number since you are doing a test transaction.',
+    });
+  });
+
   it('reads Verify Transaction, treating a reference it has not seen as still pending', async () => {
     let reply: { status: number; body: unknown } = { status: 404, body: { status: false } };
     vi.stubGlobal('fetch', async () => new Response(JSON.stringify(reply.body), reply));
