@@ -1,7 +1,6 @@
 import {
   displayStatus,
   formatDate,
-  generatePassSecret,
   randomToken,
   toEatIso,
   type TicketTransferRequest,
@@ -48,7 +47,7 @@ export async function transferredAway(db: Db, id: string): Promise<TransferFailu
 }
 
 /**
- * Pass a ticket on: a new ticket (new link, code, live-code secret and QR) for the recipient, and
+ * Pass a ticket on: a new ticket (new link, code and QR) for the recipient, and
  * this one stops working at once, so screenshots and forwarded links from before are useless.
  * Holding the link is the permission, as it is at the door. Undefined when there's no such ticket.
  * The new ticket is emailed after the change is saved; if that fails the recipient still finds it
@@ -106,7 +105,6 @@ export async function transferTicket(
         index: t.index,
         holderName: req.name,
         holderEmail: req.email,
-        secret: generatePassSecret(),
         transferredFromId: t.id,
       });
       await tx

@@ -10,7 +10,7 @@ import {
 } from '@eventify/shared';
 import { accounts as sampleAccounts } from '@eventify/shared/fixtures';
 import { allOrganizers, findOrganizer, setOrganizerAgent, submitApplication } from './organizers';
-import { TEST_LOOKUP_CODE, TEST_PASSWORD } from './testPhones';
+import { TEST_EMAIL_CODE, TEST_PASSWORD } from './testPhones';
 
 /**
  * In-browser stand-in for sign-in until the backend exists. A session is a random token the web
@@ -103,7 +103,7 @@ export function startSession(accountId: string): string {
 
 /** Null when the code is wrong. An email we haven't seen gets a new attendee account. */
 export function verifySignIn(email: string, code: string): Session | null {
-  if (code !== TEST_LOOKUP_CODE) return null;
+  if (code !== TEST_EMAIL_CODE) return null;
   let account = allAccounts().find((a) => a.email === email);
   if (!account) {
     account = {
@@ -128,7 +128,7 @@ export function signInWithPassword(email: string, password: string): Session | n
 
 /** Null when the code is wrong, or the address has no account that signs in with a password. */
 export function resetPassword(email: string, code: string, password: string): Session | null {
-  if (code !== TEST_LOOKUP_CODE) return null;
+  if (code !== TEST_EMAIL_CODE) return null;
   const account = allAccounts().find((a) => a.email === email);
   if (!account || account.role === 'agent' || account.role === 'super_admin') return null;
   db.passwords = { ...db.passwords, [account.id]: password };

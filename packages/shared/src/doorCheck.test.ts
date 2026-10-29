@@ -1,10 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { formatAgo } from './dates';
-import { applyCheckIn, checkLiveCode, checkQr, normalizeLiveCode, searchGuests } from './doorCheck';
-import { generatePassSecret, liveCode, signTicketQr } from './passes';
+import { applyCheckIn, checkQr, searchGuests } from './doorCheck';
+import { signTicketQr } from './passes';
 import type { DoorGuest } from './schemas';
-
-const t0 = Date.parse('2026-10-02T19:30:00+03:00');
 
 const guest = (ticketId: string, name: string, phone: string, patch: Partial<DoorGuest> = {}) => ({
   ticketId,
@@ -14,7 +12,6 @@ const guest = (ticketId: string, name: string, phone: string, patch: Partial<Doo
   tierName: 'Regular',
   checkedInAt: null,
   checkedInDoor: null,
-  passSecret: generatePassSecret(),
   ...patch,
 });
 
@@ -28,9 +25,7 @@ const guests: DoorGuest[] = [
 ];
 
 /** Amina's first ticket, which she passed on before the door list was downloaded. */
-const passedOn = [
-  { ticketId: 'tkt_0399', code: 'EVT-SAUTI-0399', passSecret: generatePassSecret() },
-];
+const passedOn = [{ ticketId: 'tkt_0399', code: 'EVT-SAUTI-0399' }];
 
 let keys: CryptoKeyPair;
 beforeAll(async () => {
@@ -77,37 +72,6 @@ describe('checkQr', () => {
       kind: 'invalid',
       reason: 'transferred',
     });
-  });
-});
-
-describe('checkLiveCode', () => {
-  it('says so when the pass showing the code was passed on', async () => {
-    const code = await liveCode(passedOn[0]!.passSecret, t0);
-    expect(await checkLiveCode(code, guests, t0, passedOn)).toEqual({
-      kind: 'invalid',
-      reason: 'transferred',
-    });
-  });
-
-  it('finds the guest whose pass shows the code, allowing for a few seconds of clock drift', async () => {
-    const code = await liveCode(guests[2]!.passSecret, t0);
-    expect(await checkLiveCode(code.toLowerCase(), guests, t0 + 6_000)).toMatchObject({
-      kind: 'valid',
-      guest: { name: 'Nyandeng Deng' },
-    });
-  });
-
-  it('rejects an old code and anything that is not a code', async () => {
-    const old = await liveCode(guests[0]!.passSecret, t0 - 60_000);
-    expect(await checkLiveCode(old, guests, t0)).toEqual({ kind: 'invalid', reason: 'wrong_code' });
-    expect(await checkLiveCode('HELLO', guests, t0)).toEqual({
-      kind: 'invalid',
-      reason: 'wrong_code',
-    });
-  });
-
-  it('normalizes what staff type', () => {
-    expect(normalizeLiveCode(' abc 234 ')).toBe('ABC234');
   });
 });
 

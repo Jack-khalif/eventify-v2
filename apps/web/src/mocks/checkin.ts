@@ -1,6 +1,5 @@
 import {
   type AttendeeList,
-  generatePassSecret,
   toEatIso,
   type DoorGuest,
   type DoorList,
@@ -56,9 +55,6 @@ export function resetCheckIns() {
   db = empty();
 }
 
-/** Sample guests have no Live Pass, so any secret will do; they're found by QR or search. */
-const sampleSecrets = new Map(sampleGuests.map((g) => [g.ticketId, generatePassSecret()]));
-
 function guestsFor(event: PublicEvent): DoorGuest[] {
   const samples: DoorGuest[] =
     event.id === SAMPLE_EVENT_ID
@@ -66,7 +62,6 @@ function guestsFor(event: PublicEvent): DoorGuest[] {
           const c = db.sample[g.ticketId];
           return {
             ...g,
-            passSecret: sampleSecrets.get(g.ticketId)!,
             ...(c && !g.checkedInAt ? { checkedInAt: c.at, checkedInDoor: c.door } : {}),
           };
         })
@@ -79,7 +74,6 @@ function guestsFor(event: PublicEvent): DoorGuest[] {
     tierName: event.tiers.find((t) => t.id === order.tierId)?.name ?? '',
     checkedInAt: ticket.checkedInAt,
     checkedInDoor: ticket.checkedInDoor ?? null,
-    passSecret: ticket.secret,
   }));
   return [...samples, ...sold];
 }
@@ -124,7 +118,8 @@ export function syncDoor(
     if (!guest || (guest.checkedInAt && Date.parse(guest.checkedInAt) <= Date.parse(c.at))) {
       continue;
     }
-    if (sampleSecrets.has(c.ticketId)) db.sample[c.ticketId] = { at: c.at, door };
+    if (sampleGuests.some((g) => g.ticketId === c.ticketId))
+      db.sample[c.ticketId] = { at: c.at, door };
     else recordTicketCheckIn(c.ticketId, c.at, door);
     const log = (db.log[event.id] ?? []).filter((l) => l.ticketId !== c.ticketId);
     db.log[event.id] = [...log, { ticketId: c.ticketId, at: c.at, door }];

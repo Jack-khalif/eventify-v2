@@ -135,7 +135,7 @@ export const sessions = pgTable(
 
 /**
  * The one-time code last sent to an address; a new one replaces it. The address is an email for
- * sign-in, or a phone number (+254…) for "Find my tickets".
+ * email sign-in.
  */
 export const loginCodes = pgTable('login_codes', {
   email: text('email').primaryKey(),
@@ -291,13 +291,11 @@ export const tickets = pgTable(
     holderName: text('holder_name').notNull(),
     /** Whose ticket it is when that isn't the buyer: set on a ticket someone passed on to them. */
     holderEmail: text('holder_email'),
-    /** Seeds the rotating live code. */
-    secret: text('secret').notNull(),
     checkedInAt: instant('checked_in_at'),
     checkedInDoor: text('checked_in_door'),
     /**
-     * Set once the holder passed this ticket on. A transfer issues a new ticket (new link, code,
-     * secret and QR) and this one stops working everywhere; the row is kept as the record.
+     * Set once the holder passed this ticket on. A transfer issues a new ticket (new link, code
+     * and QR) and this one stops working everywhere; the row is kept as the record.
      */
     transferredAt: instant('transferred_at'),
     /** On a ticket issued by a transfer: the ticket it replaced. */

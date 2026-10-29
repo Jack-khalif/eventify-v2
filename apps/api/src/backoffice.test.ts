@@ -17,7 +17,6 @@ import {
   publicEventSchema,
   sessionSchema,
   sessionUserSchema,
-  ticketLookupResultSchema,
   ticketViewSchema,
   verifyTicketQr,
   type CheckoutRequest,
@@ -33,7 +32,7 @@ import { auditLog, consents, events, organizers, tiers } from './db/schema';
 import type { Email } from './email/mailer';
 import { simulatedPayments } from './payments';
 
-/** Organizer tools, door check-in, the admin portal and "Find my tickets" by phone. */
+/** Organizer tools, door check-in and the admin portal. */
 
 /** Before any sample event starts, so all of them are on sale. */
 const START = Date.parse('2026-10-01T12:00:00+03:00');
@@ -44,8 +43,6 @@ let keys: CryptoKeyPair;
 let verifyKey: { kty: 'OKP'; crv: 'Ed25519'; x: string };
 let clock = START;
 let emails: Email[] = [];
-let texts: { to: string; message: string }[] = [];
-let smsOn = true;
 
 beforeAll(async () => {
   database = openLocalDatabase();
@@ -90,8 +87,6 @@ afterAll(() => database.close());
 
 beforeEach(() => {
   emails = [];
-  texts = [];
-  smsOn = true;
 });
 
 const api = () =>
@@ -99,7 +94,6 @@ const api = () =>
     db: database.db,
     mailer: async (email) => void emails.push(email),
     payments: simulatedPayments,
-    sms: smsOn ? async (to, message) => void texts.push({ to, message }) : null,
     signingKey: keys.privateKey,
     verifyKey,
     siteUrl: 'https://tickets.test',
@@ -404,7 +398,6 @@ describe('door check-in', () => {
     });
 
     const ticket = await get(`/tickets/${list.guests[0]!.ticketId}`, ticketViewSchema);
-    expect(ticket.passSecret).toBe(list.guests[0]!.passSecret);
     const key = await importVerifyKey(list.verifyKey);
     expect(await verifyTicketQr(key, ticket.qrPayload)).toBe(ticket.id);
   });
@@ -466,42 +459,6 @@ describe('door check-in', () => {
   it('refuses a sync that isn’t in the expected shape', async () => {
     const res = await send('/checkin/tiny-0123456789ab/sync', undefined, { door: '' });
     expect(res.status).toBe(400);
-  });
-});
-
-describe('finding tickets by phone', () => {
-  it('texts a code to a number that bought, and trades it for the tickets', async () => {
-    clock += MINUTE;
-    // A number with no tickets hears the same answer, and gets no text.
-    const nobody = await send('/ticket-lookup/start', undefined, { phone: '+254700000001' });
-    expect(await nobody.json()).toEqual({ sent: true });
-    expect(texts).toHaveLength(0);
-
-    const phone = '+254712345678';
-    expect((await send('/ticket-lookup/start', undefined, { phone })).status).toBe(200);
-    expect(texts).toHaveLength(1);
-    expect(texts[0]!.to).toBe(phone);
-    const code = /^(\d{6}) /.exec(texts[0]!.message)![1]!;
-
-    const wrong = code === '000000' ? '111111' : '000000';
-    expect((await send('/ticket-lookup/verify', undefined, { phone, code: wrong })).status).toBe(
-      422,
-    );
-    const res = await send('/ticket-lookup/verify', undefined, { phone, code });
-    const { tickets } = ticketLookupResultSchema.parse(await res.json());
-    expect(tickets.length).toBeGreaterThanOrEqual(4);
-    expect(tickets[0]!.event.slug).toBe('tiny-gig'); // soonest event first
-
-    // The code works once, and asking again straight away is refused.
-    expect((await send('/ticket-lookup/verify', undefined, { phone, code })).status).toBe(422);
-    expect((await send('/ticket-lookup/start', undefined, { phone })).status).toBe(429);
-  });
-
-  it('says so when there is no SMS account, instead of pretending to send', async () => {
-    smsOn = false;
-    const res = await send('/ticket-lookup/start', undefined, { phone: '+254712345678' });
-    expect(res.status).toBe(503);
-    expect(((await res.json()) as { error: string }).error).toBe('sms_unavailable');
   });
 });
 

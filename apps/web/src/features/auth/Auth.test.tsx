@@ -304,8 +304,10 @@ describe('Who can create events', () => {
       await screen.findByRole('heading', { level: 1, name: 'Enter the code' }),
     ).toBeInTheDocument();
     expect(screen.getByText('wambui@example.com')).toBeInTheDocument();
-    // The mock API sends nothing, and says so.
-    expect(screen.getByText(/no email is sent/)).toHaveTextContent('The code is always 123456.');
+    // The hint is only shown when the mock API mode is enabled.
+    if (import.meta.env.VITE_API_MOCKS !== 'off') {
+      expect(screen.getByText(/no email is sent/)).toHaveTextContent('The code is always 123456.');
+    }
     expect(screen.getByRole('button', { name: /Resend code in \d+s/ })).toBeDisabled();
     await enterCode(user, '000000');
     expect(await screen.findByText(/code isn't right/)).toBeInTheDocument();

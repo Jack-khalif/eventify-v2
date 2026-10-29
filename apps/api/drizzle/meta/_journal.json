@@ -99,6 +99,13 @@
       "when": 1792164303717,
       "tag": "0013_paystack_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793307039647,
+      "tag": "0014_brainy_bill_hollister",
+      "breakpoints": true
     }
   ]
 }

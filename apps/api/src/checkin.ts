@@ -29,7 +29,7 @@ export async function doorList(
     .orderBy(asc(tickets.code));
   // Tickets passed on to someone else, so a door can say so when an old pass turns up.
   const passedOn = await db
-    .select({ ticketId: tickets.id, code: tickets.code, passSecret: tickets.secret })
+    .select({ ticketId: tickets.id, code: tickets.code })
     .from(tickets)
     .where(and(eq(tickets.eventId, event.id), isNotNull(tickets.transferredAt)));
   const doors = await db
@@ -57,7 +57,6 @@ export async function doorList(
       tierName,
       checkedInAt: t.checkedInAt && eatIso(t.checkedInAt),
       checkedInDoor: t.checkedInDoor,
-      passSecret: t.secret,
     })),
     transferred: passedOn,
     verifyKey,

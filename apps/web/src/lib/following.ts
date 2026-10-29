@@ -1,7 +1,7 @@
 import { createDeviceSet } from './deviceSet';
 
 /**
- * Followed organizers, by handle. Device-only for now; once attendees can opt in to SMS/email
+ * Followed organizers, by handle. Device-only for now; once attendees can opt in to notifications
  * updates (Phase D) this becomes the list we notify about new events.
  */
 const following = createDeviceSet('eventify-following');

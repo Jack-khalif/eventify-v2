@@ -9,8 +9,6 @@ export type Config = {
   /** paystack = real money; simulated = pretend (phone's last digits pick the outcome); off = free tickets only. */
   payments: 'paystack' | 'simulated' | 'off';
   paystackSecretKey: string | null;
-  /** Africa's Talking account for the "Find my tickets" SMS; null means there isn't one. */
-  sms: { username: string; apiKey: string; senderId: string | null } | null;
   /** JWK JSON for signing ticket QRs; null means make a throwaway key (development only). */
   qrPrivateKey: string | null;
   /** Whoever signs in with one of these emails is a Super Admin (how the first admin gets in). */
@@ -49,10 +47,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     emailFrom: env.EMAIL_FROM || 'Eventify <onboarding@resend.dev>',
     payments,
     paystackSecretKey: env.PAYSTACK_SECRET_KEY || null,
-    sms:
-      env.AT_USERNAME && env.AT_API_KEY
-        ? { username: env.AT_USERNAME, apiKey: env.AT_API_KEY, senderId: env.AT_SENDER_ID || null }
-        : null,
     qrPrivateKey: env.QR_PRIVATE_KEY || null,
     trustProxy: Math.max(0, Math.floor(Number(env.TRUST_PROXY || 0)) || 0),
     requireTwoStep: env.REQUIRE_TWO_STEP ? env.REQUIRE_TWO_STEP !== 'off' : production,

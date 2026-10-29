@@ -8,10 +8,10 @@ export const TEST_PHONE_OUTCOMES: Record<string, PaymentFailure> = {
   '3333': 'timeout',
 };
 
-/** Mock API only: the one-time code sign-in and "Find my tickets" accept. */
-export const TEST_LOOKUP_CODE = '123456';
+/** Mock API only: the one-time email sign-in code. */
+export const TEST_EMAIL_CODE = '123456';
 
-/** Mock API only: a phone that already has a ticket, so "Find my tickets" works before buying. */
+/** Mock API only: a phone used to seed a demo ticket for door-scanner tests. */
 export const DEMO_TICKET_PHONE = '+254712345678';
 
 /** Mock API only: the password every sample organizer signs in with. */

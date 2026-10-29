@@ -26,8 +26,6 @@ import {
   type Organizer,
   eventQuerySchema,
   filterEvents,
-  ticketLookupStartSchema,
-  ticketLookupVerifySchema,
   ticketTransferRequestSchema,
   type OrderView,
 } from '@eventify/shared';
@@ -61,7 +59,6 @@ import {
   resendTransfer,
   retryPayment,
   ticketsForEmail,
-  ticketsForPhone,
   transferredAway,
   transferTicket,
 } from './orders';
@@ -92,7 +89,7 @@ import {
   organizerHome,
 } from './events';
 import { merchFor, merchQueue, requestMerch, setMerchStatus } from './merch';
-import { TEST_LOOKUP_CODE } from './testPhones';
+import { TEST_EMAIL_CODE } from './testPhones';
 
 const notFound = () =>
   HttpResponse.json({ error: 'not_found', message: 'Not found' }, { status: 404 });
@@ -269,31 +266,6 @@ export const handlers = [
           { status: result.status },
         )
       : HttpResponse.json(result);
-  }),
-
-  // Always "sent", whether or not the number has tickets, so nobody can probe which numbers bought.
-  http.post('*/api/ticket-lookup/start', async ({ request }) => {
-    await delay();
-    const body = ticketLookupStartSchema.safeParse(await request.json());
-    if (!body.success) {
-      return HttpResponse.json(
-        { error: 'validation', message: 'Enter a valid phone number.' },
-        { status: 400 },
-      );
-    }
-    return HttpResponse.json({ sent: true });
-  }),
-
-  http.post('*/api/ticket-lookup/verify', async ({ request }) => {
-    await delay();
-    const body = ticketLookupVerifySchema.safeParse(await request.json());
-    if (!body.success || body.data.code !== TEST_LOOKUP_CODE) {
-      return HttpResponse.json(
-        { error: 'invalid_code', message: "That code isn't right. Check the SMS and try again." },
-        { status: 422 },
-      );
-    }
-    return HttpResponse.json({ tickets: await ticketsForPhone(body.data.phone, allEvents()) });
   }),
 
   // Sign-in: a one-time code sent by email.
@@ -718,7 +690,7 @@ export const handlers = [
     const account = accountOf(request);
     if (!account) return unauthorized();
     const body = totpCodeRequestSchema.safeParse(await request.json());
-    if (!body.success || body.data.code !== TEST_LOOKUP_CODE) {
+    if (!body.success || body.data.code !== TEST_EMAIL_CODE) {
       return HttpResponse.json(
         { error: 'invalid_code', message: "That code isn't right." },
         { status: 422 },

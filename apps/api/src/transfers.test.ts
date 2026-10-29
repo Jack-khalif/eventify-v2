@@ -3,7 +3,7 @@ import {
   importVerifyKey,
   orderViewSchema,
   sessionSchema,
-  ticketLookupResultSchema,
+  ticketsResultSchema,
   ticketTransferResultSchema,
   ticketViewSchema,
   verifyTicketQr,
@@ -19,7 +19,7 @@ import { events, tiers } from './db/schema';
 import type { Email } from './email/mailer';
 import { simulatedPayments } from './payments';
 
-/** Passing a ticket on to someone else from its Live Pass. */
+/** Passing a ticket on to someone else from its ticket page. */
 
 const START = Date.parse('2026-10-01T12:00:00+03:00');
 const MINUTE = 60_000;
@@ -81,7 +81,6 @@ const api = () =>
       emails.push(email);
     },
     payments: simulatedPayments,
-    sms: null,
     signingKey: keys.privateKey,
     verifyKey,
     siteUrl: 'https://tickets.test',
@@ -165,7 +164,6 @@ describe('transferring a ticket', () => {
     const fresh = await get(`/tickets/${newId}`, ticketViewSchema);
     expect(fresh).toMatchObject({ holderName: 'Wanjiru Kamau', index: 1, count: 1 });
     expect(fresh.code).not.toBe(before.code);
-    expect(fresh.passSecret).not.toBe(before.passSecret);
     const key = await importVerifyKey(verifyKey);
     expect(await verifyTicketQr(key, fresh.qrPayload)).toBe(newId);
 
@@ -182,9 +180,7 @@ describe('transferring a ticket', () => {
     // The door has the new ticket under Wanjiru, and not the old one, even from a stale device.
     const door = await get('/checkin/tiny-0123456789ab', doorListSchema);
     // It keeps the old one aside, so an old pass is turned away as transferred.
-    expect(door.transferred).toEqual([
-      { ticketId: mine!.id, code: before.code, passSecret: before.passSecret },
-    ]);
+    expect(door.transferred).toEqual([{ ticketId: mine!.id, code: before.code }]);
     expect(door.guests.map((g) => g.ticketId).sort()).toEqual([kept!.id, newId].sort());
     expect(door.guests.find((g) => g.ticketId === newId)).toMatchObject({
       name: 'Wanjiru Kamau',
@@ -199,15 +195,11 @@ describe('transferring a ticket', () => {
     // Each finds their own tickets by email.
     const wanjiru = await get(
       '/me/tickets',
-      ticketLookupResultSchema,
+      ticketsResultSchema,
       await signIn('Wanjiru@Example.com'),
     );
     expect(wanjiru.tickets.map((t) => t.id)).toEqual([newId]);
-    const amina = await get(
-      '/me/tickets',
-      ticketLookupResultSchema,
-      await signIn('amina@example.com'),
-    );
+    const amina = await get('/me/tickets', ticketsResultSchema, await signIn('amina@example.com'));
     expect(amina.tickets.map((t) => t.id)).toEqual([kept!.id]);
 
     // It can be passed on again, but the old link can't do anything.

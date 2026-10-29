@@ -4,7 +4,7 @@ import {
   eventDashboardSchema,
   organizerHomeSchema,
   sessionSchema,
-  ticketLookupResultSchema,
+  ticketsResultSchema,
   type CompRequest,
 } from '@eventify/shared';
 import { eq } from 'drizzle-orm';
@@ -81,7 +81,6 @@ const api = () =>
     db: database.db,
     mailer: async (email) => void emails.push(email),
     payments: simulatedPayments,
-    sms: null,
     signingKey: keys.privateKey,
     verifyKey: { kty: 'OKP', crv: 'Ed25519', x: 'unused-here' },
     siteUrl: 'https://tickets.test',
@@ -161,7 +160,7 @@ describe('complimentary tickets', () => {
 
     // The guest finds them under their email, and the door has them on its list.
     const guest = await signIn('wanjiru@example.com');
-    const mine = await get('/me/tickets', ticketLookupResultSchema, guest);
+    const mine = await get('/me/tickets', ticketsResultSchema, guest);
     expect(mine.tickets.map((t) => t.id).sort()).toEqual([...passes].sort());
     expect(mine.tickets[0]).toMatchObject({ holderName: 'Wanjiru Kamau', tierName: 'Entry' });
     const door = (await (await send('/checkin/tiny-0123456789ab')).json()) as {

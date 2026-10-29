@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { BackLink } from '../../components/BackLink';
 import { ErrorState, NotFoundState } from '../../components/PageStates';
+import { PdfTicketButton } from './PdfTicketButton';
 import { ApiError, isNotFound, isTransferred } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { directionsUrl } from '../event/calendar';
-import { LivePass } from './LivePass';
+import { TicketCard } from './TicketCard';
 import { PassActions } from './PassActions';
 import {
   ResendTransfer,
@@ -16,7 +17,7 @@ import {
 } from './TransferTicket';
 import { useTicket } from './useTickets';
 
-/** /t/:ticketId: the link in the confirmation email. Shows the Live Pass for one ticket. */
+/** /t/:ticketId: the email link shows a static ticket and downloadable PDF. */
 export function TicketPage() {
   const { ticketId = '' } = useParams();
   const query = useTicket(ticketId);
@@ -70,7 +71,8 @@ export function TicketPage() {
         <TransferDone result={transferred} />
       ) : (
         <>
-          <LivePass ticket={t} />
+          <TicketCard ticket={t} />
+          <PdfTicketButton ticket={t} />
           <PassActions event={e} />
           <p className="m-0 max-w-[360px] text-center text-xs text-muted">
             Keep this link to yourself: anyone who has it can use your ticket.

@@ -1,15 +1,11 @@
 import {
-  checkLiveCode,
   checkQr,
   formatAgo,
   formatDate,
   formatTime,
   importVerifyKey,
-  LIVE_CODE_LENGTH,
-  normalizeLiveCode,
   searchGuests,
   type DoorGuest,
-  type DoorTransferred,
   type DoorList,
   type DoorResult,
 } from '@eventify/shared';
@@ -195,8 +191,6 @@ function Scanner({ door, list }: { door: Door; list: DoorList }) {
         />
       )}
 
-      <LiveCodeForm onResult={show} guests={guests} transferred={list.transferred} />
-
       <div aria-live="polite" className="empty:hidden">
         {result && <ResultCard result={result} />}
       </div>
@@ -217,7 +211,8 @@ function SyncBanner({ door, list }: { door: Door; list: DoorList }) {
       >
         <CloudOff size={16} aria-hidden className="flex-none" />
         <span className="flex-1">
-          Offline. Check-in still works.
+          Offline. Check-in still works on this device. Other offline scanners cannot see these
+          check-ins until they reconnect.
           {waiting > 0 &&
             ` ${waiting} check-in${waiting === 1 ? '' : 's'} will sync when you're back online.`}
         </span>
@@ -244,58 +239,12 @@ function SyncBanner({ door, list }: { door: Door; list: DoorList }) {
   );
 }
 
-function LiveCodeForm({
-  guests,
-  transferred,
-  onResult,
-}: {
-  guests: DoorGuest[];
-  transferred: DoorTransferred[];
-  onResult: (r: DoorResult) => void;
-}) {
-  const [code, setCode] = useState('');
-  const [checking, setChecking] = useState(false);
-  const submit = async (ev: FormEvent) => {
-    ev.preventDefault();
-    if (!code.trim()) return;
-    setChecking(true);
-    try {
-      onResult(await checkLiveCode(code, guests, Date.now(), transferred));
-      setCode('');
-    } finally {
-      setChecking(false);
-    }
-  };
-  return (
-    <form onSubmit={submit} className="flex items-end gap-2">
-      <TextField
-        label="Live code"
-        placeholder="e.g. K7M2QX"
-        autoComplete="off"
-        autoCapitalize="characters"
-        spellCheck={false}
-        maxLength={LIVE_CODE_LENGTH + 2}
-        value={code}
-        onChange={(e) => setCode(normalizeLiveCode(e.target.value))}
-        className="flex-1 [&_input]:font-mono [&_input]:tracking-[0.12em]"
-      />
-      <Button type="submit" disabled={checking || !code.trim()} className="h-12 flex-none">
-        Check
-      </Button>
-    </form>
-  );
-}
-
 const INVALID_TEXT = {
   not_a_ticket: ['Not a ticket', "This QR code isn't an Eventify ticket."],
   other_event: ['Wrong event', 'This ticket is for a different event.'],
   transferred: [
     'Ticket transferred',
     'This ticket was passed on to someone else and no longer works. The new holder has their own.',
-  ],
-  wrong_code: [
-    'Code not recognised',
-    'Check the code on their Live Pass and try again. It changes every few seconds.',
   ],
 } as const;
 

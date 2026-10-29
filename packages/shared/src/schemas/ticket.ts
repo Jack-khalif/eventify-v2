@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { dateTimeSchema, idSchema } from './common';
 import { publicEventSchema } from './event';
 
-/** EVT-SAUTI-0412: human-readable reference printed on the ticket and SMS. Not a secret. */
+/** EVT-SAUTI-0412: human-readable reference printed on the ticket. Not a secret. */
 export const ticketCodeSchema = z.string().regex(/^EVT-[A-Z0-9]+-\d{4,}$/);
 
 export const ticketSchema = z.object({
@@ -48,7 +48,7 @@ export const guestSchema = z.object({
 export type Guest = z.infer<typeof guestSchema>;
 
 /**
- * What GET /api/tickets/:id returns: everything the Live Pass page needs. The ticket id is a long
+ * What GET /api/tickets/:id returns: everything the ticket page needs. The ticket id is a long
  * random token, so the /t/{id} link works like the ticket itself (as a PDF ticket would).
  */
 export const ticketViewSchema = z.object({
@@ -60,9 +60,7 @@ export const ticketViewSchema = z.object({
   index: z.int().positive(),
   count: z.int().positive(),
   event: publicEventSchema,
-  /** Seeds the rotating live code. Only ever sent to whoever holds the ticket link. */
-  passSecret: z.string().min(16),
-  /** Signed text for the backup QR. */
+  /** Signed text for the static QR. */
   qrPayload: z.string().startsWith('EVT1.'),
   checkedInAt: dateTimeSchema.nullable(),
 });
@@ -86,28 +84,19 @@ export const ticketTransferResultSchema = z.object({
 });
 export type TicketTransferResult = z.infer<typeof ticketTransferResultSchema>;
 
-/** "Find my tickets": step 1 sends a one-time SMS code, step 2 exchanges it for the tickets. */
-export const ticketLookupStartSchema = z.object({ phone: z.string().regex(/^\+\d{9,15}$/) });
-export const ticketLookupStartResultSchema = z.object({ sent: z.boolean() });
-export const ticketLookupVerifySchema = z.object({
-  phone: z.string().regex(/^\+\d{9,15}$/),
-  code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'),
-});
-export const ticketLookupResultSchema = z.object({ tickets: z.array(ticketViewSchema) });
+export const ticketsResultSchema = z.object({ tickets: z.array(ticketViewSchema) });
 
-/** A guest row on a door device: includes the pass secret so live codes can be checked offline. */
-export const doorGuestSchema = guestSchema.extend({ passSecret: z.string().min(16) });
+/** A guest row on a door device. The guest list is cached locally for offline check-in. */
+export const doorGuestSchema = guestSchema;
 export type DoorGuest = z.infer<typeof doorGuestSchema>;
 
 /**
  * A ticket for this event that was passed on to someone else. Door devices keep these so an old
- * pass is turned away as "transferred" rather than as an unknown ticket. Its secret is dead, so
- * sending it does no harm.
+ * pass is turned away as "transferred" rather than as an unknown ticket.
  */
 export const doorTransferredSchema = z.object({
   ticketId: idSchema,
   code: ticketCodeSchema,
-  passSecret: z.string().min(16),
 });
 export type DoorTransferred = z.infer<typeof doorTransferredSchema>;
 

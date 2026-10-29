@@ -8,7 +8,6 @@ import { seedSamples } from './db/samples';
 import { consoleMailer, resendMailer } from './email/mailer';
 import { simulatedPayments } from './payments';
 import { paystackPayments } from './paystack';
-import { africasTalkingSms, consoleSms } from './sms';
 
 const config = loadConfig();
 const database = openDatabase(config.databaseUrl);
@@ -35,13 +34,6 @@ if (config.qrPrivateKey) {
   publicX = (await crypto.subtle.exportKey('jwk', pair.publicKey)).x!;
 }
 
-// Without an SMS account, development prints the code here and production turns phone lookup off.
-const sms = config.sms
-  ? africasTalkingSms(config.sms.username, config.sms.apiKey, config.sms.senderId)
-  : config.production
-    ? null
-    : consoleSms;
-
 const app = createApp({
   db: database.db,
   mailer: config.resendApiKey ? resendMailer(config.resendApiKey, config.emailFrom) : consoleMailer,
@@ -51,7 +43,6 @@ const app = createApp({
       : config.payments === 'simulated'
         ? simulatedPayments
         : null,
-  sms,
   signingKey,
   verifyKey: { kty: 'OKP', crv: 'Ed25519', x: publicX },
   siteUrl: config.siteUrl,
@@ -68,6 +59,6 @@ const app = createApp({
 
 serve({ fetch: app.fetch, port: config.port }, ({ port }) => {
   console.log(
-    `Eventify API on http://localhost:${port} · database: ${config.databaseUrl ? 'Postgres' : 'local file'} · email: ${config.resendApiKey ? 'Resend' : 'printed here'} · SMS: ${config.sms ? "Africa's Talking" : sms ? 'printed here' : 'off'} · payments: ${config.payments}${config.payments === 'paystack' && config.paystackSecretKey!.startsWith('sk_test_') ? ' (test mode)' : ''}`,
+    `Eventify API on http://localhost:${port} · database: ${config.databaseUrl ? 'Postgres' : 'local file'} · email: ${config.resendApiKey ? 'Resend' : 'printed here'} · payments: ${config.payments}${config.payments === 'paystack' && config.paystackSecretKey!.startsWith('sk_test_') ? ' (test mode)' : ''}`,
   );
 });

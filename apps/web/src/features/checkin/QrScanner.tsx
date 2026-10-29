@@ -1,9 +1,10 @@
+import jsQR from 'jsqr';
 import { Camera, ScanLine } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Button } from '../../components/ui';
 import { createScanFilter } from './scanRepeat';
 
-/** Chrome and Android have a built-in QR reader; Safari doesn't, so jsQR (loaded on demand) fills in. */
+/** Chrome and Android have a built-in QR reader; jsQR is bundled for offline Safari scans. */
 type BarcodeDetectorLike = { detect(source: CanvasImageSource): Promise<{ rawValue: string }[]> };
 declare global {
   interface Window {
@@ -21,7 +22,6 @@ async function makeReader(): Promise<(video: HTMLVideoElement) => Promise<string
     const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
     return async (video) => (await detector.detect(video))[0]?.rawValue ?? null;
   }
-  const { default: jsQR } = await import('jsqr');
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   return async (video) => {
@@ -134,11 +134,11 @@ export function QrScanner({
       </div>
       {state === 'denied' ? (
         <p role="alert" className="m-0 text-center text-[13px] font-semibold text-danger">
-          Camera access is blocked. Allow it in your browser settings, or type the live code below.
+          Camera access is blocked. Allow it in your browser settings, or find the guest below.
         </p>
       ) : state === 'failed' ? (
         <p role="alert" className="m-0 text-center text-[13px] font-semibold text-danger">
-          Couldn't start the camera. Type the live code or search for the guest below.
+          Couldn't start the camera. Search for the guest below.
         </p>
       ) : (
         <span className="text-center text-[13px] text-muted">

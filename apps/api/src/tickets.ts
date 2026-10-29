@@ -25,7 +25,6 @@ async function toViews(
       index: t.transferredFromId ? 1 : t.index,
       count: t.transferredFromId ? 1 : order.quantity,
       event,
-      passSecret: t.secret,
       qrPayload: await signTicketQr(signingKey, t.id),
       checkedInAt: t.checkedInAt && toEatIso(t.checkedInAt.getTime()),
     });
@@ -45,7 +44,7 @@ export const inUse = isNull(tickets.transferredAt);
 /** Tickets the buyer still holds: in use and never passed on to them by someone else. */
 export const heldByBuyer = and(inUse, isNull(tickets.holderEmail));
 
-/** Everything the Live Pass page needs for one ticket. */
+/** Everything the ticket page needs for one ticket. */
 export const ticketView = async (db: Db, signingKey: CryptoKey, id: string) =>
   (await toViews(db, signingKey, await withOrders(db).where(and(eq(tickets.id, id), inUse))))[0];
 

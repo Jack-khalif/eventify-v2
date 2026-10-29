@@ -14,7 +14,7 @@ import { Button, buttonClass } from '../../components/ui';
 import { isNotFound } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { useEvent } from '../event/useEvent';
-import { LivePass } from '../tickets/LivePass';
+import { TicketCard } from '../tickets/TicketCard';
 import { PassActions } from '../tickets/PassActions';
 import { TransferDone, TransferTicket, type TransferOutcome } from '../tickets/TransferTicket';
 import { useTicket } from '../tickets/useTickets';
@@ -376,7 +376,7 @@ function Closed({
   );
 }
 
-/** "You're going!" with the first ticket's Live Pass; other tickets in the order are one tap away. */
+/** "You're going!" with the first ticket; other tickets in the order are one tap away. */
 function Success({ order }: { order: OrderView }) {
   const [first, ...rest] = order.tickets;
   const pass = useTicket(first?.id ?? '');
@@ -410,7 +410,7 @@ function Success({ order }: { order: OrderView }) {
         </p>
       </div>
       {pass.data ? (
-        <LivePass ticket={pass.data} />
+        <TicketCard ticket={pass.data} />
       ) : pass.isError ? (
         <ErrorState onRetry={pass.refetch}>
           Couldn't load your pass. Your tickets are confirmed.

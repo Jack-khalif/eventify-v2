@@ -1,4 +1,3 @@
-import { liveCode } from '@eventify/shared';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -6,8 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { scannerCheckIns } from '../../mocks/checkin';
 import { allEvents } from '../../mocks/events';
 import { server } from '../../mocks/node';
-import { seedDemoTicket, ticketsForPhone, transferTicket } from '../../mocks/orders';
-import { DEMO_TICKET_PHONE } from '../../mocks/testPhones';
+import { seedDemoTicket, ticketsForEmail, transferTicket } from '../../mocks/orders';
 import { renderApp } from '../../test/render';
 import { signInAs } from '../../test/signIn';
 
@@ -71,9 +69,9 @@ describe('Door check-in', () => {
     expect(screen.getByText('232 / 412 checked in')).toBeInTheDocument();
   });
 
-  it('turns away a pass its holder transferred to someone else, and says why', async () => {
+  it('marks a transferred ticket as unavailable and lists its new holder', async () => {
     const user = userEvent.setup();
-    const [ticket] = await ticketsForPhone(DEMO_TICKET_PHONE, allEvents());
+    const [ticket] = await ticketsForEmail('amina@example.com', allEvents());
     transferTicket(
       ticket!.id,
       { name: 'Wanjiru Kamau', email: 'wanjiru@example.com' },
@@ -83,34 +81,8 @@ describe('Door check-in', () => {
     renderApp(URL);
     await pickDoor(user);
 
-    await user.type(screen.getByLabelText('Live code'), await liveCode(ticket!.passSecret));
-    await user.click(screen.getByRole('button', { name: 'Check' }));
-    expect(await screen.findByText('Ticket transferred')).toBeInTheDocument();
-    // The new holder is on the list instead.
     await user.type(screen.getByRole('searchbox', { name: 'Search guests' }), 'wanjiru');
     expect(screen.getByRole('button', { name: 'Check in Wanjiru Kamau' })).toBeInTheDocument();
-  });
-
-  it('admits a Live Pass code once, then flags it as used', async () => {
-    const user = userEvent.setup();
-    const [ticket] = await ticketsForPhone(DEMO_TICKET_PHONE, allEvents());
-    renderApp(URL);
-    await pickDoor(user);
-
-    const enter = async (code: string) => {
-      await user.type(screen.getByLabelText('Live code'), code);
-      await user.click(screen.getByRole('button', { name: 'Check' }));
-    };
-    await enter(await liveCode(ticket!.passSecret));
-    expect(await screen.findByText('Valid')).toBeInTheDocument();
-    expect(screen.getByText('Amina Otieno · Regular ticket')).toBeInTheDocument();
-
-    await enter(await liveCode(ticket!.passSecret));
-    expect(await screen.findByText('Already used')).toBeInTheDocument();
-    expect(screen.getByText('Amina Otieno checked in just now at Side Gate')).toBeInTheDocument();
-
-    await enter('ZZZZZZ');
-    expect(await screen.findByText('Code not recognised')).toBeInTheDocument();
   });
 
   it('keeps checking people in offline and syncs when the connection returns', async () => {
@@ -125,6 +97,9 @@ describe('Door check-in', () => {
     await user.type(screen.getByRole('searchbox', { name: 'Search guests' }), 'nyandeng');
     await user.click(screen.getByRole('button', { name: 'Check in Nyandeng Deng' }));
     expect(count()).toHaveTextContent('2 / 4 checked in');
+    expect(
+      screen.getByText(/Other offline scanners cannot see these check-ins until they reconnect/),
+    ).toBeInTheDocument();
     expect(
       await screen.findByText(/1 check-in will sync when you're back online/),
     ).toBeInTheDocument();

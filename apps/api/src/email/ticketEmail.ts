@@ -31,7 +31,7 @@ const ticketLine = (t: TicketView) =>
 
 /**
  * The ticket email from the design's delivery screen: event, when and where, then each ticket's
- * code, backup QR and Live Pass link. One email covers every ticket in the order, or the one
+ * code, signed QR and ticket page link. One email covers every ticket in the order, or the one
  * ticket someone passed on.
  */
 export async function ticketEmail(
@@ -107,7 +107,7 @@ export async function ticketEmail(
               <div style="font-size:12px;color:${MUTED}">Ticket code</div>
               <div style="${MONO};font-size:15px;font-weight:800;color:${INK}">${escapeHtml(t.code)}</div>
               <div style="font-size:12px;color:${MUTED};padding-bottom:10px">${escapeHtml(ticketLine(t))}</div>
-              <a href="${escapeHtml(passUrl(t))}" style="display:inline-block;background:${ACCENT};color:${ACCENT_INK};font-size:13px;font-weight:800;text-decoration:none;padding:9px 14px;border-radius:999px">Open Live Pass</a>
+              <a href="${escapeHtml(passUrl(t))}" style="display:inline-block;background:${ACCENT};color:${ACCENT_INK};font-size:13px;font-weight:800;text-decoration:none;padding:9px 14px;border-radius:999px">Open ticket &amp; download PDF</a>
             </td>
           </tr>
         </table>`,
@@ -127,7 +127,7 @@ export async function ticketEmail(
           ${ticketBlocks}
           <div style="font-size:12px;line-height:1.5;color:${MUTED};padding-top:14px">
             ${escapeHtml(words.footer)}<br>
-            The Live Pass link is your ticket, so only share it with whoever is using it.
+            Open your ticket online to download a printable PDF. Keep the ticket link private.
           </div>`,
   });
 
@@ -137,9 +137,13 @@ export async function ticketEmail(
     when,
     `${event.venue} (map: ${directionsUrl(event)})`,
     '',
-    ...p.tickets.flatMap((t) => [`${t.code} · ${ticketLine(t)}`, `Live Pass: ${passUrl(t)}`, '']),
+    ...p.tickets.flatMap((t) => [
+      `${t.code} · ${ticketLine(t)}`,
+      `Ticket page and PDF download: ${passUrl(t)}`,
+      '',
+    ]),
     words.footer,
-    'The Live Pass link is your ticket, so only share it with whoever is using it.',
+    'Open your ticket online to download a printable PDF. Keep the ticket link private.',
   ].join('\n');
 
   return {

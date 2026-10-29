@@ -4,7 +4,7 @@ import type { Db } from './db/client';
 import { loginCodes } from './db/schema';
 
 /**
- * One-time 6-digit codes, sent to an email address (sign-in) or a phone number ("Find my tickets").
+ * One-time 6-digit codes sent to an email address.
  * Only a hash is stored, a code works once, and each address is limited in how often it can be
  * sent one and how many wrong guesses it allows.
  */

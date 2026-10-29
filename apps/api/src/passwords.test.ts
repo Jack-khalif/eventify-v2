@@ -5,7 +5,7 @@ import {
   sessionSchema,
   sessionUserSchema,
   staffRowSchema,
-  ticketLookupResultSchema,
+  ticketsResultSchema,
 } from '@eventify/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -39,7 +39,6 @@ const api = () =>
     db: database.db,
     mailer: async (email) => void emails.push(email),
     payments: simulatedPayments,
-    sms: null,
     signingKey: keys.privateKey,
     verifyKey: { kty: 'OKP', crv: 'Ed25519', x: 'unused-here' },
     siteUrl: 'https://tickets.test',
@@ -196,7 +195,7 @@ describe('signing in with a password', () => {
     await send(`/orders/${id}`);
 
     const mine = async (who: Who) =>
-      ticketLookupResultSchema.parse(await (await send('/me/tickets', who)).json()).tickets;
+      ticketsResultSchema.parse(await (await send('/me/tickets', who)).json()).tickets;
     expect(await mine(await opened(await logIn('wanjiku@example.com', PASSWORD)))).toEqual([]);
     expect(await mine(await withCode('wanjiku@example.com'))).toHaveLength(1);
   });

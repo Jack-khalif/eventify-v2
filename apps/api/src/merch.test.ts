@@ -43,7 +43,6 @@ const api = () =>
     db: database.db,
     mailer: async (email) => void emails.push(email),
     payments: simulatedPayments,
-    sms: null,
     signingKey: keys.privateKey,
     verifyKey: { kty: 'OKP', crv: 'Ed25519', x: 'unused-here' },
     siteUrl: 'https://tickets.test',

@@ -1,6 +1,6 @@
 # Eventify v2
 
-Event ticketing for Kenya and South Sudan: M-Pesa checkout, SMS and email tickets, offline door check-in.
+Event ticketing for Kenya and South Sudan: M-Pesa checkout, email tickets, offline door check-in.
 
 The designs in `design/` (exported from Claude Design) are the source of truth for every screen.
 
@@ -34,26 +34,25 @@ npm run dev:api    # API on http://localhost:8787
 
 To point the web app at it, put `VITE_API_MOCKS=off` in `apps/web/.env.local` and restart `npm run dev`.
 
-With no settings at all it runs on its own: the database is a local file (`apps/api/.data`, delete it to start again) filled with the sample organizers, sign-ins and events, emails and SMS (tickets and one-time codes) are printed in the terminal, and M-Pesa is simulated the same way as in the mock (a phone ending `0000`, `1111`, `2222` or `3333` fails). Sign in with a sample account from the table below and read the code off the terminal. Copy `apps/api/.env.example` to `apps/api/.env` to change that:
+With no settings at all it runs on its own: the database is a local file (`apps/api/.data`, delete it to start again) filled with the sample organizers, sign-ins and events, emails (tickets and one-time codes) are printed in the terminal, and M-Pesa is simulated the same way as in the mock (a phone ending `0000`, `1111`, `2222` or `3333` fails). Sign in with a sample account from the table below and read the code off the terminal. Copy `apps/api/.env.example` to `apps/api/.env` to change that:
 
-| Setting                     | What it does                                                                                                                                   |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `RESEND_API_KEY`            | Send ticket emails through [Resend](https://resend.com) instead of printing them                                                               |
-| `EMAIL_FROM`                | Sender address. Needs a domain verified in Resend to reach anyone but your own Resend email                                                    |
-| `DATABASE_URL`              | Use a real Postgres. Run `npm run db:migrate --workspace @eventify/api` after every pull                                                       |
-| `PAYMENTS`                  | `simulated` or `off` (free tickets only). Production defaults to `off`                                                                         |
-| `AT_USERNAME`, `AT_API_KEY` | [Africa's Talking](https://africastalking.com) account that texts the "Find my tickets" code. Without one, production turns phone lookup off   |
-| `QR_PRIVATE_KEY`            | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`                                                       |
-| `SITE_URL`                  | Where the web app lives, for the ticket links in emails                                                                                        |
-| `SUPER_ADMIN_EMAILS`        | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in)                                                   |
-| `TRUST_PROXY`               | Proxies between visitors and the API (`1` behind the host alone, `2` when the web host forwards `/api` too), so rate limits count each visitor |
+| Setting              | What it does                                                                                                                                   |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`     | Send ticket emails through [Resend](https://resend.com) instead of printing them                                                               |
+| `EMAIL_FROM`         | Sender address. Needs a domain verified in Resend to reach anyone but your own Resend email                                                    |
+| `DATABASE_URL`       | Use a real Postgres. Run `npm run db:migrate --workspace @eventify/api` after every pull                                                       |
+| `PAYMENTS`           | `simulated` or `off` (free tickets only). Production defaults to `off`                                                                         |
+| `QR_PRIVATE_KEY`     | Key that signs ticket QR codes; make one with `npm run keygen --workspace @eventify/api`                                                       |
+| `SITE_URL`           | Where the web app lives, for the ticket links in emails                                                                                        |
+| `SUPER_ADMIN_EMAILS` | Comma-separated emails that are Super Admins when they sign in (how the first admin gets in)                                                   |
+| `TRUST_PROXY`        | Proxies between visitors and the API (`1` behind the host alone, `2` when the web host forwards `/api` too), so rate limits count each visitor |
 
 Protections worth knowing about:
 
 - **Sessions** are held in two halves: a cookie scripts can't read, and a token the web app sends back. The API needs both, so the web app and the API have to share a site: put the API on a subdomain of the web app's domain, or forward `/api/*` from the web host to the API (a rewrite in `apps/web/vercel.json`) and leave `VITE_API_URL` empty. On two unrelated addresses, browsers won't send the cookie and nobody stays signed in.
 - **Two-step sign-in** (an authenticator app, set up under Admin → Security) is open to all staff. In production a Super Admin can't approve organizers, change rates, record payouts or manage staff until theirs is on (`REQUIRE_TWO_STEP`).
 - **Staff** are added and removed under Admin → Staff, and each organizer's agent is picked on the organizer's page. `SUPER_ADMIN_EMAILS` is only for the first admin.
-- **Rate limits**: sign-in codes and checkouts are limited per visitor (and codes per email or phone), and one phone number can hold three unpaid orders at a time.
+- **Rate limits**: sign-in codes and checkouts are limited per visitor (and codes per email), and one phone number can hold three unpaid orders at a time.
 - **Staff sessions** end after 12 hours; everyone else's after 30 days.
 - **Audit log**: every change made in the admin portal is written to the `audit_log` table with who made it.
 
@@ -67,7 +66,7 @@ After changing `apps/api/src/db/schema.ts`, run `npm run db:generate --workspace
 
 ### Who can do what
 
-Sign-in is an email address and a one-time code sent to it (`/login`); there are no passwords and no SMS. The rules live in `packages/shared/src/access.ts` and the API must enforce them too.
+Sign-in is an email address and a one-time code sent to it (`/login`); the rules live in `packages/shared/src/access.ts` and the API must enforce them too.
 
 | Who                  | Can                                                                                 |
 | -------------------- | ----------------------------------------------------------------------------------- |

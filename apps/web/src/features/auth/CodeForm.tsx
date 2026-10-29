@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Button, TextField } from '../../components/ui';
-import { TEST_LOOKUP_CODE } from '../../mocks/testPhones';
+import { TEST_EMAIL_CODE } from '../../mocks/testPhones';
 import { AUTH_CTA, Spinner } from './AuthShell';
 import { OtpBoxes } from './OtpBoxes';
 import { useResendWait } from './useResendWait';
@@ -124,7 +124,7 @@ export function MockCodeHint() {
   return (
     <p className="m-0 rounded-lg border-2 border-dashed border-hair px-3.5 py-2.5 text-xs text-muted">
       <strong className="text-fg">Test mode</strong> · no email is sent. The code is always{' '}
-      <code className="font-mono text-fg">{TEST_LOOKUP_CODE}</code>.
+      <code className="font-mono text-fg">{TEST_EMAIL_CODE}</code>.
     </p>
   );
 }

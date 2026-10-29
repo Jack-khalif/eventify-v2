@@ -5,7 +5,7 @@ import {
   publicEventSchema,
   sessionSchema,
   sessionUserSchema,
-  ticketLookupResultSchema,
+  ticketsResultSchema,
   ticketViewSchema,
   verifyTicketQr,
   type CheckoutRequest,
@@ -83,7 +83,6 @@ function app(payments: PaymentProvider | null = simulatedPayments) {
       sent.push(email);
     },
     payments,
-    sms: null,
     signingKey: keys.privateKey,
     verifyKey: { kty: 'OKP', crv: 'Ed25519', x: 'unused-here' },
     siteUrl: 'https://tickets.test',
@@ -262,7 +261,7 @@ describe('buying a ticket', () => {
     expect(sent[0]!.html).toContain('&#60;b&#62;Bo&#60;/b&#62;');
   });
 
-  it('serves the Live Pass for a ticket, with a QR the door can verify', async () => {
+  it('serves a ticket with a QR the door can verify', async () => {
     const api = app();
     const paid = await buy(api);
     const id = paid.tickets[0]!.id;
@@ -514,7 +513,7 @@ describe('signing in by email', () => {
 
     const { token } = await signIn(api, 'zawadi@example.com');
     const res = await api.request('/api/me/tickets', as(token));
-    const { tickets } = ticketLookupResultSchema.parse(await res.json());
+    const { tickets } = ticketsResultSchema.parse(await res.json());
     expect(tickets.map((t) => t.id)).toEqual(paid.tickets.map((t) => t.id));
     expect((await api.request('/api/me/tickets')).status).toBe(401);
   });

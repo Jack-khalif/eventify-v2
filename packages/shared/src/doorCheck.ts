@@ -1,4 +1,4 @@
-import { LIVE_CODE_ALPHABET, LIVE_CODE_LENGTH, verifyLiveCode, verifyTicketQr } from './passes';
+import { verifyTicketQr } from './passes';
 import type { DoorGuest, DoorTransferred } from './schemas';
 
 /**
@@ -9,7 +9,7 @@ import type { DoorGuest, DoorTransferred } from './schemas';
 export type DoorResult =
   | { kind: 'valid'; guest: DoorGuest }
   | { kind: 'used'; guest: DoorGuest }
-  | { kind: 'invalid'; reason: 'not_a_ticket' | 'other_event' | 'wrong_code' | 'transferred' };
+  | { kind: 'invalid'; reason: 'not_a_ticket' | 'other_event' | 'transferred' };
 
 const resultFor = (guest: DoorGuest): DoorResult =>
   guest.checkedInAt ? { kind: 'used', guest } : { kind: 'valid', guest };
@@ -31,34 +31,6 @@ export async function checkQr(
   return transferred.some((t) => t.ticketId === ticketId)
     ? { kind: 'invalid', reason: 'transferred' }
     : { kind: 'invalid', reason: 'other_event' };
-}
-
-const CODE_PATTERN = new RegExp(`^[${LIVE_CODE_ALPHABET}]{${LIVE_CODE_LENGTH}}$`);
-
-/** "abc 234" → "ABC234". */
-export const normalizeLiveCode = (code: string) => code.replace(/\s+/g, '').toUpperCase();
-
-/**
- * A live code read off a guest's Live Pass, checked against every ticket's secret, then against
- * tickets that were passed on (an old pass still shows a code).
- */
-export async function checkLiveCode(
-  code: string,
-  guests: readonly DoorGuest[],
-  now: number = Date.now(),
-  transferred: readonly DoorTransferred[] = [],
-): Promise<DoorResult> {
-  const wanted = normalizeLiveCode(code);
-  if (!CODE_PATTERN.test(wanted)) return { kind: 'invalid', reason: 'wrong_code' };
-  for (const guest of guests) {
-    if (await verifyLiveCode(guest.passSecret, wanted, now)) return resultFor(guest);
-  }
-  for (const t of transferred) {
-    if (await verifyLiveCode(t.passSecret, wanted, now)) {
-      return { kind: 'invalid', reason: 'transferred' };
-    }
-  }
-  return { kind: 'invalid', reason: 'wrong_code' };
 }
 
 const digits = (s: string) => s.replace(/\D/g, '');

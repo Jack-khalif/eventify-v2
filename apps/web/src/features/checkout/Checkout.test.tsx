@@ -86,7 +86,7 @@ describe('Checkout form', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Reserve spot' }));
     expect(await screen.findByRole('heading', { name: "You're going! 🎉" })).toBeInTheDocument();
     expect(
-      await screen.findByRole('article', { name: 'Live Pass for IEEE Strathmore Hackathon 2026' }),
+      await screen.findByRole('article', { name: 'Ticket for IEEE Strathmore Hackathon 2026' }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole('list', { name: 'Other tickets in this order' }),
@@ -210,8 +210,8 @@ describe('M-Pesa waiting and outcomes', () => {
 
     advance(5_000);
     expect(await screen.findByRole('heading', { name: "You're going! 🎉" })).toBeInTheDocument();
-    const pass = await screen.findByRole('article', { name: /^Live Pass for / });
-    expect(within(pass).getByText(/^EVT-SAUTI-\d{4}$/)).toBeInTheDocument();
+    const pass = await screen.findByRole('article', { name: /^Ticket for / });
+    expect(within(pass).getByText(/Ticket code: EVT-SAUTI-\d{4}$/)).toBeInTheDocument();
     const others = screen.getByRole('list', { name: 'Other tickets in this order' });
     expect(within(others).getByRole('link', { name: /Ticket 2 of 2/ })).toHaveAttribute(
       'href',

@@ -26,8 +26,6 @@ import {
   signInVerifySchema,
   totpCodeRequestSchema,
   totpSignInSchema,
-  ticketLookupStartSchema,
-  ticketLookupVerifySchema,
   ticketTransferRequestSchema,
   type AdminMe,
   type OrderView,
@@ -81,7 +79,6 @@ import type { Mailer } from './email/mailer';
 import { organizerProfile, publishedEvent, publishedEvents } from './events';
 import { loadImage } from './images';
 import { merchFor, merchQueue, requestMerch, setMerchStatus } from './merch';
-import { startLookup, verifyLookup } from './lookup';
 import {
   cancelOrder,
   createOrder,
@@ -104,7 +101,6 @@ import {
 } from './organizer';
 import type { PaymentProvider } from './payments';
 import { createRateLimiter } from './ratelimit';
-import type { SmsSender } from './sms';
 import { addStaff, assignAgent, removeStaff, staffRows } from './staff';
 import { otpauthUrl } from './totp';
 import { ticketView, ticketViewsForEmail } from './tickets';
@@ -115,8 +111,6 @@ export type AppDeps = {
   mailer: Mailer;
   /** null = paid tickets can't be bought yet. */
   payments: PaymentProvider | null;
-  /** Texts the "Find my tickets" code. null = no SMS account, so tickets are found by email only. */
-  sms: SmsSender | null;
   /** Signs the backup QR on every ticket. */
   signingKey: CryptoKey;
   /** The public half of signingKey, handed to door devices so they can check QRs offline. */
@@ -500,58 +494,13 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     });
   }
 
-  // Tickets bought with the signed-in email, once a code sent to it has shown it is theirs. An
-  // account made with a password hasn't, so it finds its tickets by phone like a guest.
+  // Tickets bought with the signed-in email, once a code sent to it has shown it is theirs.
+  // An account made with a password hasn't, so it cannot see private ticket details yet.
   app.get('/me/tickets', async (c) => {
     const account = await accountOf(c);
     if (!account) return unauthorized(c);
     if (!account.emailVerifiedAt) return c.json({ tickets: [] });
     return c.json({ tickets: await ticketViewsForEmail(db, deps.signingKey, account.email) });
-  });
-
-  // "Find my tickets" for buyers with no account: a one-time code texted to the phone they paid with.
-  app.post('/ticket-lookup/start', async (c) => {
-    const stop = limited(c, 'codes', 20, 10 * MINUTE);
-    if (stop) return stop;
-    const body = ticketLookupStartSchema.safeParse(await c.req.json().catch(() => null));
-    if (!body.success) return badRequest(c, 'Enter a valid phone number.');
-    const result = await startLookup(deps, body.data.phone);
-    if (result === 'unavailable') {
-      return c.json(
-        {
-          error: 'sms_unavailable',
-          message:
-            'We can’t text codes yet. Sign in with the email you used at checkout to see your tickets.',
-        },
-        503,
-      );
-    }
-    if (result === 'too_many') {
-      return c.json(
-        {
-          error: 'too_many_codes',
-          message: 'We just sent a code to that number. Wait a little before asking for another.',
-        },
-        429,
-      );
-    }
-    return c.json({ sent: true });
-  });
-
-  app.post('/ticket-lookup/verify', async (c) => {
-    const stop = limited(c, 'guesses', 40, 10 * MINUTE);
-    if (stop) return stop;
-    const body = ticketLookupVerifySchema.safeParse(await c.req.json().catch(() => null));
-    const tickets = body.success ? await verifyLookup(deps, body.data.phone, body.data.code) : null;
-    return tickets
-      ? c.json({ tickets })
-      : c.json(
-          {
-            error: 'invalid_code',
-            message: "That code isn't right or has expired. Check the SMS, or ask for a new code.",
-          },
-          422,
-        );
   });
 
   // Organizer tools. Applying needs only a signed-in account; the rest needs an organizer.

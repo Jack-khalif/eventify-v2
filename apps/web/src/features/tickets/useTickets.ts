@@ -1,13 +1,9 @@
 import {
-  ticketLookupResultSchema,
-  ticketLookupStartResultSchema,
-  ticketLookupStartSchema,
-  ticketLookupVerifySchema,
   ticketTransferRequestSchema,
   ticketTransferResultSchema,
   ticketViewSchema,
+  ticketsResultSchema,
   type TicketTransferRequest,
-  type TicketView,
 } from '@eventify/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiPost } from '../../lib/api';
@@ -24,63 +20,13 @@ export function useTicket(ticketId: string) {
   });
 }
 
-/** "Find my tickets" step 1: text a one-time code to this phone. */
-export function useStartLookup() {
-  return useMutation({
-    mutationFn: (phone: string) =>
-      apiPost(
-        '/api/ticket-lookup/start',
-        ticketLookupStartSchema.parse({ phone }),
-        ticketLookupStartResultSchema,
-      ),
-  });
-}
-
-type LookupResult = { phone: string; tickets: TicketView[] };
-const LOOKUP_KEY = ['ticket-lookup'];
-
-/**
- * The tickets found for the verified phone, kept for the rest of the visit so going back from a
- * pass shows the list again instead of asking for another code.
- */
-export function useLookupResult() {
-  const queryClient = useQueryClient();
-  const query = useQuery<LookupResult | null>({
-    queryKey: LOOKUP_KEY,
-    queryFn: () => null,
-    staleTime: Infinity,
-    gcTime: Infinity,
-  });
-  return {
-    result: query.data ?? null,
-    clear: () => queryClient.setQueryData(LOOKUP_KEY, null),
-  };
-}
-
-/** Step 2: exchange the code for the tickets. Each one is cached so opening a pass is instant. */
-export function useVerifyLookup() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (req: { phone: string; code: string }) =>
-      apiPost(
-        '/api/ticket-lookup/verify',
-        ticketLookupVerifySchema.parse(req),
-        ticketLookupResultSchema,
-      ),
-    onSuccess: ({ tickets }, { phone }) => {
-      for (const t of tickets) queryClient.setQueryData(['ticket', t.id], t);
-      queryClient.setQueryData<LookupResult>(LOOKUP_KEY, { phone, tickets });
-    },
-  });
-}
-
-/** Tickets bought with the signed-in phone. It was verified at sign-in, so no second code. */
+/** Tickets bought with the signed-in email. */
 export function useMyTickets({ enabled }: { enabled: boolean }) {
   const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['my-tickets'],
     queryFn: async () => {
-      const { tickets } = await apiGet('/api/me/tickets', ticketLookupResultSchema);
+      const { tickets } = await apiGet('/api/me/tickets', ticketsResultSchema);
       for (const t of tickets) queryClient.setQueryData(['ticket', t.id], t);
       return tickets;
     },
@@ -102,9 +48,6 @@ export function useTransferTicket(ticketId: string) {
         ticketTransferResultSchema,
       ),
     onSuccess: async () => {
-      queryClient.setQueryData<LookupResult | null>(LOOKUP_KEY, (found) =>
-        found ? { ...found, tickets: found.tickets.filter((t) => t.id !== ticketId) } : found,
-      );
       await Promise.all([
         // Not refetched now: the screen that did this says so itself.
         queryClient.invalidateQueries({ queryKey: ['ticket', ticketId], refetchType: 'none' }),

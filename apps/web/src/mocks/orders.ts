@@ -1,6 +1,5 @@
 import {
   formatDate,
-  generatePassSecret,
   importSigningKey,
   isCheckoutError,
   ORDER_HOLD_MINUTES,
@@ -39,7 +38,6 @@ type StoredTicket = {
   orderId: string;
   index: number;
   holderName: string;
-  secret: string;
   checkedInAt: string | null;
   checkedInDoor?: string | null;
   /** Set on a ticket passed on to someone other than the buyer. */
@@ -98,7 +96,6 @@ function issueTickets(order: OrderView, event: PublicEvent) {
       orderId: order.id,
       index: i + 1,
       holderName: order.buyer.name,
-      secret: generatePassSecret(),
       checkedInAt: null,
     };
     db.tickets[ticket.id] = ticket;
@@ -217,7 +214,6 @@ async function toTicketView(
     index: t.transferredFromId ? 1 : t.index,
     count: t.transferredFromId ? 1 : order.quantity,
     event,
-    passSecret: t.secret,
     qrPayload: await signTicketQr(await signingKey, t.id),
     checkedInAt: t.checkedInAt,
   };
@@ -240,10 +236,6 @@ export function transferredAway(id: string) {
     message: `This ticket was transferred${next ? ` to ${name.slice(0, 1)}•••@${domain}` : ''} on ${formatDate(old.transferredAt)}, so it no longer works. They have a new ticket of their own.`,
   };
 }
-
-/** Tickets bought with this phone number and still held by the buyer, soonest event first. */
-export const ticketsForPhone = (phone: string, events: PublicEvent[]) =>
-  ticketsWhere((order, t) => order.buyer.phone === phone && !t.holderEmail, events);
 
 async function ticketsWhere(
   matches: (order: OrderView, ticket: StoredTicket) => boolean,
@@ -268,7 +260,7 @@ async function ticketsWhere(
 export const ticketsForEmail = (email: string, events: PublicEvent[]) =>
   ticketsWhere((order, t) => (t.holderEmail ?? order.buyer.email).toLowerCase() === email, events);
 
-/** One paid ticket for the demo phone, so "Find my tickets" has something to show before any purchase. */
+/** One paid demo ticket, so ticket and scanner pages can be tested before a purchase. */
 export function seedDemoTicket(events: PublicEvent[]) {
   if (Object.keys(db.orders).length > 0) return;
   const event = events.find((e) => e.slug === 'sauti-sessions');
@@ -302,7 +294,7 @@ export function ticketsForEvent(eventId: string) {
 export const transferredForEvent = (eventId: string) =>
   Object.values(db.tickets)
     .filter((t) => t.transferredAt && db.orders[t.orderId]?.eventId === eventId)
-    .map((t) => ({ ticketId: t.id, code: t.code, passSecret: t.secret }));
+    .map((t) => ({ ticketId: t.id, code: t.code }));
 
 /** Record a door check-in on a ticket. The earliest one stands. */
 export function recordTicketCheckIn(ticketId: string, at: string, door: string) {
@@ -432,7 +424,6 @@ export function transferTicket(
     index: t.index,
     holderName: req.name,
     holderEmail: req.email,
-    secret: generatePassSecret(),
     checkedInAt: null,
     transferredFromId: t.id,
   };

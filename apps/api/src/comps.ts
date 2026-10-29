@@ -17,7 +17,7 @@ import type { OrganizerRow } from './organizer';
 
 /**
  * Give tickets away: a $0 order of kind "comp", paid at once and issued like any other, so the
- * guest gets the same email, Live Pass and place on the door list. Undefined when the event isn't
+ * guest gets the same email, ticket page and place on the door list. Undefined when the event isn't
  * this organizer's. The caller has checked the organizer is active and sends the email.
  */
 export async function issueComps(

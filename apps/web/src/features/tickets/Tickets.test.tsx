@@ -1,17 +1,10 @@
-import {
-  importVerifyKey,
-  liveCode,
-  LIVE_CODE_STEP_MS,
-  verifyTicketQr,
-  type TicketView,
-} from '@eventify/shared';
+import { importVerifyKey, verifyTicketQr, type TicketView } from '@eventify/shared';
 import { publicEvents } from '@eventify/shared/fixtures';
-import { screen, waitFor, within } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEV_QR_PUBLIC_KEY } from '../../mocks/devKeys';
-import { seedDemoTicket, ticketsForEmail, ticketsForPhone } from '../../mocks/orders';
-import { DEMO_TICKET_PHONE, TEST_LOOKUP_CODE } from '../../mocks/testPhones';
+import { seedDemoTicket, ticketsForEmail } from '../../mocks/orders';
 import { renderApp } from '../../test/render';
 
 const START = new Date('2026-09-29T10:00:00+03:00').getTime();
@@ -21,14 +14,12 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(START);
   seedDemoTicket(publicEvents());
-  ticket = (await ticketsForPhone(DEMO_TICKET_PHONE, publicEvents()))[0]!;
+  ticket = (await ticketsForEmail('amina@example.com', publicEvents()))[0]!;
 });
 afterEach(() => vi.useRealTimers());
 
-const liveCodeText = () => screen.getByTestId('live-code').textContent;
-
-describe('Live Pass', () => {
-  it('shows the ticket with a code that the door can check', async () => {
+describe('Ticket pass', () => {
+  it('shows the static QR ticket that the door can check', async () => {
     renderApp(`/t/${ticket.id}`);
     expect(
       await screen.findByRole('heading', {
@@ -36,28 +27,16 @@ describe('Live Pass', () => {
         name: 'Sauti Sessions: Afro-house Listening Night',
       }),
     ).toBeInTheDocument();
-    const pass = screen.getByRole('article', { name: /^Live Pass for Sauti Sessions/ });
+    const pass = screen.getByRole('article', { name: /^Ticket for Sauti Sessions/ });
     expect(within(pass).getByText('Amina Otieno')).toBeInTheDocument();
-    expect(within(pass).getByText(ticket.code)).toBeInTheDocument();
-
-    const expected = await liveCode(ticket.passSecret, START);
-    await waitFor(() => expect(liveCodeText()).toBe(expected));
+    expect(within(pass).getByText(`Ticket code: ${ticket.code}`)).toBeInTheDocument();
+    expect(within(pass).getByRole('img', { name: `Ticket QR for ${ticket.code}` })).toBeVisible();
+    expect(within(pass).queryByLabelText('Live code')).not.toBeInTheDocument();
   });
 
-  it('changes the code when the 4-second window moves on', async () => {
+  it('draws a static QR that verifies with the public key', async () => {
     renderApp(`/t/${ticket.id}`);
-    const first = await liveCode(ticket.passSecret, START);
-    await waitFor(() => expect(liveCodeText()).toBe(first));
-
-    vi.setSystemTime(START + LIVE_CODE_STEP_MS);
-    const next = await liveCode(ticket.passSecret, START + LIVE_CODE_STEP_MS);
-    expect(next).not.toBe(first);
-    await waitFor(() => expect(liveCodeText()).toBe(next));
-  });
-
-  it('draws a backup QR that verifies with the public key', async () => {
-    renderApp(`/t/${ticket.id}`);
-    const qr = await screen.findByRole('img', { name: `Backup QR for ${ticket.code}` });
+    const qr = await screen.findByRole('img', { name: `Ticket QR for ${ticket.code}` });
     const payload = qr.getAttribute('data-qr-value')!;
     const key = await importVerifyKey(DEV_QR_PUBLIC_KEY);
     expect(await verifyTicketQr(key, payload)).toBe(ticket.id);
@@ -99,13 +78,12 @@ describe('Live Pass', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(
       "We've emailed Wanjiru Kamau's new ticket to wanjiru@example.com.",
     );
-    expect(screen.queryByRole('article', { name: /^Live Pass/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('article', { name: /^Ticket for/ })).not.toBeInTheDocument();
 
-    // Wanjiru has a new ticket; Amina's phone lookup no longer finds the old one.
+    // Wanjiru has a new ticket under her email.
     const [theirs] = await ticketsForEmail('wanjiru@example.com', publicEvents());
     expect(theirs).toMatchObject({ holderName: 'Wanjiru Kamau', index: 1, count: 1 });
     expect(theirs!.code).not.toBe(ticket.code);
-    expect(await ticketsForPhone(DEMO_TICKET_PHONE, publicEvents())).toEqual([]);
 
     // Opening the old link later says where it went.
     unmount();

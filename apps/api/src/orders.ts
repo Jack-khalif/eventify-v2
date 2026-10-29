@@ -1,6 +1,5 @@
 import {
   displayStatus,
-  generatePassSecret,
   isCheckoutError,
   ORDER_HOLD_MINUTES,
   randomToken,
@@ -145,7 +144,6 @@ export async function markPaid(tx: Db, o: OrderRow, now: number): Promise<OrderR
       eventId: o.eventId,
       index: i + 1,
       holderName: o.buyerName,
-      secret: generatePassSecret(),
     })),
   );
   return paid!;
