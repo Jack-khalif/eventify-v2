@@ -84,8 +84,8 @@ export function PrivacyPage() {
           </li>
           <li>
             <strong>Companies that work for us</strong>: our hosting and database provider, our
-            email and SMS providers, and the payment provider (such as M-Pesa) that takes your
-            payment. They may use the data only to provide that service to us.
+            email provider, and the payment provider (such as M-Pesa) that takes your payment. They
+            may use the data only to provide that service to us.
           </li>
           <li>Authorities, where the law requires it.</li>
         </ul>

@@ -1,17 +1,16 @@
-import { formatDate, formatTimeRange, ticketSms } from '@eventify/shared';
+import { formatDate, formatTimeRange } from '@eventify/shared';
 import { useParams } from 'react-router';
 import { BackLink } from '../../components/BackLink';
 import { QrCode } from '../../components/QrCode';
 import { ErrorState, NotFoundState } from '../../components/PageStates';
 import { Cover } from '../../components/ui';
 import { isNotFound } from '../../lib/api';
-import { displayUrl, siteUrl } from '../../lib/site';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { directionsUrl } from '../event/calendar';
 import { ticketLine } from './ticketLine';
 import { useTicket } from './useTickets';
 
-/** /t/:ticketId/delivery: what the buyer received by SMS and email, as in the design. */
+/** /t/:ticketId/delivery: the email confirmation keeps the buyer's ticket info in one place. */
 export function DeliveryPage() {
   const { ticketId = '' } = useParams();
   const query = useTicket(ticketId);
@@ -23,7 +22,7 @@ export function DeliveryPage() {
     return (
       <NotFoundState
         title="Ticket not found"
-        message="Check the link in your SMS or email, or find your tickets with your phone number."
+        message="Check the link in your email, or sign in to see the tickets linked to your account."
       />
     );
   }
@@ -33,34 +32,12 @@ export function DeliveryPage() {
 
   const t = query.data;
   const e = t.event;
-  const sms = ticketSms({
-    name: t.holderName,
-    eventTitle: e.title,
-    startsAt: e.startsAt,
-    code: t.code,
-    passUrl: displayUrl(siteUrl(`/t/${t.id}`)),
-  });
 
   return (
     <section className="mx-auto flex w-full max-w-[1000px] flex-1 flex-col gap-6 px-5 pt-4 pb-12">
       <BackLink label="Your pass" fallback={`/t/${t.id}`} />
       <h1 className="m-0 text-[26px] tracking-[-0.02em]">Ticket delivery</h1>
       <div className="flex flex-wrap items-start gap-8">
-        <figure className="m-0 flex max-w-[340px] flex-[1_1_300px] flex-col gap-2.5">
-          <figcaption className="text-[13px] font-bold text-muted">SMS confirmation</figcaption>
-          <div className="flex flex-col gap-2 rounded-[20px] border-2 border-rule bg-surface p-4">
-            <span className="text-[11px] font-extrabold tracking-[0.08em] text-muted">
-              EVENTIFY
-            </span>
-            <p
-              data-testid="sms-preview"
-              className="m-0 rounded-xl bg-bg px-3.5 py-3 text-[13px] leading-[1.55] break-words"
-            >
-              {sms}
-            </p>
-          </div>
-        </figure>
-
         <figure className="m-0 flex max-w-[460px] flex-[1_1_380px] flex-col gap-2.5">
           <figcaption className="text-[13px] font-bold text-muted">Email ticket</figcaption>
           <div className="overflow-hidden rounded-2xl border-2 border-rule bg-bg">

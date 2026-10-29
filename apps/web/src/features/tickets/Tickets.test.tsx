@@ -128,68 +128,19 @@ describe('Live Pass', () => {
 });
 
 describe('Ticket delivery preview', () => {
-  it('shows the SMS and the email ticket', async () => {
+  it('shows the email ticket', async () => {
     renderApp(`/t/${ticket.id}/delivery`);
     expect(await screen.findByRole('heading', { name: 'Ticket delivery' })).toBeInTheDocument();
-    const sms = screen.getByTestId('sms-preview');
-    expect(sms).toHaveTextContent(/^Hi Amina, you're confirmed for Sauti Sessions/);
-    expect(sms).toHaveTextContent(`Ticket code ${ticket.code}`);
-    expect(sms).toHaveTextContent(`/t/${ticket.id}`);
+    expect(screen.getByText('Email ticket')).toBeInTheDocument();
     expect(screen.getByRole('img', { name: `QR code for ${ticket.code}` })).toBeInTheDocument();
   });
 });
 
-describe('Find my tickets', () => {
-  async function requestCode(phone = '0712 345 678') {
-    const result = renderApp('/tickets');
-    await userEvent.type(await screen.findByLabelText('Phone number'), phone);
-    await userEvent.click(screen.getByRole('button', { name: 'Text me a code' }));
-    await screen.findByLabelText('Code');
-    return result;
-  }
-
-  it('checks the phone number before sending a code', async () => {
+describe('Your tickets', () => {
+  it('keeps email as the supported ticket lookup path for guests', async () => {
     renderApp('/tickets');
-    await userEvent.type(await screen.findByLabelText('Phone number'), '12345');
-    await userEvent.click(screen.getByRole('button', { name: 'Text me a code' }));
-    expect(screen.getByLabelText('Phone number')).toHaveAccessibleDescription(
-      'Enter a valid phone number',
-    );
-  });
-
-  it('rejects a wrong code', async () => {
-    await requestCode();
-    expect(screen.getByText(/We sent a 6-digit code to/)).toHaveTextContent('+254 712 345 678');
-    await userEvent.type(screen.getByLabelText('Code'), '000000');
-    await userEvent.click(screen.getByRole('button', { name: 'Show my tickets' }));
-    await waitFor(() =>
-      expect(screen.getByLabelText('Code')).toHaveAccessibleDescription(
-        "That code isn't right. Check the SMS and try again.",
-      ),
-    );
-  });
-
-  it('lists the tickets and keeps them when coming back from a pass', async () => {
-    const { router } = await requestCode();
-    await userEvent.type(screen.getByLabelText('Code'), TEST_LOOKUP_CODE);
-    await userEvent.click(screen.getByRole('button', { name: 'Show my tickets' }));
-
-    const list = await screen.findByRole('list', { name: 'Tickets' });
-    const link = within(list).getByRole('link', { name: /Sauti Sessions/ });
-    expect(link).toHaveTextContent(ticket.code);
-
-    await userEvent.click(link);
-    expect(await screen.findByRole('article', { name: /^Live Pass for/ })).toBeInTheDocument();
-    expect(router.state.location.pathname).toBe(`/t/${ticket.id}`);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Tickets' }));
-    expect(await screen.findByRole('list', { name: 'Tickets' })).toBeInTheDocument();
-  });
-
-  it('says so when a number has no tickets', async () => {
-    await requestCode('0798 765 432');
-    await userEvent.type(screen.getByLabelText('Code'), TEST_LOOKUP_CODE);
-    await userEvent.click(screen.getByRole('button', { name: 'Show my tickets' }));
-    expect(await screen.findByText('No tickets for this number')).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Your tickets' })).toBeInTheDocument();
+    expect(screen.getByText(/Tickets are delivered by email/i)).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /sign in/i }).length).toBeGreaterThan(0);
   });
 });

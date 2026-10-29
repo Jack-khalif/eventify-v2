@@ -16,7 +16,7 @@ import {
 } from './TransferTicket';
 import { useTicket } from './useTickets';
 
-/** /t/:ticketId: the link in the SMS and email. Shows the Live Pass for one ticket. */
+/** /t/:ticketId: the link in the confirmation email. Shows the Live Pass for one ticket. */
 export function TicketPage() {
   const { ticketId = '' } = useParams();
   const query = useTicket(ticketId);
@@ -29,7 +29,7 @@ export function TicketPage() {
     return (
       <NotFoundState
         title="Ticket not found"
-        message="Check the link in your SMS or email, or find your tickets with your phone number."
+        message="Check the link in your email, or sign in to see your tickets."
       />
     );
   }
@@ -77,7 +77,7 @@ export function TicketPage() {
           </p>
           {transferable && <TransferTicket ticket={t} onTransferred={setTransferred} />}
           <Link to={`/t/${t.id}/delivery`} className="text-[13px] font-bold text-accent-text">
-            Preview the SMS &amp; email →
+            Preview the email ticket →
           </Link>
         </>
       )}

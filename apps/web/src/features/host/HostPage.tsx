@@ -63,8 +63,8 @@ export function HostPage({ user }: { user: SessionUser | null }) {
           Sell tickets to your event on Eventify
         </h1>
         <p className="m-0 max-w-[600px] text-[17px] text-muted">
-          M-Pesa checkout, tickets by SMS and email, and queue-free Express Entry at the door.
-          Create an account and publish your first event today.
+          M-Pesa checkout, email ticket delivery, and queue-free Express Entry at the door. Create
+          an account and publish your first event today.
         </p>
         <div className="flex flex-wrap items-center gap-3">
           <Link

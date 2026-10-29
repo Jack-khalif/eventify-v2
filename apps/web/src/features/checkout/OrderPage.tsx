@@ -406,9 +406,7 @@ function Success({ order }: { order: OrderView }) {
       <div className="flex flex-col gap-1 text-center">
         <h1 className="m-0 text-[26px] tracking-[-0.02em]">You're going! 🎉</h1>
         <p className="m-0 text-[13px] text-muted">
-          Sent by SMS and email to{' '}
-          <strong className="text-fg whitespace-nowrap">{formatPhone(order.buyer.phone)}</strong>{' '}
-          and <strong className="text-fg">{order.buyer.email}</strong>
+          Sent by email to <strong className="text-fg">{order.buyer.email}</strong>
         </p>
       </div>
       {pass.data ? (
@@ -450,7 +448,7 @@ function Success({ order }: { order: OrderView }) {
       )}
       {first && (
         <Link to={`/t/${first.id}/delivery`} className="text-[13px] font-bold text-accent-text">
-          Preview the SMS &amp; email →
+          Preview the email ticket →
         </Link>
       )}
       <Link to="/discover" className="text-[13px] text-muted">

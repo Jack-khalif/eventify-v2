@@ -16,6 +16,6 @@ export function eventDescription(e: PublicEvent): string[] {
   if (e.description.length > 0) return e.description;
   return [
     `${e.title} by ${e.organizer.name}. ${formatTimeRange(e.startsAt, e.endsAt)} at ${e.venue}.`,
-    'Tickets are delivered by SMS and email with a QR code and Express Entry Live Pass for quick entry at the door.',
+    'Tickets are delivered by email with a QR code and Express Entry Live Pass for quick entry at the door.',
   ];
 }
