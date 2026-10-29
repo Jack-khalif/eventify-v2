@@ -31,10 +31,14 @@ export function FindTicketsPage() {
           </Link>
         </div>
       ) : mine.data ? (
-        <TicketList owner={user.email} tickets={mine.data} empty={{
-          title: 'No tickets for this email',
-          body: 'Tickets show here when this email was entered at checkout.',
-        }} />
+        <TicketList
+          owner={user.email}
+          tickets={mine.data}
+          empty={{
+            title: 'No tickets for this email',
+            body: 'Tickets show here when this email was entered at checkout.',
+          }}
+        />
       ) : mine.isError ? (
         <p role="alert" className="m-0 text-sm text-danger">
           Couldn't load your tickets.{' '}
