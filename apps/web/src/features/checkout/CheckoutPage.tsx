@@ -252,7 +252,7 @@ function CheckoutForm({ event: e }: { event: PublicEvent }) {
             />
           </div>
           <span className="text-xs text-muted">
-            Your ticket and QR code are sent here by SMS and email.
+            Your ticket and QR code are sent to this email.
           </span>
         </fieldset>
 
