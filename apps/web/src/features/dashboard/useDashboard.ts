@@ -3,10 +3,13 @@ import {
   compRequestSchema,
   createEventRequestSchema,
   eventDashboardSchema,
+  merchListSchema,
+  merchRequestSchema,
   organizerHomeSchema,
   publicEventSchema,
   type CompRequest,
   type CreateEventRequest,
+  type MerchRequest,
 } from '@eventify/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPost } from '../../lib/api';
@@ -85,5 +88,24 @@ export function useIssueComps(eventId: string) {
       // Comps fill capacity and appear in the check-in numbers.
       await queryClient.invalidateQueries({ queryKey: ['my-organizer', 'dashboard', eventId] });
     },
+  });
+}
+
+const merchPath = (eventId: string) => `/api/organizer/events/${encodeURIComponent(eventId)}/merch`;
+
+/** Branded print ordered for an event, with where each request is in the queue. */
+export function useMerch(eventId: string) {
+  return useQuery({
+    queryKey: ['my-organizer', 'merch', eventId],
+    queryFn: () => apiGet(merchPath(eventId), merchListSchema),
+  });
+}
+
+export function useRequestMerch(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (req: MerchRequest) =>
+      apiPost(merchPath(eventId), merchRequestSchema.parse(req), merchListSchema),
+    onSuccess: (list) => queryClient.setQueryData(['my-organizer', 'merch', eventId], list),
   });
 }

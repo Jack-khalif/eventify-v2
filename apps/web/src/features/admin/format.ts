@@ -1,5 +1,9 @@
 import {
   formatMoney,
+  MERCH_ITEM_LABEL,
+  MERCH_STATUS_LABEL,
+  type MerchLine,
+  type MerchStatus,
   type MoneyByCurrency,
   type OrganizerStatus,
   type PaymentFailure,
@@ -23,6 +27,18 @@ export const PAYOUT_STATUS: Record<PayoutStatus, { label: string; tone: TagTone 
   processing: { label: 'Processing', tone: 'outline' },
   paid: { label: 'Paid', tone: 'neutral' },
 };
+
+export const MERCH_STATUS: Record<MerchStatus, { label: string; tone: TagTone }> = {
+  received: { label: MERCH_STATUS_LABEL.received, tone: 'accent' },
+  in_production: { label: MERCH_STATUS_LABEL.in_production, tone: 'outline' },
+  ready: { label: MERCH_STATUS_LABEL.ready, tone: 'good' },
+  delivered: { label: MERCH_STATUS_LABEL.delivered, tone: 'neutral' },
+  cancelled: { label: MERCH_STATUS_LABEL.cancelled, tone: 'danger' },
+};
+
+/** "500 Wristbands · 2 Banners" */
+export const merchSummary = (items: MerchLine[]) =>
+  items.map((l) => `${count(l.quantity)} ${MERCH_ITEM_LABEL[l.item]}`).join(' · ');
 
 export const PAYOUT_METHOD = { mpesa: 'M-Pesa', bank: 'Bank' } as const;
 
