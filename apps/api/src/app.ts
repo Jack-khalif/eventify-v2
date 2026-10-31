@@ -27,6 +27,7 @@ import {
   totpCodeRequestSchema,
   totpSignInSchema,
   ticketTransferRequestSchema,
+  updateEventRequestSchema,
   type AdminMe,
   type OrderView,
 } from '@eventify/shared';
@@ -95,7 +96,9 @@ import {
   eventDashboard,
   isFailure as isEventFailure,
   organizerFor,
+  organizerEvent,
   organizerHome,
+  updateEvent,
   recordView,
   type OrganizerRow,
 } from './organizer';
@@ -583,6 +586,13 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return dashboard ? c.json(dashboard) : notFound(c);
   });
 
+  app.get('/organizer/events/:id', async (c) => {
+    const organizer = await organizerOf(c);
+    if (organizer instanceof Response) return organizer;
+    const event = await organizerEvent(db, organizer, c.req.param('id'));
+    return event ? c.json(event) : notFound(c);
+  });
+
   const notApproved = (c: Context, doing: string) =>
     c.json(
       {
@@ -680,6 +690,20 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
     return isEventFailure(event)
       ? c.json({ error: event.error, message: event.message }, event.status)
       : c.json(event, 201);
+  });
+
+  app.put('/organizer/events/:id', async (c) => {
+    const organizer = await organizerOf(c);
+    if (organizer instanceof Response) return organizer;
+    if (organizer.status !== 'active') return notApproved(c, 'edit events');
+    const body = updateEventRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return badRequest(c, 'Some event details are missing or invalid.');
+    const event = await updateEvent(deps, organizer, c.req.param('id'), body.data);
+    return event === undefined
+      ? notFound(c)
+      : isEventFailure(event)
+        ? c.json({ error: event.error, message: event.message }, event.status)
+        : c.json(event);
   });
 
   // Any standing will do: a suspended organizer can still take down what they posted.

@@ -1,7 +1,7 @@
 import { toEatIso } from './dates';
 import { CITY_CURRENCY, type Category, type City, type CoverTone } from './enums';
 import { feeFor, formatMoney, toMinor } from './money';
-import type { CreateEventRequest } from './schemas';
+import type { CreateEventRequest, PublicEvent, UpdateEventRequest } from './schemas';
 
 /**
  * The Create event wizard edits a draft of plain strings (what the inputs hold). These rules turn
@@ -26,6 +26,8 @@ export const DEFAULT_BANNER_TONE: CoverTone = 'music';
 export type TierDraft = {
   /** Stable key for React lists and error lookup; not sent. */
   key: string;
+  /** Existing tier ID, retained while editing an event. */
+  id?: string;
   name: string;
   /** Whole units, digits only ("1200"). */
   price: string;
@@ -78,8 +80,36 @@ export function emptyEventDraft(): EventDraft {
 }
 
 const HOUR_MS = 60 * 60 * 1000;
+const EAT_OFFSET_MS = 3 * HOUR_MS;
 const DIGITS = /^\d+$/;
 const localToEat = (value: string) => (value ? `${value}:00+03:00` : null);
+
+function eatToLocal(value: string | null) {
+  return value ? new Date(Date.parse(value) + EAT_OFFSET_MS).toISOString().slice(0, 16) : '';
+}
+
+export function eventToDraft(event: PublicEvent): EventDraft {
+  const startsAt = eatToLocal(event.startsAt);
+  const endsAt = eatToLocal(event.endsAt);
+  return {
+    title: event.title,
+    category: event.category,
+    city: event.city,
+    venue: event.venue,
+    date: startsAt.slice(0, 10),
+    startTime: startsAt.slice(11),
+    endTime: endsAt.slice(11),
+    description: event.description.join('\n\n'),
+    coverImageUrl: event.coverImageUrl,
+    tiers: event.tiers.map((tier) => ({
+      ...newTierDraft(tier.name, String(tier.priceMinor / 100)),
+      id: tier.id,
+      quantity: tier.quantity === null ? '' : String(tier.quantity),
+      saleStartsAt: eatToLocal(tier.saleStartsAt),
+      saleEndsAt: eatToLocal(tier.saleEndsAt),
+    })),
+  };
+}
 
 /** Start and end as EAT ISO strings, or null while the date or times are missing. */
 export function eventTimes(d: EventDraft): { startsAt: string; endsAt: string } | null {
@@ -94,7 +124,11 @@ export function eventTimes(d: EventDraft): { startsAt: string; endsAt: string } 
 export type DetailsField = 'title' | 'venue' | 'date' | 'startTime' | 'endTime';
 export type DetailsErrors = Partial<Record<DetailsField, string>>;
 
-export function detailsErrors(d: EventDraft, now: Date = new Date()): DetailsErrors {
+export function detailsErrors(
+  d: EventDraft,
+  now: Date = new Date(),
+  unchangedStartsAt?: string,
+): DetailsErrors {
   const errors: DetailsErrors = {};
   const title = d.title.trim();
   if (!title) errors.title = 'Give your event a title.';
@@ -105,7 +139,14 @@ export function detailsErrors(d: EventDraft, now: Date = new Date()): DetailsErr
   if (!d.startTime) errors.startTime = 'Add a start time.';
   if (!d.endTime) errors.endTime = 'Add an end time.';
   const times = eventTimes(d);
-  if (times && Date.parse(times.startsAt) <= now.getTime()) {
+  const startsAt = times ? Date.parse(times.startsAt) : undefined;
+  const unchangedStart = unchangedStartsAt ? Date.parse(unchangedStartsAt) : undefined;
+  if (
+    startsAt !== undefined &&
+    startsAt <= now.getTime() &&
+    (unchangedStart === undefined ||
+      Math.floor(startsAt / 60_000) !== Math.floor(unchangedStart / 60_000))
+  ) {
     errors.date = 'Pick a date and time in the future.';
   }
   return errors;
@@ -191,6 +232,17 @@ export function draftToRequest(d: EventDraft): CreateEventRequest {
       quantity: t.quantity ? Number(t.quantity) : null,
       saleStartsAt: localToEat(t.saleStartsAt),
       saleEndsAt: localToEat(t.saleEndsAt),
+    })),
+  };
+}
+
+export function draftToUpdateRequest(d: EventDraft): UpdateEventRequest {
+  const request = draftToRequest(d);
+  return {
+    ...request,
+    tiers: request.tiers.map((tier, i) => ({
+      ...tier,
+      ...(d.tiers[i]?.id ? { id: d.tiers[i]!.id } : {}),
     })),
   };
 }

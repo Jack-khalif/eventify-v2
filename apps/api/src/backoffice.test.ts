@@ -21,6 +21,7 @@ import {
   verifyTicketQr,
   type CheckoutRequest,
   type CreateEventRequest,
+  type UpdateEventRequest,
 } from '@eventify/shared';
 import { asc, eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -101,9 +102,9 @@ const api = () =>
     now: () => clock,
   });
 
-const send = (path: string, token?: string, body?: unknown) =>
+const send = (path: string, token?: string, body?: unknown, method?: 'GET' | 'POST' | 'PUT') =>
   api().request(`/api${path}`, {
-    method: body === undefined ? 'GET' : 'POST',
+    method: method ?? (body === undefined ? 'GET' : 'POST'),
     headers: {
       ...(token && { Authorization: `Bearer ${token}`, Cookie: cookies.get(token) ?? '' }),
       ...(body !== undefined && { 'Content-Type': 'application/json' }),
@@ -319,6 +320,84 @@ describe('creating events', () => {
     const order = await buy({ eventId: event.id, tierId: event.tiers[0]!.id });
     expect(order.tickets[0]!.code).toMatch(/^EVT-[A-Z0-9]+-0001$/);
     expect(order.rateBps).toBe(450); // Amani's rate
+  });
+
+  it('lets the organizer update event details and add tiers without losing ticket history', async () => {
+    const token = await organizer();
+    const createdResponse = await send('/organizer/events', token, newEvent());
+    const event = publicEventSchema.parse(await createdResponse.json());
+    await database.db.update(tiers).set({ sold: 2 }).where(eq(tiers.id, event.tiers[0]!.id));
+
+    expect((await send(`/organizer/events/${event.id}`, undefined)).status).toBe(401);
+    expect((await send('/organizer/events/evt_hack', token)).status).toBe(404);
+    const request: UpdateEventRequest = {
+      title: 'Clay Day Updated',
+      category: event.category,
+      city: event.city,
+      venue: 'Karen Village Studio',
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      description: ['Bring an apron.', 'New materials included.'],
+      coverImageUrl: event.coverImageUrl,
+      tiers: [
+        {
+          id: event.tiers[0]!.id,
+          name: 'Regular',
+          note: '',
+          priceMinor: 175000,
+          quantity: 12,
+          saleStartsAt: null,
+          saleEndsAt: null,
+        },
+        {
+          name: 'VIP',
+          note: '',
+          priceMinor: 250000,
+          quantity: 5,
+          saleStartsAt: null,
+          saleEndsAt: null,
+        },
+      ],
+    };
+
+    const res = await send(`/organizer/events/${event.id}`, token, request, 'PUT');
+    expect(res.status).toBe(200);
+    const updated = publicEventSchema.parse(await res.json());
+    expect(updated).toMatchObject({
+      id: event.id,
+      slug: event.slug,
+      title: 'Clay Day Updated',
+      venue: 'Karen Village Studio',
+      description: request.description,
+    });
+    expect(updated.tiers).toMatchObject([
+      { id: event.tiers[0]!.id, name: 'Regular', priceMinor: 175000, sold: 2 },
+      { name: 'VIP', priceMinor: 250000, sold: 0 },
+    ]);
+
+    const removeSoldTier = await send(
+      `/organizer/events/${event.id}`,
+      token,
+      {
+        ...request,
+        tiers: [{ ...request.tiers[1]!, id: updated.tiers[1]!.id }],
+      },
+      'PUT',
+    );
+    expect(removeSoldTier.status).toBe(409);
+    expect(((await removeSoldTier.json()) as { error: string }).error).toBe('tier_has_orders');
+
+    const invalid = await send(
+      `/organizer/events/${event.id}`,
+      token,
+      {
+        ...request,
+        tiers: [{ ...request.tiers[0], quantity: 1 }],
+      },
+      'PUT',
+    );
+    expect(invalid.status).toBe(409);
+    expect(((await invalid.json()) as { error: string }).error).toBe('tier_capacity_too_low');
   });
 
   it('turns away events in the past, backwards times and things that are not pictures', async () => {

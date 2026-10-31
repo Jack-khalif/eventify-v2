@@ -108,4 +108,34 @@ describe('Create event', () => {
       'true',
     );
   });
+
+  it('lets an organizer edit a published event and add a ticket tier', async () => {
+    const user = userEvent.setup();
+    renderApp('/organizer/events/new');
+    await fillDetails(user);
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.type(screen.getByLabelText('Price (KSh)'), '0');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Publish event' }));
+
+    await user.click(await screen.findByRole('link', { name: 'Go to dashboard' }));
+    await user.click(await screen.findByRole('link', { name: 'Edit event' }));
+    expect(await screen.findByRole('heading', { name: 'Edit event' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Event title')).toHaveValue('Sunset Rooftop Sessions');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'VIP' }));
+    await user.type(screen.getAllByLabelText('Price (KSh)')[1]!, '2500');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Your event has been updated' }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole('link', { name: 'View event page' }));
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Sunset Rooftop Sessions' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('VIP')).toBeInTheDocument();
+    expect(screen.getByText('KSh 2,500')).toBeInTheDocument();
+  });
 });

@@ -17,8 +17,9 @@ import {
   type OrganizerHome,
   type PublicEvent,
   type SessionUser,
+  type UpdateEventRequest,
 } from '@eventify/shared';
-import { and, count, eq, gte, inArray, isNotNull, like, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, gte, inArray, isNotNull, like, ne, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import {
   createPasswordAccount,
@@ -236,6 +237,15 @@ export async function organizerHome(db: Db, o: OrganizerRow, now: number): Promi
   };
 }
 
+/** An event with its tiers, but only when it belongs to the signed-in organizer. */
+export async function organizerEvent(
+  db: Db,
+  o: OrganizerRow,
+  eventId: string,
+): Promise<PublicEvent | undefined> {
+  return (await loadEvents(db, and(eq(events.id, eventId), eq(events.organizerId, o.id))))[0];
+}
+
 const DASHBOARD_DAYS = 14;
 
 /** Sales, check-ins and page views for one event. Undefined when it isn't this organizer's. */
@@ -388,6 +398,189 @@ export async function createEvent(
       })),
     );
     return (await loadEvents(tx, eq(events.id, id)))[0]!;
+  });
+}
+
+/** Update one of this organizer's events while keeping issued tickets attached to their tiers. */
+export async function updateEvent(
+  { db, now }: { db: Db; now: () => number },
+  o: OrganizerRow,
+  eventId: string,
+  req: UpdateEventRequest,
+): Promise<PublicEvent | Failure | undefined> {
+  const at = now();
+  const starts = Date.parse(req.startsAt);
+  const ends = Date.parse(req.endsAt);
+  const tierNames = new Set(req.tiers.map((t) => t.name.trim().toLowerCase()));
+  if (tierNames.size !== req.tiers.length) {
+    return { status: 422, error: 'duplicate_tier', message: 'Each tier needs a different name.' };
+  }
+
+  return db.transaction(async (tx) => {
+    const [owned] = await tx
+      .select({ id: events.id })
+      .from(events)
+      .where(and(eq(events.id, eventId), eq(events.organizerId, o.id)));
+    if (!owned) return undefined;
+    await eventHolds(tx, eventId, at);
+    const [event] = await tx
+      .select()
+      .from(events)
+      .where(and(eq(events.id, eventId), eq(events.organizerId, o.id)))
+      .for('update');
+    if (!event) return undefined;
+    const unchangedStart =
+      Math.floor(starts / 60_000) === Math.floor(event.startsAt.getTime() / 60_000);
+    if (starts <= at && !unchangedStart) {
+      return {
+        status: 422,
+        error: 'starts_in_past',
+        message: 'Pick a date and time in the future.',
+      };
+    }
+    if (ends <= starts) {
+      return {
+        status: 422,
+        error: 'ends_before_start',
+        message: 'The event must end after it starts.',
+      };
+    }
+
+    const currentTiers = await tx
+      .select()
+      .from(tiers)
+      .where(eq(tiers.eventId, eventId))
+      .orderBy(asc(tiers.position))
+      .for('update');
+    const currentById = new Map(currentTiers.map((tier) => [tier.id, tier]));
+    const requestedIds = req.tiers.flatMap((tier) => (tier.id ? [tier.id] : []));
+    if (
+      new Set(requestedIds).size !== requestedIds.length ||
+      requestedIds.some((id) => !currentById.has(id))
+    ) {
+      return { status: 422, error: 'invalid_tier', message: 'Refresh the page and try again.' };
+    }
+
+    const orderRows = await tx
+      .select({
+        tierId: orders.tierId,
+        quantity: orders.quantity,
+        status: orders.status,
+        holdExpiresAt: orders.holdExpiresAt,
+      })
+      .from(orders)
+      .where(eq(orders.eventId, eventId))
+      .for('update');
+    const tierOrders = new Map<string, typeof orderRows>();
+    for (const order of orderRows) {
+      const rows = tierOrders.get(order.tierId) ?? [];
+      rows.push(order);
+      tierOrders.set(order.tierId, rows);
+    }
+
+    for (const tier of currentTiers) {
+      if (requestedIds.includes(tier.id)) continue;
+      if (tier.sold > 0 || tierOrders.has(tier.id)) {
+        return {
+          status: 409,
+          error: 'tier_has_orders',
+          message: `${tier.name} has order history and can't be removed. You can still edit its details.`,
+        };
+      }
+    }
+
+    for (const requested of req.tiers) {
+      const current = requested.id ? currentById.get(requested.id) : undefined;
+      if (!current || requested.quantity === null) continue;
+      const held = (tierOrders.get(current.id) ?? [])
+        .filter(
+          (order) =>
+            (order.status === 'awaiting_payment' || order.status === 'failed') &&
+            order.holdExpiresAt.getTime() > at,
+        )
+        .reduce((sum, order) => sum + order.quantity, 0);
+      if (requested.quantity < current.sold + held) {
+        return {
+          status: 409,
+          error: 'tier_capacity_too_low',
+          message: `${current.name} must have capacity for its ${current.sold + held} sold or reserved tickets.`,
+        };
+      }
+    }
+
+    let coverImageUrl = event.coverImageUrl;
+    if (req.coverImageUrl !== event.coverImageUrl) {
+      if (req.coverImageUrl) {
+        coverImageUrl = await storePoster(tx, req.coverImageUrl, at);
+        if (!coverImageUrl) {
+          return {
+            status: 422,
+            error: 'bad_poster',
+            message: 'That poster couldn’t be used. Try a JPEG or PNG under 2 MB.',
+          };
+        }
+      } else {
+        coverImageUrl = null;
+      }
+    }
+
+    await tx
+      .update(events)
+      .set({
+        title: req.title,
+        category: req.category,
+        city: req.city,
+        currency: CITY_CURRENCY[req.city],
+        venue: req.venue,
+        startsAt: unchangedStart ? event.startsAt : new Date(starts),
+        endsAt: new Date(ends),
+        description: req.description,
+        coverTone: CATEGORY_TONE[req.category],
+        coverImageUrl,
+      })
+      .where(eq(events.id, eventId));
+
+    const retainedIds = new Set(requestedIds);
+    const removed = currentTiers.filter((tier) => !retainedIds.has(tier.id));
+    if (removed.length) {
+      await tx.delete(tiers).where(
+        inArray(
+          tiers.id,
+          removed.map((tier) => tier.id),
+        ),
+      );
+    }
+    for (const [position, requested] of req.tiers.entries()) {
+      const fields = {
+        position: position + 1,
+        name: requested.name,
+        note: requested.note,
+        priceMinor: requested.priceMinor,
+        quantity: requested.quantity,
+        saleStartsAt: requested.saleStartsAt ? new Date(requested.saleStartsAt) : null,
+        saleEndsAt: requested.saleEndsAt ? new Date(requested.saleEndsAt) : null,
+      };
+      if (requested.id) {
+        await tx.update(tiers).set(fields).where(eq(tiers.id, requested.id));
+      } else {
+        await tx.insert(tiers).values({
+          id: `tier_${eventId}_${hex(5)}`,
+          eventId,
+          sold: 0,
+          ...fields,
+        });
+      }
+    }
+
+    const oldPoster = /^\/api\/images\/([\w-]+)$/.exec(event.coverImageUrl ?? '')?.[1];
+    if (oldPoster && coverImageUrl !== event.coverImageUrl) {
+      const [stillUsed] = await tx
+        .select({ id: events.id })
+        .from(events)
+        .where(eq(events.coverImageUrl, event.coverImageUrl!));
+      if (!stillUsed) await tx.delete(images).where(eq(images.id, oldPoster));
+    }
+    return (await loadEvents(tx, eq(events.id, eventId)))[0]!;
   });
 }
 

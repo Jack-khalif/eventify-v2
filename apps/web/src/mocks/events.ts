@@ -9,6 +9,7 @@ import {
   type EventDashboard,
   type OrganizerHome,
   type PublicEvent,
+  type UpdateEventRequest,
 } from '@eventify/shared';
 import { publicEvents, sautiDashboard } from '@eventify/shared/fixtures';
 import { compsIssued } from './orders';
@@ -21,8 +22,10 @@ import { eventRate, organizerRate } from './rates';
  */
 
 const STORAGE_KEY = 'eventify-mock-events';
+const UPDATED_KEY = 'eventify-mock-updated-events';
 const CODES_KEY = 'eventify-mock-checkin-codes';
 let created: Event[] = load(STORAGE_KEY, []);
+let updated: Event[] = load(UPDATED_KEY, []);
 /** Door check-in codes for created events, by event id. */
 let codes: Record<string, string> = load(CODES_KEY, {});
 /** Sample events an organizer deleted, for this visit only. */
@@ -42,6 +45,7 @@ function save() {
   try {
     localStorage.setItem(CODES_KEY, JSON.stringify(codes));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(created));
+    localStorage.setItem(UPDATED_KEY, JSON.stringify(updated));
   } catch {
     // Not persisted (a large poster can exceed the quota); fine for a mock.
   }
@@ -49,6 +53,7 @@ function save() {
 
 export function resetEvents() {
   created = [];
+  updated = [];
   codes = {};
   deleted = new Set();
 }
@@ -63,7 +68,12 @@ const withOrganizer = (e: Event): PublicEvent => {
 
 /** Sample events plus everything created in this browser. */
 export const allEvents = (): PublicEvent[] =>
-  [...publicEvents(), ...created.map(withOrganizer)].filter((e) => !deleted.has(e.id));
+  [
+    ...publicEvents().map((event) => updated.find((item) => item.id === event.id) ?? event),
+    ...created,
+  ]
+    .map(withOrganizer)
+    .filter((e) => !deleted.has(e.id));
 
 function uniqueSlug(title: string) {
   const base = slugify(title);
@@ -94,6 +104,75 @@ export function createEvent(req: CreateEventRequest, organizerId: string): Publi
     `${event.slug.split('-')[0]!.slice(0, 12)}-${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
   save();
   return withOrganizer(event);
+}
+
+export function updateEvent(
+  req: UpdateEventRequest,
+  organizerId: string,
+  eventId: string,
+): PublicEvent | { failureStatus: 409; error: string; message: string } | null {
+  const event = allEvents().find((item) => item.id === eventId && item.organizerId === organizerId);
+  if (!event) return null;
+  const existing = new Map(event.tiers.map((tier) => [tier.id, tier]));
+  const ids = req.tiers.flatMap((tier) => (tier.id ? [tier.id] : []));
+  if (new Set(ids).size !== ids.length || ids.some((id) => !existing.has(id))) {
+    return {
+      failureStatus: 409,
+      error: 'invalid_tier',
+      message: 'Refresh the page and try again.',
+    };
+  }
+  for (const tier of event.tiers) {
+    if (!ids.includes(tier.id) && tier.sold > 0) {
+      return {
+        failureStatus: 409,
+        error: 'tier_has_orders',
+        message: `${tier.name} has order history and can't be removed. You can still edit its details.`,
+      };
+    }
+  }
+  for (const input of req.tiers) {
+    const old = input.id ? existing.get(input.id) : undefined;
+    if (old && input.quantity !== null && input.quantity < old.sold) {
+      return {
+        failureStatus: 409,
+        error: 'tier_capacity_too_low',
+        message: `${old.name} must have capacity for its ${old.sold} sold tickets.`,
+      };
+    }
+  }
+  const tiers: Event['tiers'] = req.tiers.map((input) => {
+    const old = input.id ? existing.get(input.id) : undefined;
+    return {
+      id: old?.id ?? `tier_${eventId}_${crypto.randomUUID().replace(/-/g, '').slice(0, 10)}`,
+      name: input.name,
+      note: input.note,
+      priceMinor: input.priceMinor,
+      quantity: input.quantity,
+      sold: old?.sold ?? 0,
+      saleStartsAt: input.saleStartsAt,
+      saleEndsAt: input.saleEndsAt,
+    };
+  });
+  const result: Event = {
+    ...event,
+    title: req.title,
+    category: req.category,
+    city: req.city,
+    currency: CITY_CURRENCY[req.city],
+    venue: req.venue,
+    startsAt: req.startsAt,
+    endsAt: req.endsAt,
+    description: req.description,
+    coverTone: CATEGORY_TONE[req.category],
+    coverImageUrl: req.coverImageUrl,
+    tiers,
+  };
+  const sampleEvent = publicEvents().some((item) => item.id === eventId);
+  if (sampleEvent) updated = [...updated.filter((item) => item.id !== eventId), result];
+  else created = [...created.filter((item) => item.id !== eventId), result];
+  save();
+  return withOrganizer(result);
 }
 
 const ownEvents = (organizerId: string) =>

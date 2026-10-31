@@ -8,12 +8,14 @@ import {
   merchRequestSchema,
   organizerHomeSchema,
   publicEventSchema,
+  updateEventRequestSchema,
   type CompRequest,
   type CreateEventRequest,
   type MerchRequest,
+  type UpdateEventRequest,
 } from '@eventify/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiDelete, apiGet, apiPost, isNotFound } from '../../lib/api';
+import { apiDelete, apiGet, apiPost, apiPut, isNotFound } from '../../lib/api';
 
 /** Signed-in organizer and their events. ("organizer" keys are public profiles.) */
 export function useOrganizerHome() {
@@ -35,6 +37,15 @@ export function useEventDashboard(eventId: string | undefined) {
   });
 }
 
+export function useOrganizerEvent(eventId: string | undefined) {
+  return useQuery({
+    queryKey: ['my-organizer', 'event', eventId],
+    queryFn: () =>
+      apiGet(`/api/organizer/events/${encodeURIComponent(eventId ?? '')}`, publicEventSchema),
+    enabled: !!eventId,
+  });
+}
+
 export function useCreateEvent() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -43,6 +54,26 @@ export function useCreateEvent() {
     onSuccess: async (event) => {
       queryClient.setQueryData(['event', event.slug], event);
       // The new event belongs on the dashboard and on Discover.
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['my-organizer'] }),
+        queryClient.invalidateQueries({ queryKey: ['events'] }),
+      ]);
+    },
+  });
+}
+
+export function useUpdateEvent(eventId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (req: UpdateEventRequest) =>
+      apiPut(
+        `/api/organizer/events/${encodeURIComponent(eventId)}`,
+        updateEventRequestSchema.parse(req),
+        publicEventSchema,
+      ),
+    onSuccess: async (event) => {
+      queryClient.setQueryData(['event', event.slug], event);
+      queryClient.setQueryData(['my-organizer', 'event', event.id], event);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['my-organizer'] }),
         queryClient.invalidateQueries({ queryKey: ['events'] }),

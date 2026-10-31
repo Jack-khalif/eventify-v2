@@ -96,6 +96,14 @@ export const routes: RouteObject[] = [
         ),
       },
       {
+        path: 'organizer/events/:id/edit',
+        element: (
+          <ActiveOrganizerOnly>
+            <CreateEventPage />
+          </ActiveOrganizerOnly>
+        ),
+      },
+      {
         path: 'checkin/:code',
         element: <CheckinPage />,
         handle: { hideTabs: true, hideSupport: true } satisfies RouteHandle,

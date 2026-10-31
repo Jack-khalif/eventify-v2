@@ -101,3 +101,23 @@ export const createEventRequestSchema = eventSchema
       .max(10),
   });
 export type CreateEventRequest = z.infer<typeof createEventRequestSchema>;
+
+/** PUT /api/organizer/events/:id: an existing tier keeps its ID; a new tier has none. */
+export const updateEventRequestSchema = createEventRequestSchema.extend({
+  tiers: z
+    .array(
+      ticketTierSchema
+        .pick({
+          name: true,
+          note: true,
+          priceMinor: true,
+          quantity: true,
+          saleStartsAt: true,
+          saleEndsAt: true,
+        })
+        .extend({ id: idSchema.optional() }),
+    )
+    .min(1)
+    .max(10),
+});
+export type UpdateEventRequest = z.infer<typeof updateEventRequestSchema>;

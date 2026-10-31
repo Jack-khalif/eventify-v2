@@ -7,7 +7,9 @@ import {
   detailsErrors,
   draftPriceLabel,
   draftToRequest,
+  draftToUpdateRequest,
   emptyEventDraft,
+  eventToDraft,
   eventTimes,
   formatDate,
   formatRate,
@@ -28,7 +30,7 @@ import {
 } from '@eventify/shared';
 import { Check, ImagePlus, Trash2 } from 'lucide-react';
 import { useState, type ChangeEvent } from 'react';
-import { Link } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { BackLink } from '../../components/BackLink';
 import {
   Button,
@@ -42,7 +44,12 @@ import {
 import { ApiError } from '../../lib/api';
 import { cn } from '../../lib/cn';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
-import { useCreateEvent, useOrganizerHome } from '../dashboard/useDashboard';
+import {
+  useCreateEvent,
+  useOrganizerEvent,
+  useOrganizerHome,
+  useUpdateEvent,
+} from '../dashboard/useDashboard';
 import { ShareLinks } from '../event/ShareBlock';
 import { MAX_POSTER_BYTES, readPoster } from './poster';
 
@@ -50,9 +57,32 @@ const STEPS = ['Details', 'Tickets', 'Publish'] as const;
 type Step = 1 | 2 | 3;
 
 export function CreateEventPage() {
-  useDocumentTitle('Create event');
+  const { id } = useParams();
+  const eventQuery = useOrganizerEvent(id);
+  if (id && eventQuery.isPending) {
+    return <div aria-busy="true" aria-label="Loading event" className="flex-1" />;
+  }
+  if (id && (eventQuery.isError || !eventQuery.data)) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-5 pt-5 pb-12">
+        <BackLink label="Dashboard" fallback="/organizer" />
+        <p role="alert" className="m-0 text-sm text-danger">
+          Couldn't load this event to edit it.
+        </p>
+      </div>
+    );
+  }
+  return <EventEditor key={id ?? 'new'} event={eventQuery.data} />;
+}
+
+function EventEditor({ event }: { event?: PublicEvent }) {
+  const editing = Boolean(event);
+  useDocumentTitle(editing ? 'Edit event' : 'Create event');
   const rateBps = useOrganizerHome().data?.organizer.rateBps;
-  const [draft, setDraft] = useState<EventDraft>(emptyEventDraft);
+  const [draft, setDraft] = useState<EventDraft>(() =>
+    event ? eventToDraft(event) : emptyEventDraft(),
+  );
+  const updateEvent = useUpdateEvent(event?.id ?? '');
   const [step, setStep] = useState<Step>(1);
   /** Errors only show once the organizer has tried to continue from that step. */
   const [attempted, setAttempted] = useState<Record<Step, boolean>>({
@@ -62,7 +92,7 @@ export function CreateEventPage() {
   });
   const create = useCreateEvent();
 
-  const details = detailsErrors(draft);
+  const details = detailsErrors(draft, new Date(), event?.startsAt);
   const tiers = tiersErrors(draft);
   const update = (patch: Partial<EventDraft>) => setDraft((d) => ({ ...d, ...patch }));
 
@@ -79,22 +109,29 @@ export function CreateEventPage() {
     // A step's rules can go stale if the organizer waits (a start time slips into the past).
     if (hasErrors(details)) return goTo(1);
     if (hasErrors(tiers)) return goTo(2);
-    create.mutate(draftToRequest(draft));
+    if (editing) updateEvent.mutate(draftToUpdateRequest(draft));
+    else create.mutate(draftToRequest(draft));
   };
 
-  if (create.data) return <Published event={create.data} />;
+  const saved = editing ? updateEvent.data : create.data;
+  if (saved) return <Published event={saved} updated={editing} />;
 
+  const save = editing ? updateEvent : create;
   const serverError =
-    create.error instanceof ApiError
-      ? create.error.message
-      : create.error
-        ? "Couldn't publish. Check your connection and try again."
+    save.error instanceof ApiError
+      ? save.error.message
+      : save.error
+        ? editing
+          ? "Couldn't save your changes. Check your connection and try again."
+          : "Couldn't publish. Check your connection and try again."
         : null;
 
   return (
     <div className="mx-auto flex w-full max-w-[1100px] flex-col gap-5 px-5 pt-5 pb-12">
       <BackLink label="Dashboard" fallback="/organizer" />
-      <h1 className="m-0 text-[28px] tracking-[-0.02em]">Create event</h1>
+      <h1 className="m-0 text-[28px] tracking-[-0.02em]">
+        {editing ? 'Edit event' : 'Create event'}
+      </h1>
 
       <ol aria-label="Steps" className="m-0 flex list-none gap-1.5 p-0">
         {STEPS.map((label, i) => {
@@ -138,8 +175,14 @@ export function CreateEventPage() {
             </p>
           )}
           {step === 3 && (
-            <Button size="lg" block onClick={publish} disabled={create.isPending}>
-              {create.isPending ? 'Publishing…' : 'Publish event'}
+            <Button size="lg" block onClick={publish} disabled={save.isPending}>
+              {save.isPending
+                ? editing
+                  ? 'Saving…'
+                  : 'Publishing…'
+                : editing
+                  ? 'Save changes'
+                  : 'Publish event'}
             </Button>
           )}
 
@@ -537,17 +580,20 @@ function LivePreview({ draft }: { draft: EventDraft }) {
   );
 }
 
-function Published({ event }: { event: PublicEvent }) {
-  useDocumentTitle('Your event is live');
+function Published({ event, updated = false }: { event: PublicEvent; updated?: boolean }) {
+  useDocumentTitle(updated ? 'Event updated' : 'Your event is live');
   return (
     <div className="mx-auto flex w-full max-w-[560px] flex-col items-center gap-4 px-5 py-12 text-center">
       <span className="flex size-[60px] items-center justify-center rounded-full bg-accent text-accent-ink">
         <Check size={30} strokeWidth={2.4} aria-hidden />
       </span>
-      <h1 className="m-0 text-2xl">Your event is live</h1>
+      <h1 className="m-0 text-2xl">
+        {updated ? 'Your event has been updated' : 'Your event is live'}
+      </h1>
       <p className="m-0 max-w-[400px] text-sm text-muted">
-        Share the link below. It comes with a ready-made card for WhatsApp, Instagram and X, plus
-        Express Entry at the door.
+        {updated
+          ? 'Your event page and ticket tiers now show the changes.'
+          : 'Share the link below. It comes with a ready-made card for WhatsApp, Instagram and X, plus Express Entry at the door.'}
       </p>
       <ShareLinks event={event} className="w-full items-center" />
       <div className="mt-1.5 flex flex-wrap justify-center gap-2.5">

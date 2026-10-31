@@ -2,6 +2,7 @@ import {
   checkoutRequestSchema,
   compRequestSchema,
   createEventRequestSchema,
+  updateEventRequestSchema,
   doorSyncRequestSchema,
   markPaidRequestSchema,
   merchRequestSchema,
@@ -87,6 +88,7 @@ import {
   eventDashboard,
   eventForCheckinCode,
   organizerHome,
+  updateEvent,
 } from './events';
 import { merchFor, merchQueue, requestMerch, setMerchStatus } from './merch';
 import { TEST_EMAIL_CODE } from './testPhones';
@@ -428,6 +430,16 @@ export const handlers = [
     return HttpResponse.json(organizerHome(organizer.id));
   }),
 
+  http.get('*/api/organizer/events/:id', async ({ params, request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    const event = allEvents().find(
+      (item) => item.id === params.id && item.organizerId === organizer.id,
+    );
+    return event ? HttpResponse.json(event) : notFound();
+  }),
+
   http.get('*/api/organizer/events/:id/dashboard', async ({ params, request }) => {
     await delay();
     const organizer = organizerOf(request);
@@ -532,6 +544,37 @@ export const handlers = [
       );
     }
     return HttpResponse.json(createEvent(body.data, organizer.id), { status: 201 });
+  }),
+
+  http.put('*/api/organizer/events/:id', async ({ params, request }) => {
+    await delay();
+    const organizer = organizerOf(request);
+    if (organizer instanceof Response) return organizer;
+    if (organizer.status !== 'active') {
+      return HttpResponse.json(
+        {
+          error: 'organizer_not_approved',
+          message: `Your organizer account can't edit events right now. Write to ${SUPPORT_EMAIL} and we'll help.`,
+        },
+        { status: 403 },
+      );
+    }
+    const body = updateEventRequestSchema.safeParse(await request.json());
+    if (!body.success) {
+      return HttpResponse.json(
+        { error: 'validation', message: 'Some event details are missing or invalid.' },
+        { status: 400 },
+      );
+    }
+    const result = updateEvent(body.data, organizer.id, String(params.id));
+    if (!result) return notFound();
+    if ('failureStatus' in result) {
+      return HttpResponse.json(
+        { error: result.error, message: result.message },
+        { status: result.failureStatus },
+      );
+    }
+    return HttpResponse.json(result);
   }),
 
   http.delete('*/api/organizer/events/:id', async ({ params, request }) => {

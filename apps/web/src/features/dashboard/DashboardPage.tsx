@@ -156,6 +156,7 @@ function Dashboard({ home }: { home: OrganizerHome }) {
         <EventNumbers
           d={dashboard.data}
           canIssue={canCreate && selected.status !== 'ended'}
+          canEdit={canCreate}
           myEvents={myEvents}
           onDeleted={() => setParams({}, { replace: true })}
         />
@@ -167,11 +168,13 @@ function Dashboard({ home }: { home: OrganizerHome }) {
 function EventNumbers({
   d,
   canIssue,
+  canEdit,
   myEvents,
   onDeleted,
 }: {
   d: EventDashboard;
   canIssue: boolean;
+  canEdit: boolean;
   myEvents: ReactNode;
   onDeleted: () => void;
 }) {
@@ -213,6 +216,14 @@ function EventNumbers({
         <Link to={`/e/${d.slug}`} className="text-sm font-bold">
           View event page
         </Link>
+        {canEdit && (
+          <Link
+            to={`/organizer/events/${encodeURIComponent(d.eventId)}/edit`}
+            className={buttonClass({ variant: 'outline', size: 'sm' })}
+          >
+            Edit event
+          </Link>
+        )}
       </div>
 
       <dl className="m-0 grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-4">
