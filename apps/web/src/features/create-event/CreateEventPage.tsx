@@ -44,6 +44,7 @@ import {
 import { ApiError } from '../../lib/api';
 import { cn } from '../../lib/cn';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
+import { useUpdateAdminEvent } from '../admin/useAdmin';
 import {
   useCreateEvent,
   useOrganizerEvent,
@@ -75,14 +76,15 @@ export function CreateEventPage() {
   return <EventEditor key={id ?? 'new'} event={eventQuery.data} />;
 }
 
-function EventEditor({ event }: { event?: PublicEvent }) {
+export function EventEditor({ event, admin = false }: { event?: PublicEvent; admin?: boolean }) {
   const editing = Boolean(event);
   useDocumentTitle(editing ? 'Edit event' : 'Create event');
-  const rateBps = useOrganizerHome().data?.organizer.rateBps;
+  const rateBps = useOrganizerHome({ enabled: !admin }).data?.organizer.rateBps;
   const [draft, setDraft] = useState<EventDraft>(() =>
     event ? eventToDraft(event) : emptyEventDraft(),
   );
   const updateEvent = useUpdateEvent(event?.id ?? '');
+  const updateAdminEvent = useUpdateAdminEvent(event?.id ?? '');
   const [step, setStep] = useState<Step>(1);
   /** Errors only show once the organizer has tried to continue from that step. */
   const [attempted, setAttempted] = useState<Record<Step, boolean>>({
@@ -109,14 +111,15 @@ function EventEditor({ event }: { event?: PublicEvent }) {
     // A step's rules can go stale if the organizer waits (a start time slips into the past).
     if (hasErrors(details)) return goTo(1);
     if (hasErrors(tiers)) return goTo(2);
-    if (editing) updateEvent.mutate(draftToUpdateRequest(draft));
+    if (editing && admin) updateAdminEvent.mutate(draftToUpdateRequest(draft));
+    else if (editing) updateEvent.mutate(draftToUpdateRequest(draft));
     else create.mutate(draftToRequest(draft));
   };
 
-  const saved = editing ? updateEvent.data : create.data;
-  if (saved) return <Published event={saved} updated={editing} />;
+  const saved = editing ? (admin ? updateAdminEvent.data : updateEvent.data) : create.data;
+  if (saved) return <Published event={saved} updated={editing} admin={admin} />;
 
-  const save = editing ? updateEvent : create;
+  const save = editing ? (admin ? updateAdminEvent : updateEvent) : create;
   const serverError =
     save.error instanceof ApiError
       ? save.error.message
@@ -580,7 +583,15 @@ function LivePreview({ draft }: { draft: EventDraft }) {
   );
 }
 
-function Published({ event, updated = false }: { event: PublicEvent; updated?: boolean }) {
+function Published({
+  event,
+  updated = false,
+  admin = false,
+}: {
+  event: PublicEvent;
+  updated?: boolean;
+  admin?: boolean;
+}) {
   useDocumentTitle(updated ? 'Event updated' : 'Your event is live');
   return (
     <div className="mx-auto flex w-full max-w-[560px] flex-col items-center gap-4 px-5 py-12 text-center">
@@ -601,10 +612,12 @@ function Published({ event, updated = false }: { event: PublicEvent; updated?: b
           View event page
         </Link>
         <Link
-          to={`/organizer?event=${event.id}`}
+          to={
+            admin ? `/admin/organizers/${event.organizer.handle}` : `/organizer?event=${event.id}`
+          }
           className={buttonClass({ variant: 'outline', size: 'sm' })}
         >
-          Go to dashboard
+          {admin ? 'Back to organizer' : 'Go to dashboard'}
         </Link>
       </div>
     </div>

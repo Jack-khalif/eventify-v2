@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router';
 import { AdminLayout } from '../features/admin/AdminLayout';
+import { AdminEventEditorPage } from '../features/admin/AdminEventEditorPage';
 import { AgentsPage } from '../features/admin/AgentsPage';
 import { ApprovalsPage } from '../features/admin/ApprovalsPage';
 import { MerchQueuePage } from '../features/admin/MerchQueuePage';
@@ -48,6 +49,7 @@ export const routes: RouteObject[] = [
     ),
     children: [
       { index: true, element: <OverviewPage /> },
+      { path: 'events/:id/edit', element: <AdminEventEditorPage /> },
       { path: 'organizers', element: <OrganizersPage /> },
       { path: 'organizers/:handle', element: <OrganizerDetailPage /> },
       { path: 'approvals', element: <ApprovalsPage /> },

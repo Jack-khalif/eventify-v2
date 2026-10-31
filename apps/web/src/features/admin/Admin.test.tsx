@@ -81,6 +81,23 @@ describe('Organizers', () => {
     expect(await screen.findByText('4% rate')).toBeInTheDocument();
   });
 
+  it('lets a Super Admin edit an organizer event from its details', async () => {
+    const user = userEvent.setup();
+    renderApp('/admin/organizers/amaniwanjiru');
+    const editLinks = await screen.findAllByRole('link', { name: 'Edit event' });
+    await user.click(editLinks[0]!);
+    expect(await screen.findByRole('heading', { name: 'Edit event' })).toBeInTheDocument();
+    const title = await screen.findByLabelText('Event title');
+    await user.clear(title);
+    await user.type(title, 'Sauti Sessions Updated');
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('button', { name: 'Save changes' }));
+    expect(
+      await screen.findByRole('heading', { name: 'Your event has been updated' }),
+    ).toBeInTheDocument();
+  });
+
   it('sends an agent’s rate below 3% to a Super Admin, who approves it', async () => {
     signInAs('agent');
     const user = userEvent.setup();
@@ -182,6 +199,15 @@ describe('Admin access', () => {
       await screen.findByRole('heading', { name: "You don't have access to this page" }),
     ).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Admin' })).not.toBeInTheDocument();
+  });
+
+  it('does not let agents open the Super Admin event editor', async () => {
+    signInAs('agent');
+    renderApp('/admin/events/evt_sauti/edit');
+    expect(
+      await screen.findByText('Only a Super Admin can edit organizer events.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Event title')).not.toBeInTheDocument();
   });
 });
 

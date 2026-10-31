@@ -338,7 +338,10 @@ describe('creating events', () => {
       startsAt: event.startsAt,
       endsAt: event.endsAt,
       description: ['Bring an apron.', 'New materials included.'],
-      coverImageUrl: event.coverImageUrl,
+      coverImageUrl: `data:image/jpeg;base64,${Buffer.concat([
+        Buffer.from([0xff, 0xd8, 0xff]),
+        Buffer.alloc(300_000),
+      ]).toString('base64')}`,
       tiers: [
         {
           id: event.tiers[0]!.id,
@@ -370,6 +373,7 @@ describe('creating events', () => {
       venue: 'Karen Village Studio',
       description: request.description,
     });
+    expect(updated.coverImageUrl).toMatch(/^\/api\/images\//);
     expect(updated.tiers).toMatchObject([
       { id: event.tiers[0]!.id, name: 'Regular', priceMinor: 175000, sold: 2 },
       { name: 'VIP', priceMinor: 250000, sold: 0 },
@@ -398,6 +402,23 @@ describe('creating events', () => {
     );
     expect(invalid.status).toBe(409);
     expect(((await invalid.json()) as { error: string }).error).toBe('tier_capacity_too_low');
+
+    const adminToken = await admin();
+    expect((await send(`/admin/events/${event.id}`, adminToken)).status).toBe(200);
+    expect((await send(`/admin/events/${event.id}`, await agent())).status).toBe(403);
+    const adminUpdate = await send(
+      `/admin/events/${event.id}`,
+      adminToken,
+      { ...request, coverImageUrl: updated.coverImageUrl, title: 'Updated by Eventify' },
+      'PUT',
+    );
+    expect(adminUpdate.status).toBe(200);
+    expect(publicEventSchema.parse(await adminUpdate.json()).title).toBe('Updated by Eventify');
+    expect(
+      (await database.db.select().from(auditLog)).some(
+        (entry) => entry.action === 'event.update' && entry.target === event.id,
+      ),
+    ).toBe(true);
   });
 
   it('turns away events in the past, backwards times and things that are not pictures', async () => {

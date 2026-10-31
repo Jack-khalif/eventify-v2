@@ -18,10 +18,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiDelete, apiGet, apiPost, apiPut, isNotFound } from '../../lib/api';
 
 /** Signed-in organizer and their events. ("organizer" keys are public profiles.) */
-export function useOrganizerHome() {
+export function useOrganizerHome({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['my-organizer'],
     queryFn: () => apiGet('/api/organizer/me', organizerHomeSchema),
+    enabled,
   });
 }
 

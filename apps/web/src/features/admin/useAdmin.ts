@@ -9,16 +9,19 @@ import {
   adminOverviewSchema,
   adminPayoutRowSchema,
   rateChangeResultSchema,
+  publicEventSchema,
   staffRowSchema,
   type AddStaffRequest,
   type MerchStatusChange,
   type OrganizerStatusChange,
   type OverviewQuery,
   type RateChangeRequest,
+  updateEventRequestSchema,
+  type UpdateEventRequest,
 } from '@eventify/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { apiGet, apiPost } from '../../lib/api';
+import { apiGet, apiPost, apiPut } from '../../lib/api';
 
 /** Everything admin lives under this key, so any change refreshes it all. */
 const ADMIN = 'admin';
@@ -60,6 +63,33 @@ export function useAdminOrganizer(handle: string) {
     queryKey: [ADMIN, 'organizers', handle],
     queryFn: () =>
       apiGet(`/api/admin/organizers/${encodeURIComponent(handle)}`, adminOrganizerDetailSchema),
+  });
+}
+
+export function useAdminEvent(eventId: string | undefined, enabled = true) {
+  return useQuery({
+    queryKey: [ADMIN, 'event', eventId],
+    queryFn: () =>
+      apiGet(`/api/admin/events/${encodeURIComponent(eventId ?? '')}`, publicEventSchema),
+    enabled: Boolean(eventId) && enabled,
+  });
+}
+
+export function useUpdateAdminEvent(eventId: string) {
+  const invalidate = useInvalidateAdmin();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (req: UpdateEventRequest) =>
+      apiPut(
+        `/api/admin/events/${encodeURIComponent(eventId)}`,
+        updateEventRequestSchema.parse(req),
+        publicEventSchema,
+      ),
+    onSuccess: async (event) => {
+      queryClient.setQueryData(['event', event.slug], event);
+      queryClient.setQueryData([ADMIN, 'event', event.id], event);
+      await Promise.all([invalidate(), queryClient.invalidateQueries({ queryKey: ['events'] })]);
+    },
   });
 }
 

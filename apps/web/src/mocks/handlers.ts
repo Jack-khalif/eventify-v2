@@ -650,6 +650,37 @@ export const handlers = [
     return me instanceof Response ? me : adminReply(organizerDetail(me, String(params.handle)));
   }),
 
+  http.get('*/api/admin/events/:id', async ({ params, request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    const denied = superAdminOnly(me);
+    if (denied) return denied;
+    const event = allEvents().find((item) => item.id === params.id);
+    return event ? HttpResponse.json(event) : notFound();
+  }),
+
+  http.put('*/api/admin/events/:id', async ({ params, request }) => {
+    await delay();
+    const me = staffOf(request);
+    if (me instanceof Response) return me;
+    const denied = superAdminOnly(me);
+    if (denied) return denied;
+    const body = updateEventRequestSchema.safeParse(await request.json());
+    if (!body.success) return badRequest('Some event details are missing or invalid.');
+    const event = allEvents().find((item) => item.id === params.id);
+    if (!event) return notFound();
+    const result = updateEvent(body.data, event.organizerId, event.id);
+    if (!result) return notFound();
+    if ('failureStatus' in result) {
+      return HttpResponse.json(
+        { error: result.error, message: result.message },
+        { status: result.failureStatus },
+      );
+    }
+    return HttpResponse.json(result);
+  }),
+
   http.post('*/api/admin/organizers/:handle/rate', async ({ params, request }) => {
     await delay();
     const me = staffOf(request);

@@ -11,7 +11,7 @@ import {
 import { ChevronLeft } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { Button, Card, Dialog, SelectField, Tag } from '../../components/ui';
+import { Button, buttonClass, Card, Dialog, SelectField, Tag } from '../../components/ui';
 import { ApiError } from '../../lib/api';
 import { useDocumentTitle } from '../../lib/useDocumentTitle';
 import { ORGANIZER_STATUS, PAYOUT_METHOD, PAYOUT_STATUS } from './format';
@@ -128,6 +128,14 @@ function Detail({ org, me }: { org: AdminOrganizerDetail; me: AdminMe }) {
                     )}
                     {formatDate(e.startsAt)}
                   </span>
+                  {me.role === 'super_admin' && (
+                    <Link
+                      to={`/admin/events/${encodeURIComponent(e.id)}/edit`}
+                      className={buttonClass({ variant: 'outline', size: 'sm' })}
+                    >
+                      Edit event
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

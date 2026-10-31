@@ -74,7 +74,7 @@ import { attendeeList } from './attendees';
 import { compList, issueComps } from './comps';
 import { doorList, eventForCheckinCode, syncDoor, type VerifyKey } from './checkin';
 import type { Db } from './db/client';
-import { auditLog, events } from './db/schema';
+import { auditLog, events, organizers } from './db/schema';
 import { sendTicketEmail } from './email/confirmation';
 import type { Mailer } from './email/mailer';
 import { organizerProfile, publishedEvent, publishedEvents } from './events';
@@ -160,12 +160,17 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
           { error: 'rate_limited', message: 'Too many tries. Wait a few minutes and try again.' },
           429,
         );
-  // Requests are small JSON, except Create event, which carries the poster.
+  // Requests are small JSON, except event writes, which may carry a poster.
   const tooLarge = (c: Context) =>
     c.json({ error: 'too_large', message: 'That is too much to send at once.' }, 413);
   const smallBody = bodyLimit({ maxSize: 256 * 1024, onError: tooLarge });
   const posterBody = bodyLimit({ maxSize: 4 * 1024 * 1024, onError: tooLarge });
-  app.use((c, next) => (c.req.path === '/api/organizer/events' ? posterBody : smallBody)(c, next));
+  app.use((c, next) =>
+    c.req.path === '/api/organizer/events' ||
+    (c.req.method === 'PUT' && /^\/api\/(?:organizer|admin)\/events\/[^/]+$/.test(c.req.path))
+      ? posterBody(c, next)
+      : smallBody(c, next),
+  );
 
   const notFound = (c: Context) => c.json({ error: 'not_found', message: 'Not found' }, 404);
   app.notFound(notFound);
@@ -175,6 +180,52 @@ export function createApp({ now = Date.now, superAdminEmails = [], ...rest }: Ap
       { error: 'server_error', message: 'Something went wrong. Please try again.' },
       500,
     );
+  });
+
+  app.get('/admin/events/:id', async (c) => {
+    const me = await staffOf(c);
+    if (me instanceof Response) return me;
+    const denied = superAdminOnly(c, me);
+    if (denied) return denied;
+    const eventId = c.req.param('id');
+    const [row] = await db
+      .select({ organizer: organizers })
+      .from(events)
+      .innerJoin(organizers, eq(events.organizerId, organizers.id))
+      .where(eq(events.id, eventId));
+    if (!row) return notFound(c);
+    const event = await organizerEvent(db, row.organizer, eventId);
+    return event ? c.json(event) : notFound(c);
+  });
+
+  app.put('/admin/events/:id', async (c) => {
+    const me = await staffOf(c);
+    if (me instanceof Response) return me;
+    const denied = superAdminOnly(c, me);
+    if (denied) return denied;
+    const locked = needsTwoStep(c, me);
+    if (locked) return locked;
+    const body = updateEventRequestSchema.safeParse(await c.req.json().catch(() => null));
+    if (!body.success) return badRequest(c, 'Some event details are missing or invalid.');
+    const eventId = c.req.param('id');
+    const [row] = await db
+      .select({ organizer: organizers })
+      .from(events)
+      .innerJoin(organizers, eq(events.organizerId, organizers.id))
+      .where(eq(events.id, eventId));
+    if (!row) return notFound(c);
+    const result = await updateEvent(deps, row.organizer, eventId, body.data);
+    if (!result) return notFound(c);
+    if (isEventFailure(result)) {
+      return c.json({ error: result.error, message: result.message }, result.status);
+    }
+    await audit(me, result, 'event.update', eventId, {
+      organizerId: row.organizer.id,
+      fields: Object.keys(body.data).filter((field) => field !== 'coverImageUrl'),
+      posterChanged: body.data.coverImageUrl !== result.coverImageUrl,
+      tierCount: body.data.tiers.length,
+    });
+    return c.json(result);
   });
 
   /** Reply with the order, first making sure a paid one has had its tickets emailed. */
