@@ -95,6 +95,11 @@ export async function compList(
     .orderBy(desc(orders.createdAt));
   return {
     comps: rows.map(toRow),
-    tiers: event.tiers.map((t) => ({ id: t.id, name: t.name, remaining: tierRemaining(t) })),
+    tiers: event.tiers.map((t) => ({
+      id: t.id,
+      name: t.name,
+      remaining: tierRemaining(t),
+      admits: t.admits,
+    })),
   };
 }

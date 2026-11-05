@@ -40,7 +40,13 @@ export type CompRow = z.infer<typeof compRowSchema>;
 export const compListSchema = z.object({
   comps: z.array(compRowSchema),
   tiers: z.array(
-    z.object({ id: idSchema, name: z.string(), remaining: z.int().nonnegative().nullable() }),
+    z.object({
+      id: idSchema,
+      name: z.string(),
+      remaining: z.int().nonnegative().nullable(),
+      /** Tickets each one issues: above 1 it's a group tier. */
+      admits: z.int().min(1).default(1),
+    }),
   ),
 });
 export type CompList = z.infer<typeof compListSchema>;

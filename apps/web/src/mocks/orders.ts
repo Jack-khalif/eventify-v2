@@ -88,7 +88,8 @@ const iso = (ms: number) => new Date(ms).toISOString();
 
 function issueTickets(order: OrderView, event: PublicEvent) {
   const key = event.id.replace(/^evt_/, '').toUpperCase();
-  order.tickets = Array.from({ length: order.quantity }, (_, i) => {
+  const admits = event.tiers.find((t) => t.id === order.tierId)?.admits ?? 1;
+  order.tickets = Array.from({ length: order.quantity * admits }, (_, i) => {
     db.sequence += 1;
     const ticket: StoredTicket = {
       id: randomToken(),
@@ -205,14 +206,15 @@ async function toTicketView(
   const order = db.orders[t.orderId];
   const event = order && events.find((e) => e.id === order.eventId);
   if (!order || !event) return undefined;
+  const tier = event.tiers.find((x) => x.id === order.tierId);
   signingKey ??= importSigningKey(DEV_QR_PRIVATE_KEY);
   return {
     id: t.id,
     code: t.code,
     holderName: t.holderName,
-    tierName: event.tiers.find((tier) => tier.id === order.tierId)?.name ?? '',
+    tierName: tier?.name ?? '',
     index: t.transferredFromId ? 1 : t.index,
-    count: t.transferredFromId ? 1 : order.quantity,
+    count: t.transferredFromId ? 1 : order.quantity * (tier?.admits ?? 1),
     event,
     qrPayload: await signTicketQr(await signingKey, t.id),
     checkedInAt: t.checkedInAt,
@@ -315,6 +317,7 @@ export const compList = (event: PublicEvent): CompList => ({
     id: t.id,
     name: t.name,
     remaining: tierRemaining(t),
+    admits: t.admits,
   })),
 });
 

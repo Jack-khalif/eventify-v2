@@ -1,18 +1,21 @@
 import type { EventStatus } from './enums';
 import type { Event } from './schemas';
 
-/** Tickets sold, gross and per-tier sales, counted from the event's tiers so the numbers always agree. */
+/**
+ * Tickets sold, gross and per-tier sales, counted from the event's tiers so the numbers always agree.
+ * A tier counts purchases; a group purchase is several tickets, so tickets and capacity scale by admits.
+ */
 export function salesSummary(e: Pick<Event, 'tiers'>) {
   const tierSales = e.tiers.map((t) => ({
     name: t.name,
-    sold: t.sold,
+    sold: t.sold * t.admits,
     revenueMinor: t.sold * t.priceMinor,
   }));
   return {
     ticketsSold: tierSales.reduce((sum, t) => sum + t.sold, 0),
     grossMinor: tierSales.reduce((sum, t) => sum + t.revenueMinor, 0),
     /** Total of capped tiers; 0 when every tier is unlimited. */
-    capacity: e.tiers.reduce((sum, t) => sum + (t.quantity ?? 0), 0),
+    capacity: e.tiers.reduce((sum, t) => sum + (t.quantity ?? 0) * t.admits, 0),
     tierSales,
   };
 }

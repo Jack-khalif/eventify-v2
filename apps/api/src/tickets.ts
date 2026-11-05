@@ -16,14 +16,15 @@ async function toViews(
   for (const { ticket: t, order } of rows) {
     const event = await publishedEvent(db, eq(events.id, t.eventId));
     if (!event) continue;
+    const tier = event.tiers.find((x) => x.id === order.tierId);
     views.push({
       id: t.id,
       code: t.code,
       holderName: t.holderName,
-      tierName: event.tiers.find((tier) => tier.id === order.tierId)?.name ?? '',
+      tierName: tier?.name ?? '',
       // A ticket passed on stands alone for its new holder.
       index: t.transferredFromId ? 1 : t.index,
-      count: t.transferredFromId ? 1 : order.quantity,
+      count: t.transferredFromId ? 1 : order.quantity * (tier?.admits ?? 1),
       event,
       qrPayload: await signTicketQr(signingKey, t.id),
       checkedInAt: t.checkedInAt && toEatIso(t.checkedInAt.getTime()),

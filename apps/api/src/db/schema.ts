@@ -231,8 +231,10 @@ export const tiers = pgTable(
     priceMinor: integer('price_minor').notNull(),
     /** null = no cap. */
     quantity: integer('quantity'),
-    /** Tickets paid for. Tickets held by unpaid orders are counted from the orders table. */
+    /** Purchases paid for. Purchases held by unpaid orders are counted from the orders table. */
     sold: integer('sold').notNull().default(0),
+    /** Tickets each purchase issues: above 1 it's a group tier, and quantity and sold count groups. */
+    admits: integer('admits').notNull().default(1),
     saleStartsAt: instant('sale_starts_at'),
     saleEndsAt: instant('sale_ends_at'),
   },

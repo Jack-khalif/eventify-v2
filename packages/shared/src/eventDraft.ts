@@ -1,7 +1,12 @@
 import { toEatIso } from './dates';
 import { CITY_CURRENCY, type Category, type City, type CoverTone } from './enums';
 import { feeFor, formatMoney, toMinor } from './money';
-import type { CreateEventRequest, PublicEvent, UpdateEventRequest } from './schemas';
+import {
+  MAX_GROUP_SIZE,
+  type CreateEventRequest,
+  type PublicEvent,
+  type UpdateEventRequest,
+} from './schemas';
 
 /**
  * The Create event wizard edits a draft of plain strings (what the inputs hold). These rules turn
@@ -9,7 +14,16 @@ import type { CreateEventRequest, PublicEvent, UpdateEventRequest } from './sche
  * The mock API and the backend re-check the request with createEventRequestSchema.
  */
 
-export const TIER_PRESETS = ['Early Bird', 'Regular', 'VIP', 'Student', 'Free / RSVP'] as const;
+export const TIER_PRESETS = [
+  'Early Bird',
+  'Regular',
+  'VIP',
+  'Student',
+  'Group',
+  'Free / RSVP',
+] as const;
+/** People a new "Group" tier lets in, until the organizer changes it. */
+export const GROUP_PRESET_SIZE = 5;
 export const MAX_TIERS = 10;
 /** Highest ticket price in whole units, to catch an extra zero typed by accident. */
 export const MAX_TIER_PRICE = 1_000_000;
@@ -33,6 +47,8 @@ export type TierDraft = {
   price: string;
   /** Digits, or "" for no limit. */
   quantity: string;
+  /** Digits: people one ticket lets in. "1" for an ordinary tier. */
+  admits: string;
   /** datetime-local values in EAT ("2026-10-02T18:00"), or "" for now / until the event. */
   saleStartsAt: string;
   saleEndsAt: string;
@@ -58,11 +74,21 @@ export type EventDraft = {
 let tierKey = 0;
 export function newTierDraft(name = '', price = ''): TierDraft {
   tierKey += 1;
-  return { key: `tier-${tierKey}`, name, price, quantity: '', saleStartsAt: '', saleEndsAt: '' };
+  return {
+    key: `tier-${tierKey}`,
+    name,
+    price,
+    quantity: '',
+    admits: '1',
+    saleStartsAt: '',
+    saleEndsAt: '',
+  };
 }
 
-export const presetTier = (name: (typeof TIER_PRESETS)[number]) =>
-  newTierDraft(name, name === 'Free / RSVP' ? '0' : '');
+export const presetTier = (name: (typeof TIER_PRESETS)[number]) => ({
+  ...newTierDraft(name, name === 'Free / RSVP' ? '0' : ''),
+  admits: name === 'Group' ? String(GROUP_PRESET_SIZE) : '1',
+});
 
 export function emptyEventDraft(): EventDraft {
   return {
@@ -105,6 +131,7 @@ export function eventToDraft(event: PublicEvent): EventDraft {
       ...newTierDraft(tier.name, String(tier.priceMinor / 100)),
       id: tier.id,
       quantity: tier.quantity === null ? '' : String(tier.quantity),
+      admits: String(tier.admits),
       saleStartsAt: eatToLocal(tier.saleStartsAt),
       saleEndsAt: eatToLocal(tier.saleEndsAt),
     })),
@@ -152,7 +179,7 @@ export function detailsErrors(
   return errors;
 }
 
-export type TierField = 'name' | 'price' | 'quantity' | 'saleEndsAt';
+export type TierField = 'name' | 'price' | 'quantity' | 'admits' | 'saleEndsAt';
 export type TierErrors = Partial<Record<TierField, string>>;
 
 /** Errors keyed by TierDraft.key; tiers without problems are left out. */
@@ -173,6 +200,11 @@ export function tiersErrors(d: EventDraft): Record<string, TierErrors> {
 
     if (t.quantity && (!DIGITS.test(t.quantity) || Number(t.quantity) === 0)) {
       e.quantity = 'Enter how many, or leave it blank for no limit.';
+    }
+    if (!DIGITS.test(t.admits) || Number(t.admits) === 0) {
+      e.admits = 'Enter how many people, 1 for a single ticket.';
+    } else if (Number(t.admits) > MAX_GROUP_SIZE) {
+      e.admits = `Groups go up to ${MAX_GROUP_SIZE} people.`;
     }
 
     const saleStart = localToEat(t.saleStartsAt);
@@ -230,6 +262,7 @@ export function draftToRequest(d: EventDraft): CreateEventRequest {
       note: '',
       priceMinor: toMinor(Number(t.price)),
       quantity: t.quantity ? Number(t.quantity) : null,
+      admits: Number(t.admits),
       saleStartsAt: localToEat(t.saleStartsAt),
       saleEndsAt: localToEat(t.saleEndsAt),
     })),

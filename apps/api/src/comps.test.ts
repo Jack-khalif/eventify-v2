@@ -2,10 +2,13 @@ import {
   attendeeListSchema,
   compListSchema,
   eventDashboardSchema,
+  orderViewSchema,
   organizerHomeSchema,
+  publicEventSchema,
   sessionSchema,
   ticketsResultSchema,
   type CompRequest,
+  type UpdateEventRequest,
 } from '@eventify/shared';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -145,8 +148,8 @@ describe('complimentary tickets', () => {
       }),
     ]);
     expect(list.tiers).toEqual([
-      { id: 'tier_tiny_paid', name: 'Entry', remaining: 1 },
-      { id: 'tier_tiny_guest', name: 'Guest list', remaining: null },
+      { id: 'tier_tiny_paid', name: 'Entry', remaining: 1, admits: 1 },
+      { id: 'tier_tiny_guest', name: 'Guest list', remaining: null, admits: 1 },
     ]);
 
     expect(emails).toHaveLength(1);
@@ -272,5 +275,129 @@ describe('complimentary tickets', () => {
 
     expect((await send('/organizer/events/evt_tiny/attendees')).status).toBe(401);
     expect((await send('/organizer/events/evt_hack/attendees', token)).status).toBe(404);
+  });
+});
+
+describe('group tickets', () => {
+  beforeAll(async () => {
+    // Two tables of four, at KSh 2,000 a table.
+    await database.db.insert(events).values({
+      id: 'evt_tables',
+      slug: 'table-night',
+      title: 'Table Night',
+      category: 'Music & Arts',
+      city: 'Nairobi',
+      currency: 'KES',
+      venue: 'The Long Room',
+      startsAt: new Date('2026-11-02T19:00:00+03:00'),
+      endsAt: new Date('2026-11-02T23:00:00+03:00'),
+      description: ['Bring your friends.'],
+      coverTone: 'music',
+      organizerId: 'org_amani',
+      status: 'live',
+      checkinCode: 'tables-0123456789ab',
+    });
+    await database.db.insert(tiers).values({
+      id: 'tier_tables_four',
+      eventId: 'evt_tables',
+      position: 1,
+      name: 'Table for 4',
+      priceMinor: 200000,
+      quantity: 2,
+      admits: 4,
+    });
+  });
+
+  it('issues a ticket per person for each group bought, at the group price', async () => {
+    const placed = await send('/orders', undefined, {
+      eventId: 'evt_tables',
+      tierId: 'tier_tables_four',
+      quantity: 1,
+      buyer: { name: 'Otieno Achieng', phone: '+254712345678', email: 'otieno@example.com' },
+      paymentMethod: 'mpesa',
+    });
+    expect(placed.status).toBe(201);
+    const order = orderViewSchema.parse(await placed.json());
+    expect(order.totalMinor).toBe(200000);
+    clock += 5_000;
+    const paid = await get(`/orders/${order.id}`, orderViewSchema);
+    expect(paid.status).toBe('paid');
+    expect(paid.tickets).toHaveLength(4);
+    expect(new Set(paid.tickets.map((t) => t.code)).size).toBe(4);
+
+    const pass = (await (await send(`/tickets/${paid.tickets[3]!.id}`)).json()) as {
+      index: number;
+      count: number;
+    };
+    expect(pass).toMatchObject({ index: 4, count: 4 });
+  });
+
+  it('gives away groups the same way, and counts people on the dashboard', async () => {
+    const token = await organizer();
+    const res = await send(
+      '/organizer/events/evt_tables/comps',
+      token,
+      comp({ tierId: 'tier_tables_four', quantity: 1, email: 'band@example.com' }),
+    );
+    expect(res.status).toBe(201);
+    const passes = [...emails.at(-1)!.text.matchAll(/\/t\/([\w-]+)/g)].map((m) => m[1]!);
+    expect(passes).toHaveLength(4);
+
+    const dash = await get('/organizer/events/evt_tables/dashboard', eventDashboardSchema, token);
+    expect(dash).toMatchObject({
+      ticketsSold: 4,
+      grossMinor: 200000,
+      capacity: 8,
+      tierSales: [{ name: 'Table for 4', sold: 4, revenueMinor: 200000 }],
+    });
+    expect(dash.dailySales.at(-1)).toBe(4);
+
+    // Both tables are gone now.
+    const more = await send(
+      '/organizer/events/evt_tables/comps',
+      token,
+      comp({ tierId: 'tier_tables_four', quantity: 1 }),
+    );
+    expect(await more.json()).toMatchObject({ error: 'not_enough_tickets' });
+  });
+
+  it("won't change the group size once tickets have gone out", async () => {
+    const token = await organizer();
+    const event = await get('/organizer/events/evt_tables', publicEventSchema, token);
+    const request = (admits: number): UpdateEventRequest => ({
+      title: event.title,
+      category: event.category,
+      city: event.city,
+      venue: event.venue,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      description: event.description,
+      coverImageUrl: event.coverImageUrl,
+      tiers: event.tiers.map((t) => ({
+        id: t.id,
+        name: t.name,
+        note: t.note,
+        priceMinor: t.priceMinor,
+        quantity: t.quantity,
+        admits,
+        saleStartsAt: t.saleStartsAt,
+        saleEndsAt: t.saleEndsAt,
+      })),
+    });
+    const put = (body: UpdateEventRequest) =>
+      api().request('/api/organizer/events/evt_tables', {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Cookie: cookies.get(token) ?? '',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+    const changed = await put(request(6));
+    expect(changed.status).toBe(409);
+    expect(await changed.json()).toMatchObject({ error: 'tier_admits_locked' });
+    expect((await put(request(4))).status).toBe(200);
   });
 });

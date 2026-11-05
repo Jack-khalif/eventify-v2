@@ -99,9 +99,10 @@ export function CompTickets({ eventId, canIssue }: { eventId: string; canIssue: 
           onClose={() => setOpen(false)}
           onIssued={(req) => {
             setOpen(false);
-            setSent(
-              `${req.quantity} ${req.quantity === 1 ? 'ticket' : 'tickets'} sent to ${req.email}.`,
-            );
+            // A group tier issues several tickets for each one picked.
+            const admits = comps.data?.tiers.find((t) => t.id === req.tierId)?.admits ?? 1;
+            const n = req.quantity * admits;
+            setSent(`${n} ${n === 1 ? 'ticket' : 'tickets'} sent to ${req.email}.`);
           }}
         />
       )}
@@ -129,7 +130,9 @@ function IssueDialog({
   );
   const [quantity, setQuantity] = useState(1);
   const [errors, setErrors] = useState<FieldErrors>({});
-  const remaining = tiers.find((t) => t.id === tierId)?.remaining ?? null;
+  const tier = tiers.find((t) => t.id === tierId);
+  const remaining = tier?.remaining ?? null;
+  const admits = tier?.admits ?? 1;
   const max = Math.max(1, Math.min(MAX_COMPS_PER_REQUEST, remaining ?? MAX_COMPS_PER_REQUEST));
 
   const submit = (e: FormEvent) => {
@@ -212,6 +215,7 @@ function IssueDialog({
           {tiers.map((t) => (
             <option key={t.id} value={t.id} disabled={t.remaining === 0}>
               {t.name}
+              {t.admits > 1 ? `, admits ${t.admits}` : ''}
               {t.remaining === null
                 ? ''
                 : t.remaining === 0
@@ -221,8 +225,15 @@ function IssueDialog({
           ))}
         </SelectField>
         <div className="flex items-center justify-between gap-3">
-          <span className="text-[13px] font-semibold text-muted">Tickets</span>
-          <Stepper value={quantity} onChange={setQuantity} max={max} label="Tickets" />
+          <span className="text-[13px] font-semibold text-muted">
+            {admits > 1 ? `Groups (${quantity * admits} tickets)` : 'Tickets'}
+          </span>
+          <Stepper
+            value={quantity}
+            onChange={setQuantity}
+            max={max}
+            label={admits > 1 ? 'Groups' : 'Tickets'}
+          />
         </div>
         <p className="m-0 text-xs text-muted">
           Free of charge. They use up places in the tier, like a sale would.

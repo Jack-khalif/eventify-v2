@@ -72,6 +72,7 @@ describe('Organizer dashboard', () => {
             note: '',
             priceMinor: 150000,
             quantity: 12,
+            admits: 1,
             saleStartsAt: null,
             saleEndsAt: null,
           },
