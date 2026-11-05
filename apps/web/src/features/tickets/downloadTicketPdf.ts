@@ -33,7 +33,10 @@ const printable = (text: string) =>
     .replace(/[’‘]/g, "'")
     .replace(/[–—]/g, '-')
     .replace(/…/g, '...')
-    .replace(/[^\u0000-\u00ff]/g, '');
+    // The PDF's built-in font only has Latin-1: drop anything past it.
+    .split('')
+    .filter((c) => c.charCodeAt(0) <= 0xff)
+    .join('');
 
 async function posterJpeg(url: string): Promise<Uint8Array> {
   const image = new Image();
