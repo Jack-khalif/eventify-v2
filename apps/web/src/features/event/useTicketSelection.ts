@@ -1,6 +1,7 @@
 import {
   defaultTier,
   formatMoney,
+  maxPerOrder,
   MAX_TICKETS_PER_ORDER,
   tierAvailability,
   type PublicEvent,
@@ -27,7 +28,9 @@ export function useTicketSelection(event: PublicEvent, initial: Initial = {}) {
   const tier = event.tiers.find((t) => t.id === tierId) ?? null;
   const availability = tier ? tierAvailability(tier) : null;
   const remaining = availability?.status === 'on_sale' ? availability.remaining : null;
-  const maxQuantity = Math.max(1, Math.min(MAX_TICKETS_PER_ORDER, remaining ?? Infinity));
+  // Groups count every person towards the order's ticket cap.
+  const limit = tier ? maxPerOrder(tier, MAX_TICKETS_PER_ORDER) : MAX_TICKETS_PER_ORDER;
+  const maxQuantity = Math.max(1, Math.min(limit, remaining ?? Infinity));
   const qty = Math.min(quantity, maxQuantity);
   const totalMinor = tier ? tier.priceMinor * qty : 0;
 

@@ -400,4 +400,57 @@ describe('group tickets', () => {
     expect(await changed.json()).toMatchObject({ error: 'tier_admits_locked' });
     expect((await put(request(4))).status).toBe(200);
   });
+
+  it('lets an event made before group tickets add a group tier', async () => {
+    const token = await organizer();
+    const event = await get('/organizer/events/evt_tiny', publicEventSchema, token);
+    expect(event.tiers.map((t) => t.admits)).toEqual([1, 1]);
+    const body: UpdateEventRequest = {
+      title: event.title,
+      category: event.category,
+      city: event.city,
+      venue: event.venue,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+      description: event.description,
+      coverImageUrl: event.coverImageUrl,
+      tiers: [
+        ...event.tiers.map((t) => ({
+          id: t.id,
+          name: t.name,
+          note: t.note,
+          priceMinor: t.priceMinor,
+          quantity: t.quantity,
+          admits: t.admits,
+          saleStartsAt: t.saleStartsAt,
+          saleEndsAt: t.saleEndsAt,
+        })),
+        {
+          name: 'Table for 6',
+          note: '',
+          priceMinor: 270000,
+          quantity: 4,
+          admits: 6,
+          saleStartsAt: null,
+          saleEndsAt: null,
+        },
+      ],
+    };
+    const res = await api().request('/api/organizer/events/evt_tiny', {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Cookie: cookies.get(token) ?? '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    expect(res.status).toBe(200);
+    const updated = publicEventSchema.parse(await res.json());
+    expect(updated.tiers.map((t) => [t.name, t.admits])).toEqual([
+      ['Entry', 1],
+      ['Guest list', 1],
+      ['Table for 6', 6],
+    ]);
+  });
 });

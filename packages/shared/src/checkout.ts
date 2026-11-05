@@ -1,6 +1,7 @@
 import { ENABLED_PAYMENT_METHODS, type Currency, type PaymentMethod } from './enums';
 import { isKenyanMobile } from './phone';
 import {
+  MAX_TICKETS_ISSUED_PER_ORDER,
   tierRemaining,
   tierUnit,
   type CheckoutRequest,
@@ -24,6 +25,21 @@ export const availablePaymentMethods = (currency: Currency): PaymentMethod[] =>
 export const ORDER_HOLD_MINUTES = 10;
 
 export type CheckoutError = { status: 404 | 409 | 422; error: string; message: string };
+
+/** Most of this tier one order can take, up to `limit`, without going over the ticket cap. */
+export const maxPerOrder = (tier: Pick<TicketTier, 'admits'>, limit: number) =>
+  Math.max(1, Math.min(limit, Math.floor(MAX_TICKETS_ISSUED_PER_ORDER / tier.admits)));
+
+/** An order of this many would issue more tickets than the cap allows. */
+function tooManyTickets(tier: TicketTier, quantity: number): CheckoutError | undefined {
+  if (quantity * tier.admits <= MAX_TICKETS_ISSUED_PER_ORDER) return undefined;
+  const most = maxPerOrder(tier, Infinity);
+  return {
+    status: 422,
+    error: 'too_many_tickets',
+    message: `An order can have up to ${MAX_TICKETS_ISSUED_PER_ORDER} tickets: that's ${most} ${tier.name} ${tierUnit(tier, most)}.`,
+  };
+}
 export type CheckoutOk = { tier: TicketTier; totalMinor: number };
 
 /**
@@ -38,6 +54,9 @@ export function validateCheckout(
   const tier = event.tiers.find((t) => t.id === req.tierId);
   if (!tier)
     return { status: 404, error: 'tier_not_found', message: 'That ticket type no longer exists.' };
+
+  const tooMany = tooManyTickets(tier, req.quantity);
+  if (tooMany) return tooMany;
 
   const availability = tierAvailability(tier, now);
   if (availability.status === 'sold_out') {
@@ -95,6 +114,8 @@ export function validateComp(
   if (Date.parse(event.endsAt) <= now.getTime()) {
     return { status: 409, error: 'event_ended', message: 'This event has ended.' };
   }
+  const tooMany = tooManyTickets(tier, req.quantity);
+  if (tooMany) return tooMany;
   const remaining = tierRemaining(tier);
   if (remaining !== null && req.quantity > remaining) {
     return {
