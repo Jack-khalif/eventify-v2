@@ -102,6 +102,11 @@ export function TicketPanel({
                     </Tag>
                   )}
                 </span>
+                {t.admits > 1 && (
+                  <span className="text-xs font-semibold text-accent-text">
+                    Admits {t.admits} people · {t.admits} tickets
+                  </span>
+                )}
                 {t.note && <span className="text-xs text-muted">{t.note}</span>}
               </span>
               <span className="text-right text-[15px] font-extrabold">{status.price}</span>
@@ -113,7 +118,9 @@ export function TicketPanel({
       {selection.canBuy && (
         <>
           <div className="flex items-center justify-between px-5 pb-4">
-            <span className="text-sm font-semibold">Quantity</span>
+            <span className="text-sm font-semibold">
+              {selection.tier && selection.tier.admits > 1 ? 'Groups' : 'Quantity'}
+            </span>
             <Stepper
               value={selection.quantity}
               onChange={selection.setQuantity}

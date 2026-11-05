@@ -1,0 +1,1 @@
+ALTER TABLE "tiers" ADD COLUMN "admits" integer DEFAULT 1 NOT NULL;

@@ -4,6 +4,7 @@ import {
   displayStatus,
   salesSummary,
   slugify,
+  tierUnit,
   type CreateEventRequest,
   type Event,
   type EventDashboard,
@@ -133,11 +134,18 @@ export function updateEvent(
   }
   for (const input of req.tiers) {
     const old = input.id ? existing.get(input.id) : undefined;
+    if (old && old.sold > 0 && input.admits !== old.admits) {
+      return {
+        failureStatus: 409,
+        error: 'tier_admits_locked',
+        message: `${old.name} has orders, so its people per ticket can't change. Add a new tier instead.`,
+      };
+    }
     if (old && input.quantity !== null && input.quantity < old.sold) {
       return {
         failureStatus: 409,
         error: 'tier_capacity_too_low',
-        message: `${old.name} must have capacity for its ${old.sold} sold tickets.`,
+        message: `${old.name} must have capacity for its ${old.sold} sold ${tierUnit(old, old.sold)}.`,
       };
     }
   }
@@ -150,6 +158,7 @@ export function updateEvent(
       priceMinor: input.priceMinor,
       quantity: input.quantity,
       sold: old?.sold ?? 0,
+      admits: input.admits,
       saleStartsAt: input.saleStartsAt,
       saleEndsAt: input.saleEndsAt,
     };

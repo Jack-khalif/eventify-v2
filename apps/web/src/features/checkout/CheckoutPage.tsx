@@ -177,6 +177,11 @@ function CheckoutForm({ event: e }: { event: PublicEvent }) {
                   />
                   <span className="flex flex-1 items-center gap-1.5 text-sm font-extrabold">
                     {t.name}
+                    {t.admits > 1 && (
+                      <span className="text-xs font-semibold text-accent-text">
+                        admits {t.admits}
+                      </span>
+                    )}
                     {a.status === 'sold_out' && (
                       <Tag tone="neutral" className="px-[7px] py-0.5 text-[10px]">
                         SOLD OUT
@@ -199,7 +204,9 @@ function CheckoutForm({ event: e }: { event: PublicEvent }) {
               );
             })}
             <div className="flex items-center justify-between">
-              <span className="text-sm font-semibold">Quantity</span>
+              <span className="text-sm font-semibold">
+                {selection.tier && selection.tier.admits > 1 ? 'Groups' : 'Quantity'}
+              </span>
               <Stepper
                 value={selection.quantity}
                 onChange={selection.setQuantity}

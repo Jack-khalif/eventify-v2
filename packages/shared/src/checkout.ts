@@ -1,6 +1,12 @@
 import { ENABLED_PAYMENT_METHODS, type Currency, type PaymentMethod } from './enums';
 import { isKenyanMobile } from './phone';
-import { tierRemaining, type CheckoutRequest, type PublicEvent, type TicketTier } from './schemas';
+import {
+  tierRemaining,
+  tierUnit,
+  type CheckoutRequest,
+  type PublicEvent,
+  type TicketTier,
+} from './schemas';
 import { tierAvailability } from './tiers';
 
 /** Which currencies each method can charge. M-Pesa is Kenyan shillings only; Paystack cards take KES and USD. */
@@ -48,7 +54,7 @@ export function validateCheckout(
     return {
       status: 409,
       error: 'not_enough_tickets',
-      message: `Only ${availability.remaining} ${tier.name} ${availability.remaining === 1 ? 'ticket is' : 'tickets are'} left.`,
+      message: `Only ${availability.remaining} ${tier.name} ${tierUnit(tier, availability.remaining)} ${availability.remaining === 1 ? 'is' : 'are'} left.`,
     };
   }
 
@@ -97,7 +103,7 @@ export function validateComp(
       message:
         remaining === 0
           ? `${tier.name} is sold out. Pick another tier or raise its quantity.`
-          : `Only ${remaining} ${tier.name} ${remaining === 1 ? 'ticket is' : 'tickets are'} left.`,
+          : `Only ${remaining} ${tier.name} ${tierUnit(tier, remaining)} ${remaining === 1 ? 'is' : 'are'} left.`,
     };
   }
   return { tier };

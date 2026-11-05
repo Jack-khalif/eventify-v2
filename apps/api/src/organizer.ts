@@ -10,6 +10,7 @@ import {
   salesSummary,
   slugify,
   SUPPORT_EMAIL,
+  tierUnit,
   type CreateEventRequest,
   type EventDashboard,
   type OrganizerApplicationRequest,
@@ -265,8 +266,12 @@ export async function eventDashboard(
   const today = eatDay(now);
 
   const soldByDay = await db
-    .select({ day: eatDaySql(orders.paidAt), tickets: sql<number>`sum(${orders.quantity})::int` })
+    .select({
+      day: eatDaySql(orders.paidAt),
+      tickets: sql<number>`sum(${orders.quantity} * ${tiers.admits})::int`,
+    })
     .from(orders)
+    .innerJoin(tiers, eq(orders.tierId, tiers.id))
     .where(
       and(
         eq(orders.eventId, e.id),
@@ -393,6 +398,7 @@ export async function createEvent(
         note: t.note,
         priceMinor: t.priceMinor,
         quantity: t.quantity,
+        admits: t.admits,
         saleStartsAt: t.saleStartsAt ? new Date(t.saleStartsAt) : null,
         saleEndsAt: t.saleEndsAt ? new Date(t.saleEndsAt) : null,
       })),
@@ -491,6 +497,18 @@ export async function updateEvent(
 
     for (const requested of req.tiers) {
       const current = requested.id ? currentById.get(requested.id) : undefined;
+      // Tickets already issued were for the old group size: changing it would leave them wrong.
+      if (
+        current &&
+        requested.admits !== current.admits &&
+        (current.sold > 0 || tierOrders.has(current.id))
+      ) {
+        return {
+          status: 409,
+          error: 'tier_admits_locked',
+          message: `${current.name} has orders, so its people per ticket can't change. Add a new tier instead.`,
+        };
+      }
       if (!current || requested.quantity === null) continue;
       const held = (tierOrders.get(current.id) ?? [])
         .filter(
@@ -503,7 +521,7 @@ export async function updateEvent(
         return {
           status: 409,
           error: 'tier_capacity_too_low',
-          message: `${current.name} must have capacity for its ${current.sold + held} sold or reserved tickets.`,
+          message: `${current.name} must have capacity for its ${current.sold + held} sold or reserved ${tierUnit(current, current.sold + held)}.`,
         };
       }
     }
@@ -557,6 +575,7 @@ export async function updateEvent(
         note: requested.note,
         priceMinor: requested.priceMinor,
         quantity: requested.quantity,
+        admits: requested.admits,
         saleStartsAt: requested.saleStartsAt ? new Date(requested.saleStartsAt) : null,
         saleEndsAt: requested.saleEndsAt ? new Date(requested.saleEndsAt) : null,
       };

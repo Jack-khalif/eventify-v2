@@ -10,14 +10,18 @@ import { dateTimeSchema, idSchema, imageUrlSchema, moneySchema, slugSchema } fro
 import { formatMoney } from '../money';
 import { organizerSummarySchema } from './organizer';
 
+export const MAX_GROUP_SIZE = 20;
+
 export const ticketTierSchema = z.object({
   id: idSchema,
   name: z.string().min(1),
   note: z.string(),
   priceMinor: moneySchema,
-  /** null = no cap. */
+  /** null = no cap. Counted in purchases: groups, for a group tier. */
   quantity: z.int().positive().nullable(),
   sold: z.int().nonnegative(),
+  /** People one purchase lets in: above 1 it's a group tier, and each purchase issues this many tickets. */
+  admits: z.int().min(1).max(MAX_GROUP_SIZE).default(1),
   saleStartsAt: dateTimeSchema.nullable(),
   saleEndsAt: dateTimeSchema.nullable(),
 });
@@ -59,6 +63,10 @@ export const LOW_STOCK_THRESHOLD = 15;
 export const tierRemaining = (t: TicketTier) =>
   t.quantity === null ? null : Math.max(t.quantity - t.sold, 0);
 
+/** "ticket(s)", or "group(s)" for a group tier: what a tier's stock and quantity count. */
+export const tierUnit = (t: Pick<TicketTier, 'admits'>, n: number) =>
+  `${t.admits > 1 ? 'group' : 'ticket'}${n === 1 ? '' : 's'}`;
+
 export const tierSoldOut = (t: TicketTier) => tierRemaining(t) === 0;
 
 export const isFreeEvent = (e: Pick<Event, 'tiers'>) => e.tiers.every((t) => t.priceMinor === 0);
@@ -93,6 +101,7 @@ export const createEventRequestSchema = eventSchema
           note: true,
           priceMinor: true,
           quantity: true,
+          admits: true,
           saleStartsAt: true,
           saleEndsAt: true,
         }),
@@ -112,6 +121,7 @@ export const updateEventRequestSchema = createEventRequestSchema.extend({
           note: true,
           priceMinor: true,
           quantity: true,
+          admits: true,
           saleStartsAt: true,
           saleEndsAt: true,
         })

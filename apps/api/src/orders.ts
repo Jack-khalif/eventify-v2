@@ -118,26 +118,31 @@ export function ticketCode(eventId: string, n: number) {
   return `EVT-${key}-${String(n).padStart(4, '0')}`;
 }
 
-/** Mark the order paid, count its tickets as sold and issue them. Call inside a transaction. */
+/**
+ * Mark the order paid, count it as sold and issue its tickets: one per purchase, or a ticket per
+ * person for a group tier. Call inside a transaction.
+ */
 export async function markPaid(tx: Db, o: OrderRow, now: number): Promise<OrderRow> {
   const [paid] = await tx
     .update(orders)
     .set({ status: 'paid', failureReason: null, paidAt: new Date(now) })
     .where(eq(orders.id, o.id))
     .returning();
-  await tx
+  const [tier] = await tx
     .update(tiers)
     .set({ sold: sql`${tiers.sold} + ${o.quantity}` })
-    .where(eq(tiers.id, o.tierId));
+    .where(eq(tiers.id, o.tierId))
+    .returning({ admits: tiers.admits });
+  const count = o.quantity * tier!.admits;
   const [event] = await tx
     .update(events)
-    .set({ ticketSeq: sql`${events.ticketSeq} + ${o.quantity}` })
+    .set({ ticketSeq: sql`${events.ticketSeq} + ${count}` })
     .where(eq(events.id, o.eventId))
     .returning({ ticketSeq: events.ticketSeq });
 
-  const first = event!.ticketSeq - o.quantity + 1;
+  const first = event!.ticketSeq - count + 1;
   await tx.insert(tickets).values(
-    Array.from({ length: o.quantity }, (_, i) => ({
+    Array.from({ length: count }, (_, i) => ({
       id: randomToken(),
       code: ticketCode(o.eventId, first + i),
       orderId: o.id,

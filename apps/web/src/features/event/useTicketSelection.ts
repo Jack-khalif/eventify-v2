@@ -39,7 +39,10 @@ export function useTicketSelection(event: PublicEvent, initial: Initial = {}) {
     maxQuantity,
     canBuy: tier !== null && availability?.status === 'on_sale',
     isFree: tier !== null && tier.priceMinor === 0,
-    lineLabel: tier ? `${qty} × ${tier.name}` : '',
+    // A group tier issues several tickets per purchase: say how many the buyer will get.
+    lineLabel: tier
+      ? `${qty} × ${tier.name}${tier.admits > 1 ? ` (${qty * tier.admits} tickets)` : ''}`
+      : '',
     totalLabel: totalMinor === 0 ? 'Free' : formatMoney(event.currency, totalMinor),
     checkoutPath: tier ? `/e/${event.slug}/checkout?tier=${tier.id}&qty=${qty}` : '',
   };

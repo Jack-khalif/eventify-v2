@@ -6,6 +6,7 @@ import {
   emptyEventDraft,
   eventTimes,
   newTierDraft,
+  presetTier,
   tierPayout,
   tiersErrors,
   type EventDraft,
@@ -118,5 +119,28 @@ describe('draftToRequest', () => {
     expect(createEventRequestSchema.parse(request)).toEqual(request);
     expect(request.description).toEqual(['Golden hour on the roof.', 'Doors at 6.']);
     expect(request.tiers[0]).toMatchObject({ priceMinor: 120_000, quantity: 150 });
+  });
+});
+
+describe('group tiers', () => {
+  it('starts the Group preset at five people and sends it as admits', () => {
+    const group = { ...presetTier('Group'), price: '4000' };
+    expect(group.admits).toBe('5');
+    expect(newTierDraft('Regular').admits).toBe('1');
+    const request = draftToRequest(draft({ tiers: [group] }));
+    expect(request.tiers[0]).toMatchObject({ name: 'Group', admits: 5, priceMinor: 400000 });
+    expect(createEventRequestSchema.safeParse(request).success).toBe(true);
+  });
+
+  it('needs between 1 and 20 people', () => {
+    const tier = (admits: string) => ({ ...newTierDraft('Group', '100'), admits });
+    const errorsFor = (admits: string) => {
+      const t = tier(admits);
+      return tiersErrors(draft({ tiers: [t] }))[t.key]?.admits;
+    };
+    expect(errorsFor('')).toBe('Enter how many people, 1 for a single ticket.');
+    expect(errorsFor('0')).toBe('Enter how many people, 1 for a single ticket.');
+    expect(errorsFor('21')).toBe('Groups go up to 20 people.');
+    expect(errorsFor('20')).toBeUndefined();
   });
 });

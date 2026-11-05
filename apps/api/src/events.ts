@@ -52,6 +52,7 @@ export async function loadEvents(db: Db, where?: SQL): Promise<PublicEvent[]> {
         priceMinor: t.priceMinor,
         quantity: t.quantity,
         sold: t.sold,
+        admits: t.admits,
         saleStartsAt: t.saleStartsAt && eatIso(t.saleStartsAt),
         saleEndsAt: t.saleEndsAt && eatIso(t.saleEndsAt),
       })),

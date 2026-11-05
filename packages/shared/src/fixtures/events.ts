@@ -3,7 +3,14 @@ import { toMinor } from '../money';
 import type { Event, PublicEvent, TicketTier } from '../schemas';
 import { organizers } from './organizers';
 
-type TierInput = { name: string; note: string; price: number; quantity?: number; sold?: number };
+type TierInput = {
+  name: string;
+  note: string;
+  price: number;
+  quantity?: number;
+  sold?: number;
+  admits?: number;
+};
 
 const tiers = (eventKey: string, list: TierInput[]): TicketTier[] =>
   list.map((t) => ({
@@ -13,6 +20,7 @@ const tiers = (eventKey: string, list: TierInput[]): TicketTier[] =>
     priceMinor: toMinor(t.price),
     quantity: t.quantity ?? null,
     sold: t.sold ?? 0,
+    admits: t.admits ?? 1,
     saleStartsAt: null,
     saleEndsAt: null,
   }));

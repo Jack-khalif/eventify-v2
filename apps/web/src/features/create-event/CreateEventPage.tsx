@@ -452,6 +452,16 @@ function TicketsStep({ draft, setDraft, errors, rateBps }: TicketsProps) {
                 value={t.quantity}
                 onChange={(ev) => updateTier(t.key, { quantity: digits(ev.target.value) })}
                 error={e.quantity}
+                hint={Number(t.admits) > 1 ? 'Groups for sale' : undefined}
+                className="flex-[1_1_90px]"
+              />
+              <TextField
+                label="People per ticket"
+                inputMode="numeric"
+                value={t.admits}
+                onChange={(ev) => updateTier(t.key, { admits: digits(ev.target.value) })}
+                error={e.admits}
+                hint={Number(t.admits) > 1 ? 'A group ticket' : undefined}
                 className="flex-[1_1_90px]"
               />
               <button
@@ -485,8 +495,9 @@ function TicketsStep({ draft, setDraft, errors, rateBps }: TicketsProps) {
             </div>
             {payout && (
               <span className="text-xs text-muted">
-                You'll receive <strong className="text-fg">{payout.payout}</strong> per ticket ·
-                Eventify fee {payout.fee}
+                You'll receive <strong className="text-fg">{payout.payout}</strong> per{' '}
+                {Number(t.admits) > 1 ? `group of ${t.admits}` : 'ticket'} · Eventify fee{' '}
+                {payout.fee}
               </span>
             )}
           </fieldset>
@@ -520,7 +531,12 @@ function ReviewStep({ draft, rateBps }: { draft: EventDraft; rateBps: number | u
     ],
     [
       'Ticket tiers',
-      draft.tiers.map((t) => `${t.name.trim()} (${Number(t.price) ? t.price : 'Free'})`).join(', '),
+      draft.tiers
+        .map(
+          (t) =>
+            `${t.name.trim()} (${Number(t.price) ? t.price : 'Free'}${Number(t.admits) > 1 ? `, admits ${t.admits}` : ''})`,
+        )
+        .join(', '),
     ],
     [
       'Your payout',

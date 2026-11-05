@@ -11,6 +11,7 @@ const tier = (patch: Partial<TicketTier>): TicketTier => ({
   priceMinor: 100_000,
   quantity: null,
   sold: 0,
+  admits: 1,
   saleStartsAt: null,
   saleEndsAt: null,
   ...patch,
