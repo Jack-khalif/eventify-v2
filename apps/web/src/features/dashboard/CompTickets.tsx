@@ -2,6 +2,7 @@ import {
   compRequestSchema,
   formatDate,
   MAX_COMPS_PER_REQUEST,
+  maxPerOrder,
   normalizePhone,
   type CompList,
   type CompRequest,
@@ -133,7 +134,8 @@ function IssueDialog({
   const tier = tiers.find((t) => t.id === tierId);
   const remaining = tier?.remaining ?? null;
   const admits = tier?.admits ?? 1;
-  const max = Math.max(1, Math.min(MAX_COMPS_PER_REQUEST, remaining ?? MAX_COMPS_PER_REQUEST));
+  const limit = maxPerOrder({ admits }, MAX_COMPS_PER_REQUEST);
+  const max = Math.max(1, Math.min(limit, remaining ?? limit));
 
   const submit = (e: FormEvent) => {
     e.preventDefault();

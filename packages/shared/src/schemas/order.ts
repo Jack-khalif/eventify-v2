@@ -3,6 +3,8 @@ import { currencySchema, orderStatusSchema, paymentMethodSchema } from '../enums
 import { dateTimeSchema, idSchema, moneySchema, rateBpsSchema } from './common';
 
 export const MAX_TICKETS_PER_ORDER = 10;
+/** Most tickets one order can issue, counting each person in a group: keeps the ticket email sane. */
+export const MAX_TICKETS_ISSUED_PER_ORDER = 50;
 
 export const buyerSchema = z.object({
   name: z.string().trim().min(2, 'Enter your name'),

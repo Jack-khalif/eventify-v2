@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   availablePaymentMethods,
   isCheckoutError,
+  maxPerOrder,
   validateCheckout,
   validateComp,
 } from './checkout';
@@ -133,5 +134,35 @@ describe('validateComp', () => {
     expect(validateComp(sauti, { tierId: tierId('VIP'), quantity: 1 }, after)).toMatchObject({
       error: 'event_ended',
     });
+  });
+});
+
+describe('ticket cap per order', () => {
+  // Sauti Sessions with its Regular tier turned into tables of 20.
+  const tables = () => {
+    const e = bySlug('sauti-sessions');
+    return {
+      ...e,
+      tiers: e.tiers.map((t) => (t.id === 'tier_sauti_regular' ? { ...t, admits: 20 } : t)),
+    };
+  };
+
+  it('allows up to 50 tickets, counting everyone in a group', () => {
+    expect(isCheckoutError(validateCheckout(tables(), req({ quantity: 2 }), now))).toBe(false);
+    expect(validateCheckout(tables(), req({ quantity: 3 }), now)).toMatchObject({
+      status: 422,
+      error: 'too_many_tickets',
+      message: "An order can have up to 50 tickets: that's 2 Regular groups.",
+    });
+    expect(
+      validateComp(tables(), { tierId: 'tier_sauti_regular', quantity: 3 }, now),
+    ).toMatchObject({ error: 'too_many_tickets' });
+  });
+
+  it('sizes the quantity picker to fit', () => {
+    expect(maxPerOrder({ admits: 1 }, 10)).toBe(10);
+    expect(maxPerOrder({ admits: 6 }, 10)).toBe(8);
+    expect(maxPerOrder({ admits: 20 }, 10)).toBe(2);
+    expect(maxPerOrder({ admits: 4 }, 20)).toBe(12);
   });
 });
